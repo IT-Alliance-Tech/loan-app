@@ -6,11 +6,16 @@ import { getUserFromToken } from "../utils/auth";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: "📊" },
-  { name: "Customers", href: "/dashboard/customers", icon: "👤" },
-  { name: "Loans", href: "/dashboard/loans", icon: "💰" },
-  { name: "Employees", href: "/dashboard/employees", icon: "👥" },
-  { name: "EMI Details", href: "/dashboard/emi-details", icon: "🗓️" },
-  { name: "Seized Vehicles", href: "/dashboard/seized-vehicles", icon: "🚗" },
+  // { name: 'Customers', href: '/dashboard/customers', icon: '👤' },
+  { name: "Customers", href: "/dashboard", icon: "👤" }, // Temporarily disabled
+  // { name: 'Loans', href: '/dashboard/loans', icon: '💰' },
+  { name: "Loans", href: "/dashboard", icon: "💰" }, // Temporarily disabled
+  // { name: 'Employees', href: '/dashboard/employees', icon: '👥' },
+  { name: "Employees", href: "/dashboard", icon: "👥" }, // Temporarily disabled
+  // { name: 'EMI Details', href: '/dashboard/emi-details', icon: '🗓️' },
+  { name: "EMI Details", href: "/dashboard", icon: "🗓️" }, // Temporarily disabled
+  // { name: 'Seized Vehicles', href: '/dashboard/seized-vehicles', icon: '🚗' },
+  { name: "Seized Vehicles", href: "/dashboard", icon: "🚗" }, // Temporarily disabled
 ];
 
 const Sidebar = () => {
