@@ -1,0 +1,505 @@
+"use client";
+import { useState, useEffect, useMemo } from "react";
+import AuthGuard from "../../../components/AuthGuard";
+import Navbar from "../../../components/Navbar";
+import Sidebar from "../../../components/Sidebar";
+import { getUserFromToken } from "../../../utils/auth";
+import { getCustomers, createCustomer } from "../../../services/customer";
+
+const CustomersPage = () => {
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [formData, setFormData] = useState({
+    loanNumber: "",
+    customerName: "",
+    mobileNumber: "",
+    alternateMobile: "",
+    address: "",
+    principalAmount: "",
+    annualInterestRate: "",
+    tenureMonths: "",
+    loanStartDate: new Date().toISOString().split("T")[0],
+    remarks: "",
+  });
+
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      const res = await getCustomers();
+      setCustomers(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const calculateEMI = (principal, roi, tenure) => {
+    const P = parseFloat(principal);
+    const R = parseFloat(roi) / 12 / 100;
+    const N = parseFloat(tenure);
+
+    if (!P || !R || !N) return 0;
+
+    const emi = (P * R * Math.pow(1 + R, N)) / (Math.pow(1 + R, N) - 1);
+    return emi.toFixed(2);
+  };
+
+  const currentEMI = useMemo(() => {
+    return calculateEMI(
+      formData.principalAmount,
+      formData.annualInterestRate,
+      formData.tenureMonths
+    );
+  }, [
+    formData.principalAmount,
+    formData.annualInterestRate,
+    formData.tenureMonths,
+  ]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      await createCustomer({
+        ...formData,
+        monthlyEMI: currentEMI,
+      });
+      setSuccess("Internal Record Synchronized Successfully");
+      setTimeout(() => {
+        setIsModalOpen(false);
+        setSuccess("");
+        setFormData({
+          loanNumber: "",
+          customerName: "",
+          mobileNumber: "",
+          alternateMobile: "",
+          address: "",
+          principalAmount: "",
+          annualInterestRate: "",
+          tenureMonths: "",
+          loanStartDate: new Date().toISOString().split("T")[0],
+          remarks: "",
+        });
+        fetchCustomers();
+      }, 1500);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const filteredCustomers = customers.filter(
+    (c) =>
+      c.loanNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.customerName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <AuthGuard>
+      <div className="min-h-screen bg-[#F8FAFC] flex">
+        <Sidebar />
+        <div className="flex-1 flex flex-col min-w-0">
+          <Navbar />
+          <main className="py-8 px-4 sm:px-8 max-w-6xl mx-auto">
+            <div className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+                  Customer Management
+                </h1>
+                <p className="text-slate-500 font-medium text-sm">
+                  Registry of validated loan profiles and active accounts
+                </p>
+              </div>
+              {isSuperAdmin && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
+                >
+                  <span className="text-lg leading-none">+</span> Add Customer
+                </button>
+              )}
+            </div>
+
+            {/* Search Bar */}
+            <div className="mb-8 p-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+              <span className="pl-4 text-slate-400 text-lg">🔍</span>
+              <input
+                type="text"
+                placeholder="Search by name or loan number..."
+                className="w-full p-3 text-sm font-bold text-slate-700 focus:outline-none placeholder:text-slate-300 placeholder:font-black uppercase tracking-tighter"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-200">
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Loan Number
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Customer Name
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Contact
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                        Monthly EMI
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                        Tenure
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {loading ? (
+                      <tr>
+                        <td
+                          colSpan="6"
+                          className="px-6 py-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                        >
+                          Synchronizing Registry...
+                        </td>
+                      </tr>
+                    ) : filteredCustomers.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan="6"
+                          className="px-6 py-12 text-center text-slate-300 font-bold uppercase text-[10px] tracking-widest"
+                        >
+                          No matching records identified
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCustomers.map((cust) => (
+                        <tr
+                          key={cust._id}
+                          className="hover:bg-slate-50/50 transition-colors"
+                        >
+                          <td className="px-6 py-4">
+                            <span className="font-black text-primary uppercase text-xs tracking-tighter bg-blue-50 px-2 py-1 rounded-md">
+                              {cust.loanNumber}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-black text-slate-900 uppercase text-xs tracking-tighter">
+                            {cust.customerName}
+                          </td>
+                          <td className="px-6 py-4 font-bold text-slate-500 text-xs">
+                            {cust.mobileNumber}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <span className="font-black text-slate-900 text-xs">
+                              ₹{cust.monthlyEMI?.toLocaleString()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-[10px] font-black text-slate-400 uppercase">
+                              {cust.tenureMonths} Months
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {cust.isSeized ? (
+                              <span className="px-2 py-1 bg-red-50 text-red-500 text-[9px] font-black rounded uppercase">
+                                Seized
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 bg-emerald-50 text-emerald-500 text-[9px] font-black rounded uppercase">
+                                Active
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </main>
+        </div>
+
+        {/* Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="bg-white w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">
+                    Create Customer Profile
+                  </h2>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Authorized Entry Point
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors text-2xl font-black text-slate-400"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <form
+                onSubmit={handleSubmit}
+                className="p-8 space-y-8 overflow-y-auto"
+              >
+                {error && (
+                  <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-[10px] font-black uppercase tracking-wider rounded-2xl text-center">
+                    Validation Fault: {error}
+                  </div>
+                )}
+                {success && (
+                  <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-wider rounded-2xl text-center">
+                    {success}
+                  </div>
+                )}
+
+                {/* Section 1: Loan Identity */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black bg-primary text-white w-5 h-5 flex items-center justify-center rounded-full">
+                      1
+                    </span>
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">
+                      Loan Identity
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Loan Number (Manual)
+                      </label>
+                      <input
+                        type="text"
+                        name="loanNumber"
+                        required
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all uppercase"
+                        value={formData.loanNumber}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Launch Date
+                      </label>
+                      <input
+                        type="date"
+                        name="loanStartDate"
+                        required
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.loanStartDate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Personal Dossier */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black bg-primary text-white w-5 h-5 flex items-center justify-center rounded-full">
+                      2
+                    </span>
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">
+                      Personal Dossier
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1 col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Full Legal Name
+                      </label>
+                      <input
+                        type="text"
+                        name="customerName"
+                        required
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.customerName}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Primary Mobile
+                      </label>
+                      <input
+                        type="text"
+                        name="mobileNumber"
+                        required
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.mobileNumber}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Alternate Contact
+                      </label>
+                      <input
+                        type="text"
+                        name="alternateMobile"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.alternateMobile}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1 col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Current Address
+                      </label>
+                      <textarea
+                        name="address"
+                        required
+                        rows="2"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all resize-none"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Financial Parameters */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black bg-primary text-white w-5 h-5 flex items-center justify-center rounded-full">
+                      3
+                    </span>
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">
+                      Financial Parameters
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-3 gap-6">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Principal (₹)
+                      </label>
+                      <input
+                        type="number"
+                        name="principalAmount"
+                        required
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.principalAmount}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Annual ROI (%)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        name="annualInterestRate"
+                        required
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.annualInterestRate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Tenure (Months)
+                      </label>
+                      <input
+                        type="number"
+                        name="tenureMonths"
+                        required
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.tenureMonths}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 flex justify-between items-center shadow-inner">
+                  <div>
+                    <span className="text-[8px] font-black text-primary uppercase tracking-[0.3em]">
+                      Computed Pipeline EMI
+                    </span>
+                    <p className="text-3xl font-black text-primary tracking-tighter">
+                      ₹{parseFloat(currentEMI).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">
+                      Status Code
+                    </span>
+                    <p className="text-[10px] font-black text-slate-900 uppercase">
+                      Awaiting Registry
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    System Remarks (Optional)
+                  </label>
+                  <textarea
+                    name="remarks"
+                    rows="1"
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                    value={formData.remarks}
+                    onChange={handleInputChange}
+                  ></textarea>
+                </div>
+
+                <div className="pt-4 flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="flex-1 bg-slate-100 text-slate-500 p-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
+                  >
+                    Abort Registry
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-[2] bg-primary text-white p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50"
+                  >
+                    {submitting
+                      ? "Transmitting Byte Stream..."
+                      : "Authorize & Save Profile"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </AuthGuard>
+  );
+};
+
+export default CustomersPage;
