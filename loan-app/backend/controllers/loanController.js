@@ -12,72 +12,139 @@ const calculateEMI = (principal, roi, tenureMonths) => {
 };
 
 const createLoan = asyncHandler(async (req, res, next) => {
-  const { loanNumber, customerName, mobileNumber, address, principal, roi, tenureMonths } = req.body;
+  const {
+    siNo,
+    loanNumber,
+    customerName,
+    address,
+    ownRent,
+    mobileNumber,
+    panNumber,
+    aadharNumber,
+    principalAmount,
+    processingFeeRate,
+    processingFee,
+    tenureType,
+    tenureMonths,
+    annualInterestRate,
+    dateLoanDisbursed,
+    emiStartDate,
+    emiEndDate,
+    totalInterestAmount,
+    vehicleNumber,
+    chassisNumber,
+    model,
+    typeOfVehicle,
+    ywBoard,
+    docChecklist,
+    dealerName,
+    dealerNumber,
+    hpEntry,
+    fcDate,
+    insuranceDate,
+    rtoWorkPending,
+  } = req.body;
 
-  if (!loanNumber || !customerName || !mobileNumber || !principal || !roi || !tenureMonths) {
-    return next(new ErrorHandler('Please provide all required fields', 400));
+  if (
+    !loanNumber ||
+    !customerName ||
+    !mobileNumber ||
+    !principalAmount ||
+    !annualInterestRate ||
+    !tenureMonths
+  ) {
+    return next(new ErrorHandler("Please provide all required fields", 400));
   }
 
   const existingLoan = await Loan.findOne({ loanNumber });
   if (existingLoan) {
-    return next(new ErrorHandler('Loan number already exists', 400));
+    return next(new ErrorHandler("Loan number already exists", 400));
   }
 
-  const monthlyEmi = calculateEMI(principal, roi, tenureMonths);
+  const monthlyEMI = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
 
   const loan = await Loan.create({
+    siNo,
     loanNumber,
     customerName,
-    mobileNumber,
     address,
-    principal,
-    roi,
+    ownRent,
+    mobileNumber,
+    panNumber,
+    aadharNumber,
+    principalAmount,
+    processingFeeRate,
+    processingFee,
+    tenureType,
     tenureMonths,
-    monthlyEmi,
-    createdBy: req.user._id
+    annualInterestRate,
+    dateLoanDisbursed,
+    emiStartDate,
+    emiEndDate,
+    monthlyEMI,
+    totalInterestAmount,
+    vehicleNumber,
+    chassisNumber,
+    model,
+    typeOfVehicle,
+    ywBoard,
+    docChecklist,
+    dealerName,
+    dealerNumber,
+    hpEntry,
+    fcDate,
+    insuranceDate,
+    rtoWorkPending,
+    createdBy: req.user._id,
   });
 
-  sendResponse(res, 201, 'success', 'Loan created successfully', null, loan);
+  sendResponse(res, 201, "success", "Loan created successfully", null, loan);
 });
 
 const getAllLoans = asyncHandler(async (req, res, next) => {
   const loans = await Loan.find().sort({ createdAt: -1 });
-  sendResponse(res, 200, 'success', 'Loans fetched successfully', null, loans);
+  sendResponse(res, 200, "success", "Loans fetched successfully", null, loans);
 });
 
 const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   const loan = await Loan.findOne({ loanNumber: req.params.loanNumber });
   if (!loan) {
-    return next(new ErrorHandler('Loan not found', 404));
+    return next(new ErrorHandler("Loan not found", 404));
   }
-  sendResponse(res, 200, 'success', 'Loan found', null, loan);
+  sendResponse(res, 200, "success", "Loan found", null, loan);
 });
 
 const updateLoan = asyncHandler(async (req, res, next) => {
-  const { customerName, mobileNumber, address, principal, roi, tenureMonths } = req.body;
-  
   let loan = await Loan.findById(req.params.id);
   if (!loan) {
-    return next(new ErrorHandler('Loan not found', 404));
+    return next(new ErrorHandler("Loan not found", 404));
   }
 
-  const updatedPrincipal = principal !== undefined ? principal : loan.principal;
-  const updatedRoi = roi !== undefined ? roi : loan.roi;
-  const updatedTenure = tenureMonths !== undefined ? tenureMonths : loan.tenureMonths;
+  const updatedPrincipal =
+    req.body.principalAmount !== undefined
+      ? req.body.principalAmount
+      : loan.principalAmount;
+  const updatedRoi =
+    req.body.annualInterestRate !== undefined
+      ? req.body.annualInterestRate
+      : loan.annualInterestRate;
+  const updatedTenure =
+    req.body.tenureMonths !== undefined
+      ? req.body.tenureMonths
+      : loan.tenureMonths;
 
-  const monthlyEmi = calculateEMI(updatedPrincipal, updatedRoi, updatedTenure);
+  const monthlyEMI = calculateEMI(updatedPrincipal, updatedRoi, updatedTenure);
 
-  loan = await Loan.findByIdAndUpdate(req.params.id, {
-    customerName,
-    mobileNumber,
-    address,
-    principal: updatedPrincipal,
-    roi: updatedRoi,
-    tenureMonths: updatedTenure,
-    monthlyEmi
-  }, { new: true, runValidators: true });
+  loan = await Loan.findByIdAndUpdate(
+    req.params.id,
+    {
+      ...req.body,
+      monthlyEMI,
+    },
+    { new: true, runValidators: true }
+  );
 
-  sendResponse(res, 200, 'success', 'Loan updated successfully', null, loan);
+  sendResponse(res, 200, "success", "Loan updated successfully", null, loan);
 });
 
 const toggleSeizedStatus = asyncHandler(async (req, res, next) => {

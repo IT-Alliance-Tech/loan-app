@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import { getUserFromToken } from "../../../utils/auth";
 import { getCustomers, createCustomer } from "../../../services/customer";
+import { exportLoansToExcel } from "../../../utils/exportExcel";
 
 const CustomersPage = () => {
   const user = getUserFromToken();
@@ -133,14 +135,15 @@ const CustomersPage = () => {
                   Registry of validated loan profiles and active accounts
                 </p>
               </div>
-              {isSuperAdmin && (
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
-                >
-                  <span className="text-lg leading-none">+</span> Add Customer
-                </button>
-              )}
+              <button
+                onClick={async () => await exportLoansToExcel(customers, 'Customers_Report.xlsx')}
+                className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export
+              </button>
             </div>
 
             {/* Search Bar */}
