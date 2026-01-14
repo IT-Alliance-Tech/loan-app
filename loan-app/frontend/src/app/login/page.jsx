@@ -7,7 +7,6 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [accessKey, setAccessKey] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -18,7 +17,7 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      await login(email, password, isAdmin ? accessKey : null);
+      await login(email, password, accessKey);
       router.push('/dashboard');
     } catch (err) {
       setError(err.message || 'Authentication failed.');
@@ -45,29 +44,6 @@ const LoginPage = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="flex items-center justify-center gap-6 mb-6">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input 
-                type="radio" 
-                name="role" 
-                checked={!isAdmin} 
-                onChange={() => setIsAdmin(false)}
-                className="w-4 h-4 text-primary border-slate-300 focus:ring-primary"
-              />
-              <span className={`text-xs font-bold uppercase tracking-wide ${!isAdmin ? 'text-primary' : 'text-slate-400'}`}>Employee</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input 
-                type="radio" 
-                name="role" 
-                checked={isAdmin} 
-                onChange={() => setIsAdmin(true)}
-                className="w-4 h-4 text-primary border-slate-300 focus:ring-primary"
-              />
-              <span className={`text-xs font-bold uppercase tracking-wide ${isAdmin ? 'text-primary' : 'text-slate-400'}`}>Super Admin</span>
-            </label>
-          </div>
-
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-2 tracking-wide">Email Address</label>
             <input
@@ -101,19 +77,16 @@ const LoginPage = () => {
             />
           </div>
 
-          {isAdmin && (
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-2 tracking-wide">Super Admin Access Key</label>
-              <input
-                type="password"
-                value={accessKey}
-                onChange={(e) => setAccessKey(e.target.value)}
-                className="input-field border-primary/30 bg-blue-50/30"
-                placeholder="Enter Secure Key"
-                required={isAdmin}
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-2 tracking-wide">Access Key</label>
+            <input
+              type="password"
+              value={accessKey}
+              onChange={(e) => setAccessKey(e.target.value)}
+              className="input-field border-primary/30 bg-blue-50/30"
+              placeholder="••••••••"
+            />
+          </div>
 
           <button
             type="submit"
