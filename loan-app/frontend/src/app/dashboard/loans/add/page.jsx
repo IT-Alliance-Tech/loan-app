@@ -1,0 +1,97 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import AuthGuard from "../../../../components/AuthGuard";
+import Navbar from "../../../../components/Navbar";
+import Sidebar from "../../../../components/Sidebar";
+import LoanForm from "../../../../components/LoanForm";
+import { createLoan } from "../../../../services/loan.service";
+
+const AddLoanPage = () => {
+  const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const initialData = {
+    loanNumber: "",
+    customerName: "",
+    address: "",
+    ownRent: "Own",
+    mobileNumber: "",
+    panNumber: "",
+    aadharNumber: "",
+    principalAmount: "",
+    processingFeeRate: "2",
+    processingFee: "",
+    tenureType: "Monthly",
+    tenureMonths: "",
+    annualInterestRate: "",
+    dateLoanDisbursed: "",
+    emiStartDate: "",
+    emiEndDate: "",
+    totalInterestAmount: "",
+    vehicleNumber: "",
+    chassisNumber: "",
+    model: "",
+    typeOfVehicle: "",
+    ywBoard: "Yellow",
+    docChecklist: "",
+    dealerName: "",
+    dealerNumber: "",
+    hpEntry: "Not done",
+    fcDate: "",
+    insuranceDate: "",
+    rtoWorkPending: "HPA,TO",
+  };
+
+  const handleSubmit = async (formData) => {
+    setSubmitting(true);
+    setError("");
+    try {
+      await createLoan(formData);
+      router.push("/dashboard/loans");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <AuthGuard>
+      <div className="min-h-screen bg-[#F8FAFC] flex">
+        <Sidebar />
+        <div className="flex-1 flex flex-col min-w-0">
+          <Navbar />
+          <main className="py-8 px-4 sm:px-8">
+            <div className="max-w-6xl mx-auto">
+              <div className="mb-8">
+                <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+                  Create New Loan Profile
+                </h1>
+                <p className="text-slate-500 font-medium text-sm">
+                  Initialize a new loan record in the system
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-bold uppercase tracking-tight">
+                  {error}
+                </div>
+              )}
+
+              <LoanForm
+                initialData={initialData}
+                onSubmit={handleSubmit}
+                onCancel={() => router.push("/dashboard/loans")}
+                submitting={submitting}
+              />
+            </div>
+          </main>
+        </div>
+      </div>
+    </AuthGuard>
+  );
+};
+
+export default AddLoanPage;

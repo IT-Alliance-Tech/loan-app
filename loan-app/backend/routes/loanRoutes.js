@@ -4,6 +4,7 @@ const {
   createLoan,
   getAllLoans,
   getLoanByLoanNumber,
+  getLoanById,
   updateLoan,
   toggleSeizedStatus
 } = require('../controllers/loanController');
@@ -18,6 +19,7 @@ router.route('/')
 router.get('/search/:loanNumber', getLoanByLoanNumber);
 
 router.route('/:id')
+  .get(getLoanById)
   .put(authorizeRoles('SUPER_ADMIN'), updateLoan);
 
 router.patch('/:id/seized', authorizeRoles('SUPER_ADMIN'), toggleSeizedStatus);

@@ -19,6 +19,12 @@ export const searchLoan = async (loanNumber) => {
   });
 };
 
+export const getLoanById = async (id) => {
+  return await apiHandler(`/api/loans/${id}`, {
+    method: 'GET',
+  });
+};
+
 export const updateLoan = async (id, loanData) => {
   return await apiHandler(`/api/loans/${id}`, {
     method: 'PUT',
