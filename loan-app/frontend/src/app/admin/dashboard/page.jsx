@@ -1,8 +1,8 @@
 "use client";
-import AuthGuard from "../../components/AuthGuard";
-import Navbar from "../../components/Navbar";
-import Sidebar from "../../components/Sidebar";
-import { getUserFromToken } from "../../utils/auth";
+import AuthGuard from "../../../components/AuthGuard";
+import Navbar from "../../../components/Navbar";
+import Sidebar from "../../../components/Sidebar";
+import { getUserFromToken } from "../../../utils/auth";
 
 const DashboardPage = () => {
   const user = getUserFromToken();

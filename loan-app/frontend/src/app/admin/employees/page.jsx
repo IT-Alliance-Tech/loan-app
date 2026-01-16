@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
+import { getUserFromToken } from "../../../utils/auth";
 import {
   getEmployees,
   createEmployee,
@@ -10,6 +11,9 @@ import {
 } from "../../../services/userService";
 
 const EmployeesPage = () => {
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -78,12 +82,14 @@ const EmployeesPage = () => {
                   System access control and personnel monitoring
                 </p>
               </div>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
-              >
-                <span className="text-lg leading-none">+</span> Add Operator
-              </button>
+              {isSuperAdmin && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
+                >
+                  <span className="text-lg leading-none">+</span> Add Operator
+                </button>
+              )}
             </div>
 
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
@@ -157,16 +163,22 @@ const EmployeesPage = () => {
                             )}
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <button
-                              onClick={() => handleToggleStatus(emp._id)}
-                              className={`text-[9px] font-black uppercase tracking-widest transition-all ${
-                                emp.isActive
-                                  ? "text-red-500 hover:text-red-600"
-                                  : "text-emerald-500 hover:text-emerald-600"
-                              }`}
-                            >
-                              {emp.isActive ? "Deactivate" : "Authorize"}
-                            </button>
+                            {isSuperAdmin ? (
+                              <button
+                                onClick={() => handleToggleStatus(emp._id)}
+                                className={`text-[9px] font-black uppercase tracking-widest transition-all ${
+                                  emp.isActive
+                                    ? "text-red-500 hover:text-red-600"
+                                    : "text-emerald-500 hover:text-emerald-600"
+                                }`}
+                              >
+                                {emp.isActive ? "Deactivate" : "Authorize"}
+                              </button>
+                            ) : (
+                              <span className="text-[9px] font-black text-slate-300 uppercase">
+                                Protected
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))

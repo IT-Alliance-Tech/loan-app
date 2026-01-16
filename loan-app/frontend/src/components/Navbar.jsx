@@ -11,7 +11,7 @@ const Navbar = () => {
 
   const handleLogout = () => {
     removeToken();
-    router.push("/login");
+    router.push("/admin/login");
   };
 
   return (
@@ -39,7 +39,7 @@ const Navbar = () => {
           </button>
 
           <Link
-            href="/dashboard"
+            href="/admin/dashboard"
             className="bg-primary px-3 py-1.5 rounded-lg shadow-sm"
           >
             <span className="text-white font-black text-xl tracking-tighter">

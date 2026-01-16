@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { login } from '../../services/auth.service';
+import { login } from '../../../services/auth.service';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -18,7 +18,7 @@ const LoginPage = () => {
 
     try {
       await login(email, password, accessKey);
-      router.push('/dashboard');
+      router.push('/admin/dashboard');
     } catch (err) {
       setError(err.message || 'Authentication failed.');
     } finally {
@@ -61,7 +61,7 @@ const LoginPage = () => {
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide">Password</label>
               <button 
                 type="button"
-                onClick={() => router.push('/login/forgot-password')}
+                onClick={() => router.push('/admin/login/forgot-password')}
                 className="text-[10px] font-bold text-primary uppercase hover:underline tracking-tight"
               >
                 Forgot?

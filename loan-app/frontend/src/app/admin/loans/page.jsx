@@ -7,7 +7,6 @@ import Sidebar from "../../../components/Sidebar";
 import { getUserFromToken } from "../../../utils/auth";
 import {
   getLoans,
-  toggleSeized,
   searchLoan,
 } from "../../../services/loan.service";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
@@ -58,15 +57,6 @@ const LoansPage = () => {
     }
   };
 
-  const handleToggleSeized = async (id) => {
-    try {
-      await toggleSeized(id);
-      fetchLoans();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
   return (
     <AuthGuard>
       <div className="min-h-screen bg-[#F8FAFC] flex">
@@ -102,7 +92,7 @@ const LoansPage = () => {
                   </button>
                   {isSuperAdmin && (
                     <button
-                      onClick={() => router.push("/dashboard/loans/add")}
+                      onClick={() => router.push("/admin/loans/add")}
                       className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
                     >
                       <span className="text-lg leading-none">+</span> Add New Loan
@@ -245,7 +235,7 @@ const LoansPage = () => {
                             <td className="px-6 py-4">
                               <div className="flex justify-center items-center gap-3">
                                 <button
-                                  onClick={() => router.push(`/dashboard/loans/${loan._id}`)}
+                                  onClick={() => router.push(`/admin/loans/${loan._id}`)}
                                   className="text-slate-400 hover:text-primary transition-colors"
                                   title="View Profile"
                                 >
@@ -271,7 +261,7 @@ const LoansPage = () => {
                                 </button>
                                 {isSuperAdmin && (
                                   <button
-                                    onClick={() => router.push(`/dashboard/loans/${loan._id}/edit`)}
+                                    onClick={() => router.push(`/admin/loans/edit/${loan._id}`)}
                                     className="text-slate-400 hover:text-primary transition-colors"
                                     title="Edit Loan"
                                   >
