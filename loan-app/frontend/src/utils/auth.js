@@ -30,7 +30,7 @@ export const getUserFromToken = () => {
         .join('')
     );
     return JSON.parse(jsonPayload);
-  } catch (error) {
+  } catch {
     return null;
   }
 };

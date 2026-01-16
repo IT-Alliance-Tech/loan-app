@@ -5,12 +5,12 @@ import { useUI } from "../context/UIContext";
 import { getUserFromToken } from "../utils/auth";
 
 const navItems = [
-  { name: "Dashboard", href: "/dashboard", icon: "📊" },
-   { name: 'Customers', href: '/dashboard/customers', icon: '👤' },
-   { name: 'Loans', href: '/dashboard/loans', icon: '💰' },
-   { name: 'Employees', href: '/dashboard/employees', icon: '👥' },
-   { name: 'EMI Details', href: '/dashboard/emi-details', icon: '🗓️' },
-   { name: 'Seized Vehicles', href: '/dashboard/seized-vehicles', icon: '🚗' },
+  { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
+   { name: 'Customers', href: '/admin/customers', icon: '👤' },
+   { name: 'Loans', href: '/admin/loans', icon: '💰' },
+   { name: 'Employees', href: '/admin/employees', icon: '👥' },
+   { name: 'EMI Details', href: '/admin/emi-details', icon: '🗓️' },
+   { name: 'Seized Vehicles', href: '/admin/seized-vehicles', icon: '🚗' },
   
 ];
 

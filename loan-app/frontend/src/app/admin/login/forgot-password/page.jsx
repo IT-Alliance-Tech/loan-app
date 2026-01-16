@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { forgotPassword, resetPassword } from '../../../services/auth.service';
+import { forgotPassword, resetPassword } from '../../../../services/auth.service';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -35,7 +35,7 @@ const ForgotPasswordPage = () => {
     try {
       await resetPassword(email, otp, newPassword);
       setMessage('Password reset successful. Redirecting...');
-      setTimeout(() => router.push('/login'), 2000);
+      setTimeout(() => router.push('/admin/login'), 2000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -77,7 +77,7 @@ const ForgotPasswordPage = () => {
         )}
         
         <div className="mt-6 text-center">
-          <button onClick={() => router.push('/login')} className="text-xs font-bold text-primary uppercase hover:underline">Back to Login</button>
+          <button onClick={() => router.push('/admin/login')} className="text-xs font-bold text-primary uppercase hover:underline">Back to Login</button>
         </div>
       </div>
     </div>

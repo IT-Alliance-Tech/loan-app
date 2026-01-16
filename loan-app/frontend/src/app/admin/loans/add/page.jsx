@@ -49,7 +49,7 @@ const AddLoanPage = () => {
     setError("");
     try {
       await createLoan(formData);
-      router.push("/dashboard/loans");
+      router.push("/admin/loans");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -83,7 +83,7 @@ const AddLoanPage = () => {
               <LoanForm
                 initialData={initialData}
                 onSubmit={handleSubmit}
-                onCancel={() => router.push("/dashboard/loans")}
+                onCancel={() => router.push("/admin/loans")}
                 submitting={submitting}
               />
             </div>
