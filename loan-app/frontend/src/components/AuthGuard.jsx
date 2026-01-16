@@ -9,9 +9,10 @@ const AuthGuard = ({ children }) => {
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      router.push('/login');
+      router.push('/admin/login');
     } else {
-      setAuthorized(true);
+      // Defer state update to avoid cascading render warning
+      Promise.resolve().then(() => setAuthorized(true));
     }
   }, [router]);
 

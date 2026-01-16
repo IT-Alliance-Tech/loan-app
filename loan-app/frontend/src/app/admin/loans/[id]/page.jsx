@@ -86,7 +86,7 @@ const ViewLoanPage = () => {
                 <LoanForm
                   initialData={loan}
                   isViewOnly={true}
-                  onCancel={() => router.push("/dashboard/loans")}
+                  onCancel={() => router.push("/admin/loans")}
                 />
               )}
             </div>
