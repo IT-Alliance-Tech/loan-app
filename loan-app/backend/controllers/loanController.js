@@ -114,6 +114,14 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   sendResponse(res, 200, "success", "Loan found", null, loan);
 });
 
+const getLoanById = asyncHandler(async (req, res, next) => {
+  const loan = await Loan.findById(req.params.id);
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+  sendResponse(res, 200, "success", "Loan found", null, loan);
+});
+
 const updateLoan = asyncHandler(async (req, res, next) => {
   let loan = await Loan.findById(req.params.id);
   if (!loan) {
@@ -163,6 +171,7 @@ module.exports = {
   createLoan,
   getAllLoans,
   getLoanByLoanNumber,
+  getLoanById,
   updateLoan,
   toggleSeizedStatus
 };
