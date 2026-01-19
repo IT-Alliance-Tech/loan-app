@@ -140,7 +140,7 @@ const LoanForm = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Loan Number
+                  Loan Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -161,7 +161,7 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Name
+                  Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -186,7 +186,7 @@ const LoanForm = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1 md:col-span-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Current Address
+                  Current Address <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   name="address"
@@ -202,7 +202,7 @@ const LoanForm = ({
               <div className="grid grid-cols-2 gap-6 md:col-span-2">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Own/Rent
+                    Own/Rent <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="ownRent"
@@ -219,7 +219,7 @@ const LoanForm = ({
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Mobile Number
+                    Mobile Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -295,7 +295,7 @@ const LoanForm = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Amount
+                  Amount <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
@@ -345,7 +345,7 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Tenure Type
+                  Tenure Type <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="tenureType"
@@ -362,7 +362,7 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Tenure (Months)
+                  Tenure (Months) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -377,7 +377,7 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Interest Rate (%)
+                  Interest Rate (%) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
