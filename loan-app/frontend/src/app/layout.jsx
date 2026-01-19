@@ -10,9 +10,11 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased text-gray-900 bg-gray-50">
+      <body className="antialiased text-gray-900 bg-gray-50 flex min-h-screen">
         <ToastProvider>
-          <UIProvider>{children}</UIProvider>
+          <UIProvider>
+            <div className="flex-1 animate-fade-in">{children}</div>
+          </UIProvider>
         </ToastProvider>
       </body>
     </html>

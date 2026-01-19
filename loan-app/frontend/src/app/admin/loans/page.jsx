@@ -5,10 +5,7 @@ import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import { getUserFromToken } from "../../../utils/auth";
-import {
-  getLoans,
-  searchLoan,
-} from "../../../services/loan.service";
+import { getLoans, searchLoan } from "../../../services/loan.service";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
 
 const LoansPage = () => {
@@ -20,15 +17,23 @@ const LoansPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    loanNumber: "",
+    customerName: "",
+    mobileNumber: "",
+    tenureMonths: "",
+    status: "",
+  });
 
   useEffect(() => {
     fetchLoans();
   }, []);
 
-  const fetchLoans = async () => {
+  const fetchLoans = async (filterParams = {}) => {
     try {
       setLoading(true);
-      const res = await getLoans();
+      const res = await getLoans(filterParams);
       setLoans(res.data);
       setError("");
     } catch (err) {
@@ -39,22 +44,34 @@ const LoansPage = () => {
   };
 
   const handleSearch = async (e) => {
+    if (e) e.preventDefault();
+    const params = {};
+    if (searchQuery.trim()) params.loanNumber = searchQuery;
+    fetchLoans(params);
+  };
+
+  const handleAdvancedSearch = (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) {
-      fetchLoans();
-      return;
-    }
-    try {
-      setLoading(true);
-      const res = await searchLoan(searchQuery);
-      setLoans([res.data]);
-      setError("");
-    } catch {
-      setLoans([]);
-      setError("No loan found with this number");
-    } finally {
-      setLoading(false);
-    }
+    fetchLoans(filters);
+    setIsFilterOpen(false);
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const resetFilters = () => {
+    const emptyFilters = {
+      loanNumber: "",
+      customerName: "",
+      mobileNumber: "",
+      tenureMonths: "",
+      status: "",
+    };
+    setFilters(emptyFilters);
+    fetchLoans({});
+    setIsFilterOpen(false);
   };
 
   return (
@@ -85,8 +102,18 @@ const LoansPage = () => {
                     onClick={async () => await exportLoansToExcel(loans)}
                     className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center gap-2"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
                     </svg>
                     Export
                   </button>
@@ -95,7 +122,8 @@ const LoansPage = () => {
                       onClick={() => router.push("/admin/loans/add")}
                       className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
                     >
-                      <span className="text-lg leading-none">+</span> Add New Loan
+                      <span className="text-lg leading-none">+</span> Add New
+                      Loan
                     </button>
                   )}
                 </div>
@@ -132,13 +160,32 @@ const LoansPage = () => {
                     </button>
                   )}
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center text-center">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                    Status
-                  </span>
-                  <span className="text-primary font-black uppercase text-sm">
-                    Enterprise Online
-                  </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSearch}
+                    className="flex-1 bg-primary text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                  >
+                    🔍 Search
+                  </button>
+                  <button
+                    onClick={() => setIsFilterOpen(true)}
+                    className="flex-1 bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="3"
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
+                    </svg>
+                    Filter
+                  </button>
                 </div>
               </div>
 
@@ -157,7 +204,7 @@ const LoansPage = () => {
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                           Mobile
                         </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                           EMI
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
@@ -211,7 +258,7 @@ const LoansPage = () => {
                             <td className="px-6 py-4 text-slate-500 font-medium text-xs tracking-widest">
                               {loan.mobileNumber}
                             </td>
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-6 py-4 text-center">
                               <span className="font-black text-primary">
                                 ₹{loan.monthlyEMI?.toLocaleString()}
                               </span>
@@ -232,10 +279,12 @@ const LoansPage = () => {
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-6 py-4 text-center">
                               <div className="flex justify-center items-center gap-3">
                                 <button
-                                  onClick={() => router.push(`/admin/loans/${loan._id}`)}
+                                  onClick={() =>
+                                    router.push(`/admin/loans/${loan._id}`)
+                                  }
                                   className="text-slate-400 hover:text-primary transition-colors"
                                   title="View Profile"
                                 >
@@ -261,7 +310,11 @@ const LoansPage = () => {
                                 </button>
                                 {isSuperAdmin && (
                                   <button
-                                    onClick={() => router.push(`/admin/loans/edit/${loan._id}`)}
+                                    onClick={() =>
+                                      router.push(
+                                        `/admin/loans/edit/${loan._id}`,
+                                      )
+                                    }
                                     className="text-slate-400 hover:text-primary transition-colors"
                                     title="Edit Loan"
                                   >
@@ -297,6 +350,135 @@ const LoansPage = () => {
             </div>
           </main>
         </div>
+
+        {/* Advanced Filter Drawer */}
+        {isFilterOpen && (
+          <div className="fixed inset-0 z-[100] flex justify-end">
+            <div
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+              onClick={() => setIsFilterOpen(false)}
+            ></div>
+            <div className="relative w-full max-w-md bg-white h-full shadow-2xl animate-slide-in-right border-l border-slate-100 flex flex-col">
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                    Advanced Filter
+                  </h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    Refine your search results
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsFilterOpen(false)}
+                  className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all border border-slate-100"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8">
+                <form
+                  id="filterForm"
+                  onSubmit={handleAdvancedSearch}
+                  className="space-y-8"
+                >
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
+                        Loan Number
+                      </label>
+                      <input
+                        type="text"
+                        name="loanNumber"
+                        value={filters.loanNumber}
+                        onChange={handleFilterChange}
+                        placeholder="E.G. LN-001"
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-300 uppercase"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
+                        Customer Name
+                      </label>
+                      <input
+                        type="text"
+                        name="customerName"
+                        value={filters.customerName}
+                        onChange={handleFilterChange}
+                        placeholder="ENTER NAME"
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-300 uppercase"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
+                        Mobile Number
+                      </label>
+                      <input
+                        type="text"
+                        name="mobileNumber"
+                        value={filters.mobileNumber}
+                        onChange={handleFilterChange}
+                        placeholder="MOBILE NUMBER"
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-300"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
+                          Tenure
+                        </label>
+                        <input
+                          type="number"
+                          name="tenureMonths"
+                          value={filters.tenureMonths}
+                          onChange={handleFilterChange}
+                          placeholder="MONTHS"
+                          className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-300"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
+                          Status
+                        </label>
+                        <select
+                          name="status"
+                          value={filters.status}
+                          onChange={handleFilterChange}
+                          className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="">ALL</option>
+                          <option value="Active">ACTIVE</option>
+                          <option value="Seized">SEIZED</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+              </div>
+
+              <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
+                <button
+                  type="submit"
+                  form="filterForm"
+                  className="w-full bg-primary text-white py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                >
+                  🔍 APPLY FILTERS
+                </button>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="w-full bg-white border border-slate-200 text-slate-400 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  RESET FILTERS
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AuthGuard>
   );

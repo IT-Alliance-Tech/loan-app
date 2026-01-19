@@ -65,7 +65,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
   const monthlyEMI = calculateEMI(
     principalAmount,
     annualInterestRate,
-    tenureMonths
+    tenureMonths,
   );
 
   const loan = await Loan.create({
@@ -106,7 +106,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
   // Generate EMIs
   const emis = [];
   let currentEmiDate = new Date(
-    loan.emiStartDate || loan.dateLoanDisbursed || new Date()
+    loan.emiStartDate || loan.dateLoanDisbursed || new Date(),
   );
 
   for (let i = 1; i <= tenureMonths; i++) {
@@ -131,12 +131,27 @@ const createLoan = asyncHandler(async (req, res, next) => {
     "success",
     "Loan created and EMIs generated successfully",
     null,
-    loan
+    loan,
   );
 });
 
 const getAllLoans = asyncHandler(async (req, res, next) => {
-  const loans = await Loan.find().sort({ createdAt: -1 });
+  const { loanNumber, customerName, mobileNumber, tenureMonths, status } =
+    req.query;
+  const query = {};
+
+  if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (customerName)
+    query.customerName = { $regex: customerName, $options: "i" };
+  if (mobileNumber)
+    query.mobileNumber = { $regex: mobileNumber, $options: "i" };
+  if (tenureMonths) query.tenureMonths = tenureMonths;
+  if (status) {
+    if (status === "Seized") query.isSeized = true;
+    if (status === "Active") query.isSeized = false;
+  }
+
+  const loans = await Loan.find(query).sort({ createdAt: -1 });
   sendResponse(res, 200, "success", "Loans fetched successfully", null, loans);
 });
 
@@ -183,7 +198,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       ...req.body,
       monthlyEMI,
     },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 
   sendResponse(res, 200, "success", "Loan updated successfully", null, loan);
@@ -204,7 +219,7 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
     "success",
     `Loan ${loan.isSeized ? "seized" : "unseized"} successfully`,
     null,
-    loan
+    loan,
   );
 });
 
