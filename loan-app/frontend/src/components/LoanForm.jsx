@@ -1,6 +1,46 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { useToast } from "../context/ToastContext";
+
+const validationSchema = Yup.object().shape({
+  loanNumber: Yup.string().required("Loan number is required"),
+  customerName: Yup.string().required("Customer name is required"),
+  address: Yup.string().required("Address is required"),
+  ownRent: Yup.string().required("Please select ownership status"),
+  mobileNumber: Yup.string()
+    .matches(
+      /^[6-9]\d{9}$/,
+      "Invalid Mobile Number. Must be 10 digits starting with 6-9.",
+    )
+    .required("Mobile number is required"),
+  panNumber: Yup.string()
+    .matches(
+      /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,
+      "Invalid PAN format (e.g., ABCDE1234F)",
+    )
+    .nullable(),
+  aadharNumber: Yup.string()
+    .matches(/^\d{12}$/, "Invalid Aadhar. Must be 12 digits")
+    .nullable(),
+  principalAmount: Yup.number()
+    .positive("Must be positive")
+    .required("Principal is required"),
+  processingFeeRate: Yup.number().min(0).nullable(),
+  processingFee: Yup.number().min(0).nullable(),
+  tenureType: Yup.string().required("Tenure type is required"),
+  tenureMonths: Yup.number()
+    .positive("Must be positive")
+    .integer()
+    .required("Tenure is required"),
+  annualInterestRate: Yup.number()
+    .min(0, "Interest cannot be negative")
+    .required("Interest rate is required"),
+  vehicleNumber: Yup.string()
+    .matches(/^[A-Z]{2}-\d{2}-[A-Z]{1,2}-\d{4}$/, "Format: KA-01-AB-1234")
+    .nullable(),
+});
 
 const LoanForm = ({
   initialData,
@@ -10,17 +50,53 @@ const LoanForm = ({
   submitting,
   renderExtraActions,
 }) => {
-  const [formData, setFormData] = useState(initialData);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    setFormData(initialData);
-  }, [initialData]);
+  const formik = useFormik({
+    initialValues: initialData,
+    validationSchema,
+    enableReinitialize: true,
+    onSubmit: (values) => {
+      onSubmit(values);
+    },
+  });
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  // Auto-format Vehicle Number: KA01TH8520 -> KA-01-TH-8520
+  const formatVehicleNumber = (val) => {
+    let clean = val.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    let parts = [];
+
+    // Pattern: 2 chars - 2 digits - 1 or 2 chars - 4 digits
+    if (clean.length > 0) parts.push(clean.substring(0, 2));
+    if (clean.length > 2)
+      parts.push(clean.substring(2, 4).replace(/[^0-9]/g, ""));
+    if (clean.length > 4) {
+      let remaining = clean.substring(4);
+      let digitMatch = remaining.match(/\d/);
+      if (digitMatch) {
+        let digitIdx = remaining.indexOf(digitMatch[0]);
+        parts.push(remaining.substring(0, digitIdx).replace(/[^A-Z]/g, ""));
+        parts.push(
+          remaining.substring(digitIdx, digitIdx + 4).replace(/[^0-9]/g, ""),
+        );
+      } else {
+        parts.push(remaining.replace(/[^A-Z]/g, ""));
+      }
+    }
+    return parts.filter((p) => p.length > 0).join("-");
   };
+
+  // Auto-calculate Fee
+  useEffect(() => {
+    const principal = parseFloat(formik.values.principalAmount) || 0;
+    const rate = parseFloat(formik.values.processingFeeRate) || 0;
+    if (principal && rate) {
+      const fee = ((principal * rate) / 100).toFixed(2);
+      if (formik.values.processingFee !== fee) {
+        formik.setFieldValue("processingFee", fee);
+      }
+    }
+  }, [formik.values.principalAmount, formik.values.processingFeeRate]);
 
   const calculateEMI = (p, r_annual, n) => {
     const principal = parseFloat(p);
@@ -34,54 +110,28 @@ const LoanForm = ({
     return emi.toFixed(2);
   };
 
-  const validateForm = () => {
-    const mobileRegex = /^[6-9]\d{9}$/;
-    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-    const aadharRegex = /^\d{12}$/;
-    const vehicleRegex = /^[A-Z]{2}-\d{2}[-\s][A-Z]{1,2}-\d{4}$/;
-
-    if (!mobileRegex.test(formData.mobileNumber)) {
-      showToast(
-        "Invalid Mobile Number. Must be 10 digits starting with 6-9.",
-        "error"
-      );
-      return false;
-    }
-    if (
-      formData.panNumber &&
-      !panRegex.test(formData.panNumber.toUpperCase())
-    ) {
-      showToast("Invalid PAN Number format (e.g., ABCDE1234F).", "error");
-      return false;
-    }
-    if (formData.aadharNumber && !aadharRegex.test(formData.aadharNumber)) {
-      showToast("Invalid Aadhar Number. Must be 12 digits.", "error");
-      return false;
-    }
-    if (
-      formData.vehicleNumber &&
-      !vehicleRegex.test(formData.vehicleNumber.toUpperCase())
-    ) {
-      showToast(
-        "Invalid Vehicle Number format (e.g., KA-01 AB-1234).",
-        "error"
-      );
-      return false;
-    }
-    return true;
+  const ErrorMsg = ({ name }) => {
+    return formik.touched[name] && formik.errors[name] ? (
+      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
+        {formik.errors[name]}
+      </p>
+    ) : null;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
-    }
+  const getFieldClass = (name) => {
+    const baseClass =
+      "w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 transition-all ";
+    const stateClass =
+      formik.touched[name] && formik.errors[name]
+        ? "border-red-300 text-red-900 focus:ring-red-100 placeholder:text-red-200"
+        : "border-slate-200 text-slate-700 focus:ring-primary/20 placeholder:text-slate-300";
+    return baseClass + stateClass;
   };
 
   return (
     <div className="bg-white w-full max-w-4xl mx-auto rounded-3xl shadow-sm overflow-hidden border border-slate-200 flex flex-col">
       <div className="p-8">
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={formik.handleSubmit} className="space-y-8">
           {/* Basic Info */}
           <div className="space-y-4">
             <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
@@ -95,13 +145,19 @@ const LoanForm = ({
                 <input
                   type="text"
                   name="loanNumber"
-                  value={formData.loanNumber || ""}
-                  onChange={handleChange}
+                  value={formik.values.loanNumber || ""}
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "loanNumber",
+                      e.target.value.toUpperCase(),
+                    )
+                  }
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 uppercase"
+                  className={getFieldClass("loanNumber") + " uppercase"}
                   placeholder="LN-001"
-                  required
                 />
+                <ErrorMsg name="loanNumber" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -110,13 +166,14 @@ const LoanForm = ({
                 <input
                   type="text"
                   name="customerName"
-                  value={formData.customerName || ""}
-                  onChange={handleChange}
+                  value={formik.values.customerName || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("customerName")}
                   placeholder="Full Name"
-                  required
                 />
+                <ErrorMsg name="customerName" />
               </div>
             </div>
           </div>
@@ -133,13 +190,14 @@ const LoanForm = ({
                 </label>
                 <textarea
                   name="address"
-                  value={formData.address || ""}
-                  onChange={handleChange}
+                  value={formik.values.address || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
                   rows="2"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  required
+                  className={getFieldClass("address")}
                 ></textarea>
+                <ErrorMsg name="address" />
               </div>
               <div className="grid grid-cols-2 gap-6 md:col-span-2">
                 <div className="space-y-1">
@@ -148,14 +206,16 @@ const LoanForm = ({
                   </label>
                   <select
                     name="ownRent"
-                    value={formData.ownRent || ""}
-                    onChange={handleChange}
+                    value={formik.values.ownRent || ""}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
                     disabled={isViewOnly}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className={getFieldClass("ownRent")}
                   >
                     <option value="Own">Own</option>
                     <option value="Rent">Rent</option>
                   </select>
+                  <ErrorMsg name="ownRent" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -164,12 +224,19 @@ const LoanForm = ({
                   <input
                     type="text"
                     name="mobileNumber"
-                    value={formData.mobileNumber || ""}
-                    onChange={handleChange}
+                    maxLength={10}
+                    value={formik.values.mobileNumber || ""}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      if (val.length <= 10)
+                        formik.setFieldValue("mobileNumber", val);
+                    }}
+                    onBlur={formik.handleBlur}
                     readOnly={isViewOnly}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    required
+                    className={getFieldClass("mobileNumber")}
+                    placeholder="10 digit number"
                   />
+                  <ErrorMsg name="mobileNumber" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-6 md:col-span-2">
@@ -180,11 +247,20 @@ const LoanForm = ({
                   <input
                     type="text"
                     name="panNumber"
-                    value={formData.panNumber || ""}
-                    onChange={handleChange}
+                    maxLength={10}
+                    value={formik.values.panNumber || ""}
+                    onChange={(e) =>
+                      formik.setFieldValue(
+                        "panNumber",
+                        e.target.value.toUpperCase(),
+                      )
+                    }
+                    onBlur={formik.handleBlur}
                     readOnly={isViewOnly}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 uppercase"
+                    className={getFieldClass("panNumber") + " uppercase"}
+                    placeholder="ABCDE1234F"
                   />
+                  <ErrorMsg name="panNumber" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -193,11 +269,19 @@ const LoanForm = ({
                   <input
                     type="text"
                     name="aadharNumber"
-                    value={formData.aadharNumber || ""}
-                    onChange={handleChange}
+                    maxLength={12}
+                    value={formik.values.aadharNumber || ""}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      if (val.length <= 12)
+                        formik.setFieldValue("aadharNumber", val);
+                    }}
+                    onBlur={formik.handleBlur}
                     readOnly={isViewOnly}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className={getFieldClass("aadharNumber")}
+                    placeholder="12 digit number"
                   />
+                  <ErrorMsg name="aadharNumber" />
                 </div>
               </div>
             </div>
@@ -220,13 +304,14 @@ const LoanForm = ({
                   <input
                     type="number"
                     name="principalAmount"
-                    value={formData.principalAmount || ""}
-                    onChange={handleChange}
+                    value={formik.values.principalAmount || ""}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
                     readOnly={isViewOnly}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    required
+                    className={getFieldClass("principalAmount") + " pl-8 pr-4"}
                   />
                 </div>
+                <ErrorMsg name="principalAmount" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -235,10 +320,11 @@ const LoanForm = ({
                 <input
                   type="number"
                   name="processingFeeRate"
-                  value={formData.processingFeeRate || ""}
-                  onChange={handleChange}
+                  value={formik.values.processingFeeRate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("processingFeeRate")}
                 />
               </div>
               <div className="space-y-1">
@@ -248,10 +334,13 @@ const LoanForm = ({
                 <input
                   type="number"
                   name="processingFee"
-                  value={formData.processingFee || ""}
-                  onChange={handleChange}
-                  readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  value={formik.values.processingFee || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={true} // Auto-calculated
+                  className={
+                    getFieldClass("processingFee") + " bg-slate-100 italic"
+                  }
                 />
               </div>
               <div className="space-y-1">
@@ -260,10 +349,11 @@ const LoanForm = ({
                 </label>
                 <select
                   name="tenureType"
-                  value={formData.tenureType || ""}
-                  onChange={handleChange}
+                  value={formik.values.tenureType || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   disabled={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("tenureType")}
                 >
                   <option value="Monthly">Monthly</option>
                   <option value="Weekly">Weekly</option>
@@ -277,12 +367,13 @@ const LoanForm = ({
                 <input
                   type="number"
                   name="tenureMonths"
-                  value={formData.tenureMonths || ""}
-                  onChange={handleChange}
+                  value={formik.values.tenureMonths || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  required
+                  className={getFieldClass("tenureMonths")}
                 />
+                <ErrorMsg name="tenureMonths" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -292,12 +383,13 @@ const LoanForm = ({
                   type="number"
                   step="0.01"
                   name="annualInterestRate"
-                  value={formData.annualInterestRate || ""}
-                  onChange={handleChange}
+                  value={formik.values.annualInterestRate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  required
+                  className={getFieldClass("annualInterestRate")}
                 />
+                <ErrorMsg name="annualInterestRate" />
               </div>
             </div>
           </div>
@@ -315,10 +407,11 @@ const LoanForm = ({
                 <input
                   type="date"
                   name="dateLoanDisbursed"
-                  value={formData.dateLoanDisbursed || ""}
-                  onChange={handleChange}
+                  value={formik.values.dateLoanDisbursed || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("dateLoanDisbursed")}
                 />
               </div>
               <div className="space-y-1">
@@ -328,10 +421,11 @@ const LoanForm = ({
                 <input
                   type="date"
                   name="emiStartDate"
-                  value={formData.emiStartDate || ""}
-                  onChange={handleChange}
+                  value={formik.values.emiStartDate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("emiStartDate")}
                 />
               </div>
               <div className="space-y-1">
@@ -341,24 +435,25 @@ const LoanForm = ({
                 <input
                   type="date"
                   name="emiEndDate"
-                  value={formData.emiEndDate || ""}
-                  onChange={handleChange}
+                  value={formik.values.emiEndDate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("emiEndDate")}
                 />
               </div>
               <div className="md:col-span-3">
                 <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex justify-between items-center">
                   <div>
                     <span className="text-[10px] font-black text-primary uppercase tracking-widest">
-                      Calculated Monthly EMI
+                      Monthly EMI
                     </span>
                     <p className="text-xl font-black text-primary">
                       ₹
                       {calculateEMI(
-                        formData.principalAmount,
-                        formData.annualInterestRate,
-                        formData.tenureMonths
+                        formik.values.principalAmount,
+                        formik.values.annualInterestRate,
+                        formik.values.tenureMonths,
                       )}
                     </p>
                   </div>
@@ -369,8 +464,9 @@ const LoanForm = ({
                     <input
                       type="number"
                       name="totalInterestAmount"
-                      value={formData.totalInterestAmount || ""}
-                      onChange={handleChange}
+                      value={formik.values.totalInterestAmount || ""}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
                       readOnly={isViewOnly}
                       className="bg-transparent border-b border-slate-200 text-sm font-bold text-slate-700 focus:outline-none focus:border-primary text-right w-32"
                       placeholder="0"
@@ -394,11 +490,19 @@ const LoanForm = ({
                 <input
                   type="text"
                   name="vehicleNumber"
-                  value={formData.vehicleNumber || ""}
-                  onChange={handleChange}
+                  value={formik.values.vehicleNumber || ""}
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "vehicleNumber",
+                      formatVehicleNumber(e.target.value),
+                    )
+                  }
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 uppercase"
+                  className={getFieldClass("vehicleNumber") + " uppercase"}
+                  placeholder="KA-01-AB-1234"
                 />
+                <ErrorMsg name="vehicleNumber" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -407,10 +511,16 @@ const LoanForm = ({
                 <input
                   type="text"
                   name="chassisNumber"
-                  value={formData.chassisNumber || ""}
-                  onChange={handleChange}
+                  value={formik.values.chassisNumber || ""}
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "chassisNumber",
+                      e.target.value.toUpperCase(),
+                    )
+                  }
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 uppercase"
+                  className={getFieldClass("chassisNumber") + " uppercase"}
                 />
               </div>
               <div className="space-y-1">
@@ -420,10 +530,11 @@ const LoanForm = ({
                 <input
                   type="text"
                   name="model"
-                  value={formData.model || ""}
-                  onChange={handleChange}
+                  value={formik.values.model || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("model")}
                 />
               </div>
               <div className="space-y-1">
@@ -433,10 +544,11 @@ const LoanForm = ({
                 <input
                   type="text"
                   name="typeOfVehicle"
-                  value={formData.typeOfVehicle || ""}
-                  onChange={handleChange}
+                  value={formik.values.typeOfVehicle || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("typeOfVehicle")}
                 />
               </div>
               <div className="space-y-1">
@@ -445,10 +557,11 @@ const LoanForm = ({
                 </label>
                 <select
                   name="ywBoard"
-                  value={formData.ywBoard || ""}
-                  onChange={handleChange}
+                  value={formik.values.ywBoard || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   disabled={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("ywBoard")}
                 >
                   <option value="Yellow">Yellow</option>
                   <option value="White">White</option>
@@ -461,10 +574,11 @@ const LoanForm = ({
                 <input
                   type="text"
                   name="docChecklist"
-                  value={formData.docChecklist || ""}
-                  onChange={handleChange}
+                  value={formik.values.docChecklist || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("docChecklist")}
                 />
               </div>
             </div>
@@ -484,10 +598,11 @@ const LoanForm = ({
                 <input
                   type="text"
                   name="dealerName"
-                  value={formData.dealerName || ""}
-                  onChange={handleChange}
+                  value={formik.values.dealerName || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("dealerName")}
                 />
               </div>
               <div className="space-y-1">
@@ -497,10 +612,11 @@ const LoanForm = ({
                 <input
                   type="text"
                   name="dealerNumber"
-                  value={formData.dealerNumber || ""}
-                  onChange={handleChange}
+                  value={formik.values.dealerNumber || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("dealerNumber")}
                 />
               </div>
               <div className="space-y-1">
@@ -509,10 +625,11 @@ const LoanForm = ({
                 </label>
                 <select
                   name="hpEntry"
-                  value={formData.hpEntry || ""}
-                  onChange={handleChange}
+                  value={formik.values.hpEntry || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   disabled={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("hpEntry")}
                 >
                   <option value="Not done">Not done</option>
                   <option value="Done">Done</option>
@@ -525,10 +642,11 @@ const LoanForm = ({
                 <input
                   type="date"
                   name="fcDate"
-                  value={formData.fcDate || ""}
-                  onChange={handleChange}
+                  value={formik.values.fcDate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("fcDate")}
                 />
               </div>
               <div className="space-y-1">
@@ -538,10 +656,11 @@ const LoanForm = ({
                 <input
                   type="date"
                   name="insuranceDate"
-                  value={formData.insuranceDate || ""}
-                  onChange={handleChange}
+                  value={formik.values.insuranceDate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("insuranceDate")}
                 />
               </div>
               <div className="space-y-1">
@@ -551,10 +670,11 @@ const LoanForm = ({
                 <input
                   type="text"
                   name="rtoWorkPending"
-                  value={formData.rtoWorkPending || ""}
-                  onChange={handleChange}
+                  value={formik.values.rtoWorkPending || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={getFieldClass("rtoWorkPending")}
                 />
               </div>
             </div>
@@ -582,14 +702,16 @@ const LoanForm = ({
                   </button>
                   <button
                     type="submit"
-                    disabled={submitting}
-                    className="bg-primary text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all uppercase"
+                    disabled={
+                      submitting || (formik.submitCount > 0 && !formik.isValid)
+                    }
+                    className="bg-primary text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all"
                   >
                     {submitting
                       ? "Processing..."
                       : initialData._id
-                      ? "Commit Changes"
-                      : "Create Profile"}
+                        ? "Commit Changes"
+                        : "Create Profile"}
                   </button>
                 </>
               )}
