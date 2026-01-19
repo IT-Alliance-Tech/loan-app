@@ -40,14 +40,14 @@ const Navbar = () => {
 
           <Link
             href="/admin/dashboard"
-            className="bg-primary px-3 py-1.5 rounded-lg shadow-sm"
+            className="lg:hidden bg-primary px-3 py-1.5 rounded-lg shadow-sm"
           >
             <span className="text-white font-black text-xl tracking-tighter">
               ILMRS
             </span>
           </Link>
-          <div className="hidden md:block h-6 w-px bg-slate-200"></div>
-          <span className="hidden md:inline text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+          <div className="hidden md:block lg:hidden h-6 w-px bg-slate-200"></div>
+          <span className="hidden md:inline lg:hidden text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
             Enterprise Terminal
           </span>
         </div>
