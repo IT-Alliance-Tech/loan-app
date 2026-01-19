@@ -60,22 +60,6 @@ const Sidebar = () => {
             })}
           </nav>
         </div>
-
-        <div className="mt-auto p-6 border-t border-slate-100">
-          <div className="bg-slate-50 p-4 rounded-2xl flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-black text-primary">
-              {user?.role?.[0]}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black text-slate-900 truncate uppercase tracking-tighter">
-                {user?.email}
-              </p>
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                {user?.role}
-              </p>
-            </div>
-          </div>
-        </div>
       </aside>
 
       {/* MOBILE VIEW DESIGN (OVERLAY) */}
@@ -135,25 +119,6 @@ const Sidebar = () => {
                 );
               })}
             </nav>
-
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50">
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">
-                Account Secure
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-primary font-black shadow-sm">
-                  {user?.role?.[0]}
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-tighter">
-                    {user?.email}
-                  </p>
-                  <p className="text-[9px] font-bold text-primary uppercase">
-                    {user?.role}
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </aside>
       </div>
