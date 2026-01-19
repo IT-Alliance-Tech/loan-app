@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
+import { useToast } from "../../../context/ToastContext";
 import { getUserFromToken } from "../../../utils/auth";
 import {
   getEmployees,
@@ -13,12 +14,12 @@ import {
 const EmployeesPage = () => {
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  
+  const { showToast } = useToast();
+
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -32,6 +33,7 @@ const EmployeesPage = () => {
       setEmployees(res.data);
     } catch (err) {
       console.error(err);
+      showToast("Failed to fetch employees", "error");
     } finally {
       setLoading(false);
     }
@@ -44,23 +46,24 @@ const EmployeesPage = () => {
   const handleToggleStatus = async (id) => {
     try {
       await toggleEmployeeStatus(id);
+      showToast("Employee status updated", "success");
       fetchEmployees();
     } catch (err) {
-      alert(err.message);
+      showToast(err.message || "Failed to toggle status", "error");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    setError("");
     try {
       await createEmployee(formData);
+      showToast("Employee authorized successfully", "success");
       setIsModalOpen(false);
       setFormData({ name: "", email: "", password: "" });
       fetchEmployees();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message || "Failed to create employee", "error");
     } finally {
       setSubmitting(false);
     }
@@ -207,12 +210,6 @@ const EmployeesPage = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                {error && (
-                  <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-[10px] font-black uppercase tracking-wider rounded-xl text-center">
-                    Security Fault: {error}
-                  </div>
-                )}
-
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">
                     Full Name
