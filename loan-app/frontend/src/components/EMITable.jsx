@@ -3,9 +3,10 @@ import { updateEMI } from "../services/customer";
 import { useToast } from "../context/ToastContext";
 
 const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
-  const [editingId, setEditingId] = useState(null);
+  const [editingEmi, setEditingEmi] = useState(null);
   const [editData, setEditData] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const { showToast } = useToast();
 
   const formatDate = (dateString) => {
@@ -18,33 +19,32 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
   };
 
   const handleEditClick = (emi) => {
-    setEditingId(emi._id);
+    setEditingEmi(emi);
     setEditData({
       amountPaid: emi.amountPaid || "",
       paymentMode: emi.paymentMode || "",
       paymentDate: emi.paymentDate
         ? new Date(emi.paymentDate).toISOString().split("T")[0]
-        : "",
+        : new Date().toISOString().split("T")[0],
       overdue: emi.overdue || 0,
       status: emi.status || "Pending",
       remarks: emi.remarks || "",
     });
+    setShowModal(true);
   };
 
-  const handleSave = async (id) => {
+  const handleSave = async (e) => {
+    e.preventDefault();
     setLoading(true);
     try {
-      const response = await updateEMI(id, editData);
-      if (response.success) {
-        setEditingId(null);
-        showToast("EMI updated successfully", "success");
-        if (onUpdateSuccess) onUpdateSuccess();
-      } else {
-        showToast(response.message || "Failed to update EMI", "error");
-      }
+      await updateEMI(editingEmi._id, editData);
+      setShowModal(false);
+      setEditingEmi(null);
+      showToast("EMI updated successfully", "success");
+      if (onUpdateSuccess) onUpdateSuccess();
     } catch (error) {
       console.error("Error updating EMI:", error);
-      showToast("An error occurred while updating EMI", "error");
+      showToast(error.message || "An error occurred while updating EMI", "error");
     } finally {
       setLoading(false);
     }
@@ -56,128 +56,70 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
   };
 
   return (
-    <div className="overflow-x-auto bg-white rounded-3xl border border-slate-200 shadow-sm mt-8">
-      <table className="w-full text-left border-collapse">
-        <thead className="bg-slate-50 border-b border-slate-200">
-          <tr>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-              No.
-            </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-              Due Date
-            </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-              EMI Amount
-            </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-              Amount Paid
-            </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-              Payment Date
-            </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-              Mode
-            </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-              Overdue
-            </th>
-            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-              Status
-            </th>
-            {isEditMode && (
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
-                Actions
+    <div className="mt-8">
+      <div className="overflow-x-auto bg-white rounded-3xl border border-slate-200 shadow-sm">
+        <table className="w-full text-left border-collapse">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                No.
               </th>
-            )}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {emis.map((emi, index) => (
-            <tr
-              key={emi._id}
-              className="hover:bg-slate-50/50 transition-colors"
-            >
-              <td className="px-6 py-4 text-xs font-bold text-slate-900">
-                {emi.emiNumber}
-              </td>
-              <td className="px-6 py-4 text-xs font-medium text-slate-600">
-                {formatDate(emi.dueDate)}
-              </td>
-              <td className="px-6 py-4 text-xs font-black text-slate-900">
-                ₹{emi.emiAmount}
-              </td>
-              <td className="px-6 py-4 text-xs font-medium text-slate-600">
-                {editingId === emi._id ? (
-                  <input
-                    type="number"
-                    name="amountPaid"
-                    value={editData.amountPaid}
-                    onChange={handleChange}
-                    className="w-24 px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none"
-                  />
-                ) : (
-                  `₹${emi.amountPaid || 0}`
-                )}
-              </td>
-              <td className="px-6 py-4 text-xs font-medium text-slate-600">
-                {editingId === emi._id ? (
-                  <input
-                    type="date"
-                    name="paymentDate"
-                    value={editData.paymentDate}
-                    onChange={handleChange}
-                    className="px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none"
-                  />
-                ) : (
-                  formatDate(emi.paymentDate)
-                )}
-              </td>
-              <td className="px-6 py-4 text-xs font-medium text-slate-600">
-                {editingId === emi._id ? (
-                  <select
-                    name="paymentMode"
-                    value={editData.paymentMode}
-                    onChange={handleChange}
-                    className="px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none"
-                  >
-                    <option value="">Select</option>
-                    <option value="Cash">Cash</option>
-                    <option value="Online">Online</option>
-                    <option value="GPay">GPay</option>
-                    <option value="PhonePe">PhonePe</option>
-                    <option value="Cheque">Cheque</option>
-                  </select>
-                ) : (
-                  emi.paymentMode || "-"
-                )}
-              </td>
-              <td className="px-6 py-4 text-xs font-medium text-red-600">
-                {editingId === emi._id ? (
-                  <input
-                    type="number"
-                    name="overdue"
-                    value={editData.overdue}
-                    onChange={handleChange}
-                    className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-xs text-red-600 focus:ring-2 focus:ring-red-100 outline-none"
-                  />
-                ) : (
-                  `₹${emi.overdue || 0}`
-                )}
-              </td>
-              <td className="px-6 py-4">
-                {editingId === emi._id ? (
-                  <select
-                    name="status"
-                    value={editData.status}
-                    onChange={handleChange}
-                    className="px-2 py-1 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-primary/20 outline-none"
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Partially Paid">Partially Paid</option>
-                    <option value="Overdue">Overdue</option>
-                  </select>
-                ) : (
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                Due Date
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                EMI Amount
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                Amount Paid
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                Payment Date
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                Mode
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                Overdue
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                Status
+              </th>
+              {isEditMode && (
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+                  Actions
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {emis.map((emi, index) => (
+              <tr
+                key={emi._id}
+                className="hover:bg-slate-50/50 transition-colors"
+              >
+                <td className="px-6 py-4 text-xs font-bold text-slate-900">
+                  {emi.emiNumber}
+                </td>
+                <td className="px-6 py-4 text-xs font-medium text-slate-600">
+                  {formatDate(emi.dueDate)}
+                </td>
+                <td className="px-6 py-4 text-xs font-black text-slate-900">
+                  ₹{emi.emiAmount}
+                </td>
+                <td className="px-6 py-4 text-xs font-medium text-slate-600">
+                  ₹{emi.amountPaid || 0}
+                </td>
+                <td className="px-6 py-4 text-xs font-medium text-slate-600">
+                  {formatDate(emi.paymentDate)}
+                </td>
+                <td className="px-6 py-4 text-xs font-medium text-slate-600">
+                  {emi.paymentMode || "-"}
+                </td>
+                <td className="px-6 py-4 text-xs font-medium text-red-600">
+                  ₹{emi.overdue || 0}
+                </td>
+                <td className="px-6 py-4">
                   <span
                     className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       emi.status === "Paid"
@@ -189,44 +131,174 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   >
                     {emi.status}
                   </span>
-                )}
-              </td>
-              {isEditMode && (
-                <td className="px-6 py-4">
-                  <div className="flex justify-center gap-2">
-                    {editingId === emi._id ? (
-                      <>
-                        <button
-                          onClick={() => handleSave(emi._id)}
-                          disabled={loading}
-                          className="w-8 h-8 flex items-center justify-center bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-sm"
-                          title="Save"
-                        >
-                          {loading ? "..." : "✓"}
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-colors"
-                          title="Cancel"
-                        >
-                          ✕
-                        </button>
-                      </>
-                    ) : (
+                </td>
+                {isEditMode && (
+                  <td className="px-6 py-4">
+                    <div className="flex justify-center">
                       <button
                         onClick={() => handleEditClick(emi)}
                         className="px-4 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:shadow-lg hover:shadow-blue-200 transition-all"
                       >
                         Edit
                       </button>
-                    )}
-                  </div>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pop-up Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                  Update EMI #{editingEmi?.emiNumber}
+                </h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  Due Date: {formatDate(editingEmi?.dueDate)} | Amount: ₹{editingEmi?.emiAmount}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                    Amount Paid
+                  </label>
+                  <input
+                    type="number"
+                    name="amountPaid"
+                    value={editData.amountPaid}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                    Payment Date
+                  </label>
+                  <input
+                    type="date"
+                    name="paymentDate"
+                    value={editData.paymentDate}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                    Payment Mode
+                  </label>
+                  <select
+                    name="paymentMode"
+                    value={editData.paymentMode}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer"
+                    required
+                  >
+                    <option value="">Select Mode</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Online">Online</option>
+                    <option value="GPay">GPay</option>
+                    <option value="PhonePe">PhonePe</option>
+                    <option value="Cheque">Cheque</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                    Status
+                  </label>
+                  <select
+                    name="status"
+                    value={editData.status}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer"
+                    required
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Partially Paid">Partially Paid</option>
+                    <option value="Overdue">Overdue</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                    Overdue Amount
+                  </label>
+                  <input
+                    type="number"
+                    name="overdue"
+                    value={editData.overdue}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-red-600 focus:outline-none focus:ring-4 focus:ring-red-100 focus:border-red-400 transition-all"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                    Remarks
+                  </label>
+                  <textarea
+                    name="remarks"
+                    value={editData.remarks}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all resize-none"
+                    rows="3"
+                    placeholder="Add any payment notes..."
+                  ></textarea>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-6 py-4 border border-slate-200 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-[2] px-6 py-4 bg-primary text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    "Update Payment Record"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
