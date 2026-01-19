@@ -6,6 +6,7 @@ const authRoutes = require("./routes/authroutes");
 const userRoutes = require("./routes/userroutes");
 const loanRoutes = require("./routes/loanRoutes");
 const customerRoutes = require("./routes/customerroutes");
+const emiUtilityRoutes = require("./routes/emiUtilityRoutes");
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/customers", customerRoutes);
+app.use("/api/emi-utility", emiUtilityRoutes);
 
 // Error Middleware
 app.use(errorMiddleware);

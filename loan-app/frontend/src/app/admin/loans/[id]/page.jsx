@@ -5,41 +5,61 @@ import AuthGuard from "../../../../components/AuthGuard";
 import Navbar from "../../../../components/Navbar";
 import Sidebar from "../../../../components/Sidebar";
 import LoanForm from "../../../../components/LoanForm";
+import EMITable from "../../../../components/EMITable";
+import { useToast } from "../../../../context/ToastContext";
 import { getLoanById } from "../../../../services/loan.service";
+import { getEMIsByLoanId } from "../../../../services/customer";
 
 const ViewLoanPage = () => {
   const router = useRouter();
   const { id } = useParams();
   const [loan, setLoan] = useState(null);
+  const [emis, setEmis] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { showToast } = useToast();
 
   useEffect(() => {
-    const fetchLoan = async () => {
+    const fetchLoanData = async () => {
       try {
-        const res = await getLoanById(id);
-        const data = res.data;
-        
+        const [loanRes, emiRes] = await Promise.all([
+          getLoanById(id),
+          getEMIsByLoanId(id),
+        ]);
+
+        const data = loanRes.data;
+        const emiData = emiRes.data || [];
+
         // Format dates for input[type="date"]
         const formattedData = {
           ...data,
-          dateLoanDisbursed: data.dateLoanDisbursed ? new Date(data.dateLoanDisbursed).toISOString().split('T')[0] : "",
-          emiStartDate: data.emiStartDate ? new Date(data.emiStartDate).toISOString().split('T')[0] : "",
-          emiEndDate: data.emiEndDate ? new Date(data.emiEndDate).toISOString().split('T')[0] : "",
-          fcDate: data.fcDate ? new Date(data.fcDate).toISOString().split('T')[0] : "",
-          insuranceDate: data.insuranceDate ? new Date(data.insuranceDate).toISOString().split('T')[0] : "",
+          dateLoanDisbursed: data.dateLoanDisbursed
+            ? new Date(data.dateLoanDisbursed).toISOString().split("T")[0]
+            : "",
+          emiStartDate: data.emiStartDate
+            ? new Date(data.emiStartDate).toISOString().split("T")[0]
+            : "",
+          emiEndDate: data.emiEndDate
+            ? new Date(data.emiEndDate).toISOString().split("T")[0]
+            : "",
+          fcDate: data.fcDate
+            ? new Date(data.fcDate).toISOString().split("T")[0]
+            : "",
+          insuranceDate: data.insuranceDate
+            ? new Date(data.insuranceDate).toISOString().split("T")[0]
+            : "",
         };
-        
+
         setLoan(formattedData);
+        setEmis(emiData);
       } catch (err) {
-        setError(err.message);
+        showToast(err.message || "Failed to fetch loan data", "error");
       } finally {
         setLoading(false);
       }
     };
 
     if (id) {
-      fetchLoan();
+      fetchLoanData();
     }
   }, [id]);
 
@@ -51,7 +71,9 @@ const ViewLoanPage = () => {
           <div className="flex-1 flex flex-col min-w-0">
             <Navbar />
             <main className="py-8 px-4 sm:px-8 flex items-center justify-center">
-              <p className="text-slate-400 font-bold">Loading loan profile...</p>
+              <p className="text-slate-400 font-bold">
+                Loading loan profile...
+              </p>
             </main>
           </div>
         </div>
@@ -76,18 +98,21 @@ const ViewLoanPage = () => {
                 </p>
               </div>
 
-              {error && (
-                <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-bold uppercase tracking-tight">
-                  {error}
-                </div>
-              )}
-
               {loan && (
-                <LoanForm
-                  initialData={loan}
-                  isViewOnly={true}
-                  onCancel={() => router.push("/admin/loans")}
-                />
+                <>
+                  <LoanForm
+                    initialData={loan}
+                    isViewOnly={true}
+                    onCancel={() => router.push("/admin/loans")}
+                  />
+
+                  <div className="mt-12">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase mb-6">
+                      EMI Payment Schedule
+                    </h2>
+                    <EMITable emis={emis} isEditMode={false} />
+                  </div>
+                </>
               )}
             </div>
           </main>

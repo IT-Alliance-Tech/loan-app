@@ -1,7 +1,8 @@
-const Loan = require('../models/Loan');
-const ErrorHandler = require('../utils/ErrorHandler');
-const asyncHandler = require('../utils/asyncHandler');
-const sendResponse = require('../utils/response');
+const Loan = require("../models/Loan");
+const EMI = require("../models/EMI");
+const ErrorHandler = require("../utils/ErrorHandler");
+const asyncHandler = require("../utils/asyncHandler");
+const sendResponse = require("../utils/response");
 
 const calculateEMI = (principal, roi, tenureMonths) => {
   const r = roi / 12 / 100;
@@ -61,7 +62,11 @@ const createLoan = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Loan number already exists", 400));
   }
 
-  const monthlyEMI = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
+  const monthlyEMI = calculateEMI(
+    principalAmount,
+    annualInterestRate,
+    tenureMonths
+  );
 
   const loan = await Loan.create({
     siNo,
@@ -98,7 +103,36 @@ const createLoan = asyncHandler(async (req, res, next) => {
     createdBy: req.user._id,
   });
 
-  sendResponse(res, 201, "success", "Loan created successfully", null, loan);
+  // Generate EMIs
+  const emis = [];
+  let currentEmiDate = new Date(
+    loan.emiStartDate || loan.dateLoanDisbursed || new Date()
+  );
+
+  for (let i = 1; i <= tenureMonths; i++) {
+    emis.push({
+      loanId: loan._id,
+      loanNumber: loan.loanNumber,
+      customerName: loan.customerName,
+      emiNumber: i,
+      dueDate: new Date(currentEmiDate),
+      emiAmount: monthlyEMI,
+      status: "Pending",
+    });
+    // Increment month
+    currentEmiDate.setMonth(currentEmiDate.getMonth() + 1);
+  }
+
+  await EMI.insertMany(emis);
+
+  sendResponse(
+    res,
+    201,
+    "success",
+    "Loan created and EMIs generated successfully",
+    null,
+    loan
+  );
 });
 
 const getAllLoans = asyncHandler(async (req, res, next) => {
@@ -158,13 +192,20 @@ const updateLoan = asyncHandler(async (req, res, next) => {
 const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
   const loan = await Loan.findById(req.params.id);
   if (!loan) {
-    return next(new ErrorHandler('Loan not found', 404));
+    return next(new ErrorHandler("Loan not found", 404));
   }
 
   loan.isSeized = !loan.isSeized;
   await loan.save();
 
-  sendResponse(res, 200, 'success', `Loan ${loan.isSeized ? 'seized' : 'unseized'} successfully`, null, loan);
+  sendResponse(
+    res,
+    200,
+    "success",
+    `Loan ${loan.isSeized ? "seized" : "unseized"} successfully`,
+    null,
+    loan
+  );
 });
 
 module.exports = {
@@ -173,5 +214,5 @@ module.exports = {
   getLoanByLoanNumber,
   getLoanById,
   updateLoan,
-  toggleSeizedStatus
+  toggleSeizedStatus,
 };

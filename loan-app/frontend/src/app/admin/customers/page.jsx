@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
+import { useToast } from "../../../context/ToastContext";
 import { getUserFromToken } from "../../../utils/auth";
 import { getCustomers, createCustomer } from "../../../services/customer";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
@@ -10,13 +11,12 @@ import { exportLoansToExcel } from "../../../utils/exportExcel";
 const CustomersPage = () => {
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const { showToast } = useToast();
 
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [formData, setFormData] = useState({
@@ -39,6 +39,7 @@ const CustomersPage = () => {
       setCustomers(res.data);
     } catch (err) {
       console.error(err);
+      showToast("Failed to fetch customers", "error");
     } finally {
       setLoading(false);
     }
@@ -79,34 +80,29 @@ const CustomersPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    setError("");
-    setSuccess("");
 
     try {
       await createCustomer({
         ...formData,
         monthlyEMI: currentEMI,
       });
-      setSuccess("Internal Record Synchronized Successfully");
-      setTimeout(() => {
-        setIsModalOpen(false);
-        setSuccess("");
-        setFormData({
-          loanNumber: "",
-          customerName: "",
-          mobileNumber: "",
-          alternateMobile: "",
-          address: "",
-          principalAmount: "",
-          annualInterestRate: "",
-          tenureMonths: "",
-          loanStartDate: new Date().toISOString().split("T")[0],
-          remarks: "",
-        });
-        fetchCustomers();
-      }, 1500);
+      showToast("Internal Record Synchronized Successfully", "success");
+      setIsModalOpen(false);
+      setFormData({
+        loanNumber: "",
+        customerName: "",
+        mobileNumber: "",
+        alternateMobile: "",
+        address: "",
+        principalAmount: "",
+        annualInterestRate: "",
+        tenureMonths: "",
+        loanStartDate: new Date().toISOString().split("T")[0],
+        remarks: "",
+      });
+      fetchCustomers();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message || "Failed to create customer", "error");
     } finally {
       setSubmitting(false);
     }
@@ -136,11 +132,23 @@ const CustomersPage = () => {
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={async () => await exportLoansToExcel(customers, 'Customers_Report.xlsx')}
+                  onClick={async () =>
+                    await exportLoansToExcel(customers, "Customers_Report.xlsx")
+                  }
                   className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center gap-2"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
                   </svg>
                   Export
                 </button>
@@ -285,17 +293,6 @@ const CustomersPage = () => {
                 onSubmit={handleSubmit}
                 className="p-8 space-y-8 overflow-y-auto"
               >
-                {error && (
-                  <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-[10px] font-black uppercase tracking-wider rounded-2xl text-center">
-                    Validation Fault: {error}
-                  </div>
-                )}
-                {success && (
-                  <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black uppercase tracking-wider rounded-2xl text-center">
-                    {success}
-                  </div>
-                )}
-
                 {/* Section 1: Loan Identity */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
