@@ -6,11 +6,12 @@ import Navbar from "../../../../components/Navbar";
 import Sidebar from "../../../../components/Sidebar";
 import LoanForm from "../../../../components/LoanForm";
 import { createLoan } from "../../../../services/loan.service";
+import { useToast } from "../../../../context/ToastContext";
 
 const AddLoanPage = () => {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const { showToast } = useToast();
 
   const initialData = {
     loanNumber: "",
@@ -46,12 +47,12 @@ const AddLoanPage = () => {
 
   const handleSubmit = async (formData) => {
     setSubmitting(true);
-    setError("");
     try {
       await createLoan(formData);
+      showToast("Loan profile created successfully", "success");
       router.push("/admin/loans");
     } catch (err) {
-      setError(err.message);
+      showToast(err.message || "Failed to create loan", "error");
     } finally {
       setSubmitting(false);
     }
@@ -73,12 +74,6 @@ const AddLoanPage = () => {
                   Initialize a new loan record in the system
                 </p>
               </div>
-
-              {error && (
-                <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-bold uppercase tracking-tight">
-                  {error}
-                </div>
-              )}
 
               <LoanForm
                 initialData={initialData}
