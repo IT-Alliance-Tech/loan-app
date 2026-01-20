@@ -8,7 +8,12 @@ const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
   { name: "Customers", href: "/admin/customers", icon: "👤" },
   { name: "Loans", href: "/admin/loans", icon: "💰" },
-  { name: "Employees", href: "/admin/employees", icon: "👥" },
+  {
+    name: "Employees",
+    href: "/admin/employees",
+    icon: "👥",
+    roles: ["SUPER_ADMIN"],
+  },
   { name: "EMI Details", href: "/admin/emi-details", icon: "🗓️" },
   { name: "Seized Vehicles", href: "/admin/seized-vehicles", icon: "🚗" },
 ];
