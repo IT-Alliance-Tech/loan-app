@@ -140,7 +140,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
   user.resetPasswordOTPExpire = Date.now() + 15 * 60 * 1000;
   await user.save();
 
-  console.log(`OTP for ${email}: ${otp}`); // Placeholder for actual email sending
+  console.log(`OTP for ${email}: ${otp}`);
   return sendResponse(res, 200, "success", "OTP sent to email", null, null);
 });
 

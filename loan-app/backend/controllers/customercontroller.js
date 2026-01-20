@@ -53,7 +53,7 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
   const monthlyEMI = calculateEMI(
     principalAmount,
     annualInterestRate,
-    tenureMonths
+    tenureMonths,
   );
 
   const loan = await Loan.create({
@@ -102,7 +102,7 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     "success",
     "Customer, Loan and EMIs created successfully",
     null,
-    { loan, emis }
+    { loan, emis },
   );
 });
 
@@ -114,7 +114,7 @@ const getAllCustomers = asyncHandler(async (req, res, next) => {
     "success",
     "Customers fetched successfully",
     null,
-    customers
+    customers,
   );
 });
 
@@ -149,7 +149,7 @@ const updateCustomer = asyncHandler(async (req, res, next) => {
     "success",
     "Customer updated successfully",
     null,
-    loan
+    loan,
   );
 });
 
@@ -173,22 +173,29 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       status,
       remarks,
     },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 
   sendResponse(res, 200, "success", "EMI updated successfully", null, emi);
 });
 
 const getAllEMIDetails = asyncHandler(async (req, res, next) => {
-  const emis = await EMI.find().sort({ updatedAt: -1 });
-  sendResponse(
-    res,
-    200,
-    "success",
-    "EMI details fetched successfully",
-    null,
-    emis
-  );
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  const total = await EMI.countDocuments();
+  const emis = await EMI.find().sort({ updatedAt: -1 }).skip(skip).limit(limit);
+
+  sendResponse(res, 200, "success", "EMI details fetched successfully", null, {
+    emis,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
 });
 
 const getEMIsByLoanId = asyncHandler(async (req, res, next) => {

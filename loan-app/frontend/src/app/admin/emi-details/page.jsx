@@ -4,6 +4,7 @@ import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import { getAllEMIs } from "../../../services/customer";
+import Pagination from "../../../components/Pagination";
 
 const EMIDetailsPage = () => {
   const [emis, setEmis] = useState([]);
@@ -11,20 +12,37 @@ const EMIDetailsPage = () => {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    const fetchEMIs = async () => {
-      try {
-        const response = await getAllEMIs();
-        setEmis(response.data || []);
-      } catch (err) {
-        setError(err.message || "Failed to fetch EMI details");
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [limit] = useState(10);
 
-    fetchEMIs();
-  }, []);
+  useEffect(() => {
+    fetchEMIs({ page: currentPage, limit });
+  }, [currentPage]);
+
+  const fetchEMIs = async (params = {}) => {
+    try {
+      setLoading(true);
+      const response = await getAllEMIs({ ...params, limit });
+      if (response.data && response.data.emis) {
+        setEmis(response.data.emis || []);
+        setTotalPages(response.data.pagination.totalPages);
+        setTotalRecords(response.data.pagination.total);
+      } else {
+        setEmis(response.data || []);
+      }
+    } catch (err) {
+      setError(err.message || "Failed to fetch EMI details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return "-";
@@ -93,7 +111,7 @@ const EMIDetailsPage = () => {
       .filter(
         (item) =>
           item.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.loanNumber.toLowerCase().includes(searchQuery.toLowerCase())
+          item.loanNumber.toLowerCase().includes(searchQuery.toLowerCase()),
       )
       .sort((a, b) => new Date(b.lastUpdate) - new Date(a.lastUpdate));
   }, [emis, searchQuery]);
@@ -104,7 +122,7 @@ const EMIDetailsPage = () => {
       .filter(
         (emi) =>
           emi.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          emi.loanNumber.toLowerCase().includes(searchQuery.toLowerCase())
+          emi.loanNumber.toLowerCase().includes(searchQuery.toLowerCase()),
       )
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
@@ -147,7 +165,7 @@ const EMIDetailsPage = () => {
     link.setAttribute("href", url);
     link.setAttribute(
       "download",
-      `Detailed_EMI_History_${new Date().toISOString().split("T")[0]}.csv`
+      `Detailed_EMI_History_${new Date().toISOString().split("T")[0]}.csv`,
     );
     link.style.visibility = "hidden";
     document.body.appendChild(link);
@@ -318,10 +336,10 @@ const EMIDetailsPage = () => {
                                 group.status === "Paid"
                                   ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
                                   : group.status === "Overdue"
-                                  ? "bg-red-50 text-red-600 border border-red-100"
-                                  : group.status === "Partially Paid"
-                                  ? "bg-blue-50 text-blue-600 border border-blue-100"
-                                  : "bg-amber-50 text-amber-600 border border-amber-100"
+                                    ? "bg-red-50 text-red-600 border border-red-100"
+                                    : group.status === "Partially Paid"
+                                      ? "bg-blue-50 text-blue-600 border border-blue-100"
+                                      : "bg-amber-50 text-amber-600 border border-amber-100"
                               }`}
                             >
                               {group.status}
@@ -333,6 +351,13 @@ const EMIDetailsPage = () => {
                   </table>
                 </div>
               )}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                totalRecords={totalRecords}
+                limit={limit}
+              />
             </div>
           </main>
         </div>

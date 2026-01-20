@@ -27,6 +27,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    accessKey: {
+      type: String,
+    },
+    refreshToken: {
+      type: String,
+      select: false,
+    },
     resetPasswordOTP: String,
     resetPasswordOTPExpire: Date,
   },

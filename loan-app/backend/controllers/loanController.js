@@ -138,6 +138,10 @@ const createLoan = asyncHandler(async (req, res, next) => {
 const getAllLoans = asyncHandler(async (req, res, next) => {
   const { loanNumber, customerName, mobileNumber, tenureMonths, status } =
     req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
   const query = {};
 
   if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
@@ -151,8 +155,21 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
     if (status === "Active") query.isSeized = false;
   }
 
-  const loans = await Loan.find(query).sort({ createdAt: -1 });
-  sendResponse(res, 200, "success", "Loans fetched successfully", null, loans);
+  const total = await Loan.countDocuments(query);
+  const loans = await Loan.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  sendResponse(res, 200, "success", "Loans fetched successfully", null, {
+    loans,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
 });
 
 const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
