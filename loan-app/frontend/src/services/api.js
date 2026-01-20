@@ -17,6 +17,7 @@ const apiHandler = async (endpoint, options = {}, isRetry = false) => {
   const config = {
     ...options,
     headers,
+    credentials: "include",
   };
 
   try {
@@ -50,9 +51,10 @@ const apiHandler = async (endpoint, options = {}, isRetry = false) => {
 const attemptRefresh = async () => {
   try {
     // Note: credentials include sends the refreshToken cookie
-    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+    const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
     });
 
     const data = await res.json();
