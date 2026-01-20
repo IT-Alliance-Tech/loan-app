@@ -4,6 +4,22 @@ const ErrorHandler = require("../utils/ErrorHandler");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
+    { id: user._id, email: user.email, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" },
+  );
+
+  const refreshToken = jwt.sign(
+    { id: user._id },
+    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
+
+  return { accessToken, refreshToken };
+};
+
 const login = asyncHandler(async (req, res, next) => {
   const { email, password, accessKey } = req.body;
 
@@ -27,18 +43,90 @@ const login = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Your account is deactivated", 403));
   }
 
-  const token = jwt.sign(
-    { id: user._id, email: user.email, role: user.role },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: "24h",
-    }
-  );
+  const { accessToken, refreshToken } = generateTokens(user);
+
+  // Save refresh token in DB
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  // Set refresh token in secure cookie
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  });
 
   return sendResponse(res, 200, "success", "Login successful", null, {
-    token,
+    token: accessToken,
     user: { id: user._id, name: user.name, email: user.email, role: user.role },
   });
+});
+
+const refreshToken = asyncHandler(async (req, res, next) => {
+  const token = req.cookies.refreshToken;
+
+  if (!token) {
+    return next(new ErrorHandler("Refresh token not found", 401));
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(
+      token,
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+    );
+  } catch (err) {
+    return next(new ErrorHandler("Invalid refresh token", 403));
+  }
+
+  const user = await User.findById(decoded.id).select("+refreshToken");
+
+  if (!user || user.refreshToken !== token) {
+    return next(new ErrorHandler("Invalid refresh token", 403));
+  }
+
+  const tokens = generateTokens(user);
+  user.refreshToken = tokens.refreshToken;
+  await user.save();
+
+  res.cookie("refreshToken", tokens.refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  return sendResponse(res, 200, "success", "Token refreshed", null, {
+    token: tokens.accessToken,
+  });
+});
+
+const logout = asyncHandler(async (req, res, next) => {
+  const token = req.cookies.refreshToken;
+
+  if (token) {
+    const user = await User.findOne({ refreshToken: token });
+    if (user) {
+      user.refreshToken = undefined;
+      await user.save();
+    }
+  }
+
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  });
+
+  return sendResponse(
+    res,
+    200,
+    "success",
+    "Logged out successfully",
+    null,
+    null,
+  );
 });
 
 const forgotPassword = asyncHandler(async (req, res, next) => {
@@ -52,7 +140,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
   user.resetPasswordOTPExpire = Date.now() + 15 * 60 * 1000;
   await user.save();
 
-  console.log(`OTP for ${email}: ${otp}`); // Placeholder for actual email sending
+  console.log(`OTP for ${email}: ${otp}`);
   return sendResponse(res, 200, "success", "OTP sent to email", null, null);
 });
 
@@ -77,12 +165,14 @@ const resetPassword = asyncHandler(async (req, res, next) => {
     "success",
     "Password reset successful",
     null,
-    null
+    null,
   );
 });
 
 module.exports = {
   login,
+  refreshToken,
+  logout,
   forgotPassword,
   resetPassword,
 };

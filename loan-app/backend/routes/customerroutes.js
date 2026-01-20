@@ -18,19 +18,19 @@ router.use(isAuthenticated);
 router.post("/", authorizeRoles("SUPER_ADMIN"), createCustomerLoan);
 router.get("/", authorizeRoles("SUPER_ADMIN", "EMPLOYEE"), getAllCustomers);
 router.get(
-  "/emi/all",
+  "/emis/all",
   authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
-  getAllEMIDetails
+  getAllEMIDetails,
 );
 router.get(
   "/loan-emis/:loanId",
   authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
-  getEMIsByLoanId
+  getEMIsByLoanId,
 );
 router.get(
   "/:loanNumber",
   authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
-  getCustomerByLoanNumber
+  getCustomerByLoanNumber,
 );
 
 router.put("/:id", authorizeRoles("SUPER_ADMIN"), updateCustomer);
