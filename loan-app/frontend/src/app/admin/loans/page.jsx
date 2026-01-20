@@ -7,6 +7,7 @@ import Sidebar from "../../../components/Sidebar";
 import { getUserFromToken } from "../../../utils/auth";
 import { getLoans, searchLoan } from "../../../services/loan.service";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
+import Pagination from "../../../components/Pagination";
 
 const LoansPage = () => {
   const router = useRouter();
@@ -26,15 +27,27 @@ const LoansPage = () => {
     status: "",
   });
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [limit] = useState(10);
+
   useEffect(() => {
-    fetchLoans();
-  }, []);
+    fetchLoans({ page: currentPage, limit });
+  }, [currentPage]);
 
   const fetchLoans = async (filterParams = {}) => {
     try {
       setLoading(true);
-      const res = await getLoans(filterParams);
-      setLoans(res.data);
+      const res = await getLoans({ ...filterParams, limit });
+      if (res.data && res.data.loans) {
+        setLoans(res.data.loans);
+        setTotalPages(res.data.pagination.totalPages);
+        setTotalRecords(res.data.pagination.total);
+      } else {
+        setLoans(res.data || []);
+      }
       setError("");
     } catch (err) {
       setError(err.message);
@@ -45,15 +58,21 @@ const LoansPage = () => {
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
-    const params = {};
+    const params = { page: 1 };
     if (searchQuery.trim()) params.loanNumber = searchQuery;
+    setCurrentPage(1);
     fetchLoans(params);
   };
 
   const handleAdvancedSearch = (e) => {
     e.preventDefault();
-    fetchLoans(filters);
+    setCurrentPage(1);
+    fetchLoans({ ...filters, page: 1 });
     setIsFilterOpen(false);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   const handleFilterChange = (e) => {
@@ -70,7 +89,8 @@ const LoansPage = () => {
       status: "",
     };
     setFilters(emptyFilters);
-    fetchLoans({});
+    setCurrentPage(1);
+    fetchLoans({ page: 1 });
     setIsFilterOpen(false);
   };
 
@@ -88,19 +108,19 @@ const LoansPage = () => {
                 </div>
               )}
               {/* Header Section */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8">
                 <div>
-                  <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+                  <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
                     Loan Management
                   </h1>
                   <p className="text-slate-500 font-medium text-sm">
-                    {loans.length} active records identified in system
+                    {totalRecords} active records identified in system
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="w-full sm:w-auto flex items-center gap-3">
                   <button
                     onClick={async () => await exportLoansToExcel(loans)}
-                    className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center gap-2"
+                    className="flex-1 sm:flex-none bg-emerald-600 text-white px-4 sm:px-6 py-3 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
                   >
                     <svg
                       className="w-4 h-4"
@@ -120,10 +140,9 @@ const LoansPage = () => {
                   {isSuperAdmin && (
                     <button
                       onClick={() => router.push("/admin/loans/add")}
-                      className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
+                      className="flex-[2] sm:flex-none bg-primary text-white px-4 sm:px-6 py-3 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
                     >
                       <span className="text-lg leading-none">+</span> Add New
-                      Loan
                     </button>
                   )}
                 </div>
@@ -131,7 +150,7 @@ const LoansPage = () => {
 
               {/* Search & Stats */}
               <div className="flex flex-col lg:flex-row items-center gap-4 mb-8">
-                <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center overflow-hidden">
+                <div className="w-full lg:flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center overflow-hidden">
                   <form
                     onSubmit={handleSearch}
                     className="flex-1 flex items-center"
@@ -160,16 +179,16 @@ const LoansPage = () => {
                     </button>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="w-full lg:w-auto flex items-center gap-3">
                   <button
                     onClick={handleSearch}
-                    className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 lg:flex-none bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                   >
                     🔍 Search
                   </button>
                   <button
                     onClick={() => setIsFilterOpen(true)}
-                    className="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 lg:flex-none bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
                   >
                     <svg
                       className="w-3.5 h-3.5"
@@ -189,8 +208,8 @@ const LoansPage = () => {
                 </div>
               </div>
 
-              {/* Loans Table */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+              {/* Loans Table (Desktop) */}
+              <div className="hidden md:block bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -346,6 +365,121 @@ const LoansPage = () => {
                     </tbody>
                   </table>
                 </div>
+
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  totalRecords={totalRecords}
+                  limit={limit}
+                />
+              </div>
+
+              {/* Mobile View */}
+              <div className="md:hidden space-y-4">
+                {loading ? (
+                  <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">
+                    Initializing data stream...
+                  </div>
+                ) : loans.length === 0 ? (
+                  <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">
+                    No records found
+                  </div>
+                ) : (
+                  <>
+                    {loans.map((loan) => (
+                      <div
+                        key={loan._id}
+                        className={`bg-white rounded-2xl border border-slate-200 p-5 shadow-sm ${
+                          loan.isSeized ? "border-l-4 border-l-red-500" : ""
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                              Loan Number
+                            </span>
+                            <span className="text-sm font-black text-slate-900 uppercase">
+                              {loan.loanNumber}
+                            </span>
+                          </div>
+                          {loan.isSeized ? (
+                            <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[9px] font-black uppercase tracking-tighter border border-red-200">
+                              Seized
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-600 text-[9px] font-black uppercase tracking-tighter border border-green-200">
+                              Active
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                              Customer
+                            </span>
+                            <span className="text-xs font-bold text-slate-700 uppercase break-words">
+                              {loan.customerName}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                              Mobile
+                            </span>
+                            <span className="text-xs font-medium text-slate-500 tracking-widest">
+                              {loan.mobileNumber}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                              EMI
+                            </span>
+                            <span className="text-sm font-black text-primary">
+                              ₹{loan.monthlyEMI?.toLocaleString()}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                              Tenure
+                            </span>
+                            <span className="text-[10px] font-black text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md inline-block">
+                              {loan.tenureMonths}M
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-100 flex gap-3">
+                          <button
+                            onClick={() =>
+                              router.push(`/admin/loans/${loan._id}`)
+                            }
+                            className="flex-1 bg-slate-50 text-slate-600 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all text-center"
+                          >
+                            View Details
+                          </button>
+                          {isSuperAdmin && (
+                            <button
+                              onClick={() =>
+                                router.push(`/admin/loans/edit/${loan._id}`)
+                              }
+                              className="flex-1 bg-primary/5 text-primary py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-primary/10 transition-all text-center"
+                            >
+                              Edit Loan
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      totalRecords={totalRecords}
+                      limit={limit}
+                    />
+                  </>
+                )}
               </div>
             </div>
           </main>
