@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema(
     accessKey: {
       type: String,
     },
+    refreshToken: {
+      type: String,
+      select: false,
+    },
     resetPasswordOTP: String,
     resetPasswordOTPExpire: Date,
   },
