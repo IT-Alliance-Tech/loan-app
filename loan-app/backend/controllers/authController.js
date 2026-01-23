@@ -40,7 +40,6 @@ const login = asyncHandler(async (req, res, next) => {
   }
 
   if (!user.isActive) {
-    return next(new ErrorHandler("Your account is deactivated", 403));
   }
 
   const { accessToken, refreshToken } = generateTokens(user);
