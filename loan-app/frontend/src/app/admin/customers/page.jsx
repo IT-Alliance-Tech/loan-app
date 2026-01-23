@@ -64,7 +64,7 @@ const CustomersPage = () => {
     return calculateEMI(
       formData.principalAmount,
       formData.annualInterestRate,
-      formData.tenureMonths
+      formData.tenureMonths,
     );
   }, [
     formData.principalAmount,
@@ -111,7 +111,7 @@ const CustomersPage = () => {
   const filteredCustomers = customers.filter(
     (c) =>
       c.loanNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.customerName.toLowerCase().includes(searchQuery.toLowerCase())
+      c.customerName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -120,7 +120,7 @@ const CustomersPage = () => {
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <Navbar />
-          <main className="py-8 px-4 sm:px-8 max-w-6xl mx-auto">
+          <main className="py-8 px-4 sm:px-8 w-full">
             <div className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">

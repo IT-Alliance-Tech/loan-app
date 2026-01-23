@@ -10,7 +10,7 @@ import { createEmployee } from "../../../../services/userService";
 const AddEmployeePage = () => {
   const router = useRouter();
   const { showToast } = useToast();
-  const [step, setStep] = useState(1); // 1: Details, 2: Preview
+  const [step, setStep] = useState(1); // 1: Details, 2: Access, 3: Preview
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -18,6 +18,11 @@ const AddEmployeePage = () => {
     password: "",
     role: "EMPLOYEE",
     accessKey: "",
+    permissions: {
+      loans: { view: false, create: false, edit: false, delete: false },
+      emis: { view: false, create: false, edit: false, delete: false },
+      vehicles: { view: false, create: false, edit: false, delete: false },
+    },
   });
 
   const handleChange = (e) => {
@@ -25,13 +30,34 @@ const AddEmployeePage = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handlePermissionChange = (module, action) => {
+    setFormData((prev) => {
+      const newPermissions = { ...prev.permissions };
+      const modulePermissions = { ...newPermissions[module] };
+      const newValue = !modulePermissions[action];
+      modulePermissions[action] = newValue;
+
+      // Dependency logic: If create, edit, or delete is true, view MUST be true
+      if (
+        modulePermissions.create ||
+        modulePermissions.edit ||
+        modulePermissions.delete
+      ) {
+        modulePermissions.view = true;
+      }
+
+      newPermissions[module] = modulePermissions;
+      return { ...prev, permissions: newPermissions };
+    });
+  };
+
   const handleNext = (e) => {
-    e.preventDefault();
-    setStep(2);
+    if (e) e.preventDefault();
+    setStep((prev) => prev + 1);
   };
 
   const handleBack = () => {
-    setStep(1);
+    setStep((prev) => prev - 1);
   };
 
   const handleSubmit = async () => {
@@ -48,6 +74,62 @@ const AddEmployeePage = () => {
     }
   };
 
+  const PermissionRow = ({ label, module }) => (
+    <div className="grid grid-cols-5 items-center py-4 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors px-2 rounded-xl">
+      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest col-span-1 pl-2">
+        {label}
+      </span>
+      {["view", "create", "edit", "delete"].map((action) => (
+        <div key={action} className="flex justify-center col-span-1">
+          <label className="relative flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={formData.permissions[module][action]}
+              onChange={() => handlePermissionChange(module, action)}
+              disabled={
+                action === "view" &&
+                (formData.permissions[module].create ||
+                  formData.permissions[module].edit ||
+                  formData.permissions[module].delete)
+              }
+            />
+            <div
+              className={`w-6 h-6 border-2 rounded-full flex items-center justify-center transition-all peer-focus:ring-4 peer-focus:ring-primary/10 ${
+                formData.permissions[module][action]
+                  ? "bg-primary border-primary shadow-lg shadow-blue-200"
+                  : "border-slate-200 bg-white hover:border-primary/50"
+              } ${
+                action === "view" &&
+                (formData.permissions[module].create ||
+                  formData.permissions[module].edit ||
+                  formData.permissions[module].delete)
+                  ? "opacity-60 cursor-not-allowed"
+                  : "cursor-pointer"
+              }`}
+            >
+              {formData.permissions[module][action] && (
+                <svg
+                  className="w-3.5 h-3.5 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              )}
+            </div>
+          </label>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-[#F8FAFC] flex">
@@ -58,34 +140,39 @@ const AddEmployeePage = () => {
             <div className="max-w-2xl mx-auto">
               <div className="mb-8">
                 <button
-                  onClick={() => router.back()}
-                  className="text-slate-400 hover:text-slate-600 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 mb-4"
+                  onClick={() => (step === 1 ? router.back() : handleBack())}
+                  className="text-slate-400 hover:text-slate-600 font-bold text-[10px] uppercase tracking-widest flex items-center gap-2 mb-4 transition-all"
                 >
-                  ← Back to Registry
+                  ← {step === 1 ? "Back" : "Previous Step"}
                 </button>
                 <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
-                  Authorize Operator
+                  New Employee
                 </h1>
                 <p className="text-slate-500 font-medium text-sm">
-                  Step {step} of 2:{" "}
-                  {step === 1 ? "Credential Entry" : "Final Review"}
+                  Step {step} of 3:{" "}
+                  {step === 1
+                    ? "Credential Entry"
+                    : step === 2
+                      ? "Access Control"
+                      : "Final Review"}
                 </p>
               </div>
 
-              {step === 1 ? (
+              {step === 1 && (
                 <form
                   onSubmit={handleNext}
-                  className="space-y-6 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm"
+                  className="space-y-5 bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500"
                 >
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                      Full Legal Name
+                      Full Name
                     </label>
                     <input
                       type="text"
                       name="name"
                       required
-                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300"
+                      placeholder="E.G. JOHN DOE"
                       value={formData.name}
                       onChange={handleChange}
                     />
@@ -98,7 +185,7 @@ const AddEmployeePage = () => {
                       </label>
                       <select
                         name="role"
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all appearance-none"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all appearance-none cursor-pointer"
                         value={formData.role}
                         onChange={handleChange}
                       >
@@ -109,13 +196,14 @@ const AddEmployeePage = () => {
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                        Registry Email
+                        Email
                       </label>
                       <input
                         type="email"
                         name="email"
                         required
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300"
+                        placeholder="ADMIN@GENIUS.APP"
                         value={formData.email}
                         onChange={handleChange}
                       />
@@ -125,7 +213,7 @@ const AddEmployeePage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                        Secure Password
+                        Set Password
                       </label>
                       <input
                         type="password"
@@ -139,12 +227,12 @@ const AddEmployeePage = () => {
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                        Quick Access Key
+                        Set Access Key
                       </label>
                       <input
                         type="text"
                         name="accessKey"
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300 uppercase"
                         placeholder="E.G. OP-44"
                         value={formData.accessKey}
                         onChange={handleChange}
@@ -154,63 +242,151 @@ const AddEmployeePage = () => {
 
                   <button
                     type="submit"
-                    className="w-full bg-primary text-white p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all"
+                    className="w-full bg-primary text-white p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-200 hover:bg-blue-700 transform active:scale-[0.98] transition-all mt-4"
                   >
-                    Next: Review Credentials
+                    Next: Access Control
                   </button>
                 </form>
-              ) : (
-                <div className="space-y-6 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-8">
+              )}
+
+              {step === 2 && (
+                <div className="space-y-6 bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
+                  <div className="mb-4">
+                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                      Privilege Matrix
+                    </h2>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">
+                      Configure granular action permissions
+                    </p>
+                  </div>
+
+                  <div className="border border-slate-100 rounded-2xl bg-white overflow-hidden">
+                    <div className="grid grid-cols-5 bg-slate-50 py-3 border-b border-slate-100 px-2">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">
+                        Module
+                      </span>
+                      {["View", "Create", "Edit", "Delete"].map((h) => (
+                        <span
+                          key={h}
+                          className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center"
+                        >
+                          {h}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="divide-y divide-slate-50">
+                      <PermissionRow label="Loans" module="loans" />
+                      <PermissionRow label="EMIs" module="emis" />
+                      <PermissionRow
+                        label="Seized Vehicles"
+                        module="vehicles"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 mt-8">
+                    <button
+                      onClick={handleBack}
+                      className="flex-1 bg-slate-100 text-slate-500 p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-200 transition-all"
+                    >
+                      Previous/Back
+                    </button>
+                    <button
+                      onClick={handleNext}
+                      className="flex-[2] bg-primary text-white p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-200 hover:bg-blue-700 transform active:scale-[0.98] transition-all"
+                    >
+                      Next: Finalize Review
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="space-y-6 bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-2 gap-10">
                       <div>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                          Name
+                          Full Name
                         </p>
-                        <p className="text-lg font-black text-slate-900 uppercase">
+                        <p className="text-xl font-black text-slate-900 uppercase">
                           {formData.name}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                          Role
+                          Registry Type
                         </p>
-                        <span className="inline-flex px-3 py-1 bg-blue-50 text-primary text-[10px] font-black uppercase rounded-lg border border-blue-100">
+                        <span className="inline-flex px-4 py-1.5 bg-blue-50 text-primary text-[10px] font-black uppercase rounded-xl border border-blue-100">
                           {formData.role}
                         </span>
                       </div>
                     </div>
 
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Email
-                      </p>
-                      <p className="font-bold text-slate-700">
-                        {formData.email}
-                      </p>
+                    <div className="grid grid-cols-2 gap-10">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                          Email Address
+                        </p>
+                        <p className="font-bold text-slate-700">
+                          {formData.email}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                          Access Key
+                        </p>
+                        <p className="font-bold text-slate-700 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 inline-block">
+                          {formData.accessKey || "NONE"}
+                        </p>
+                      </div>
                     </div>
 
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Access Key
+                    <div className="pt-6 border-t border-slate-100">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+                        Assigned Permissions
                       </p>
-                      <p className="font-bold text-slate-700 uppercase">
-                        {formData.accessKey || "None Provided"}
-                      </p>
+                      <div className="grid grid-cols-1 gap-4">
+                        {Object.entries(formData.permissions).map(
+                          ([key, val]) => (
+                            <div
+                              key={key}
+                              className="flex items-center justify-between p-3 bg-slate-50/50 rounded-2xl border border-slate-100"
+                            >
+                              <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest pl-2">
+                                {key}
+                              </span>
+                              <div className="flex gap-2">
+                                {Object.entries(val).map(([act, allowed]) =>
+                                  allowed ? (
+                                    <span
+                                      key={act}
+                                      className="text-[8px] font-black uppercase bg-white border border-slate-200 px-2.5 py-1 rounded-full text-slate-500 shadow-sm"
+                                    >
+                                      {act}
+                                    </span>
+                                  ) : null,
+                                )}
+                              </div>
+                            </div>
+                          ),
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   <div className="pt-8 border-t border-slate-100 flex gap-4">
                     <button
                       onClick={handleBack}
-                      className="flex-1 bg-slate-50 text-slate-400 p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-100 hover:text-slate-600 transition-all"
+                      className="flex-1 bg-slate-100 text-slate-500 p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-200 transition-all"
                     >
-                      Hold: Back to Edit
+                      Back
                     </button>
                     <button
                       onClick={handleSubmit}
                       disabled={submitting}
-                      className="flex-[2] bg-emerald-600 text-white p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all disabled:opacity-50"
+                      className="flex-[2] bg-emerald-600 text-white p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-200 hover:bg-emerald-700 transform active:scale-[0.98] transition-all disabled:opacity-50"
                     >
                       {submitting ? "Committing..." : "Finalize Authorization"}
                     </button>
