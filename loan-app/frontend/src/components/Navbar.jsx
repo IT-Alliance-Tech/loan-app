@@ -60,9 +60,9 @@ const Navbar = () => {
           <div className="relative">
             <button
               onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center gap-2 pl-1 pr-3 py-1 bg-blue-50/50 hover:bg-blue-100/50 rounded-full border border-blue-100 transition-all focus:outline-none group"
+              className="flex items-center gap-1.5 pl-0.5 pr-2.5 py-0.5 bg-blue-50/50 hover:bg-blue-100/50 rounded-full border border-blue-100 transition-all focus:outline-none group"
             >
-              <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-black shadow-sm group-hover:scale-105 transition-transform">
+              <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-[11px] font-black shadow-sm group-hover:scale-105 transition-transform">
                 {userInitial}
               </div>
               <span className="text-[9px] font-black text-primary uppercase tracking-wider">
