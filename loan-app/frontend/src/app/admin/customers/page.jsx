@@ -152,14 +152,6 @@ const CustomersPage = () => {
                   </svg>
                   Export
                 </button>
-                {isSuperAdmin && (
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
-                  >
-                    <span className="text-lg leading-none">+</span> Add Customer
-                  </button>
-                )}
               </div>
             </div>
 
