@@ -611,29 +611,10 @@ const LoanForm = ({
                   <option value="White">White</option>
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Doc Checklist
-                </label>
-                <input
-                  type="text"
-                  name="docChecklist"
-                  value={formik.values.docChecklist || ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
-                  className={getFieldClass("docChecklist")}
-                />
-              </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="bg-slate-900 text-white px-4 py-2 rounded-lg">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em]">
-                Doc Checklist & RTO Details
-              </h3>
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
