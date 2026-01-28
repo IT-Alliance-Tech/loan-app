@@ -70,6 +70,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     additionalMobileNumbers,
     guarantorName,
     guarantorMobileNumbers,
+    status,
   } = req.body;
 
   if (
@@ -135,6 +136,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     additionalMobileNumbers,
     guarantorName,
     guarantorMobileNumbers,
+    status,
     createdBy: req.user._id,
   });
 

@@ -38,6 +38,7 @@ const CustomersPage = () => {
     additionalMobileNumbers: [],
     guarantorName: "",
     guarantorMobileNumbers: [],
+    status: "",
   });
 
   const fetchCustomers = async () => {
@@ -192,6 +193,7 @@ const CustomersPage = () => {
         additionalMobileNumbers: [],
         guarantorName: "",
         guarantorMobileNumbers: [],
+        status: "",
       });
       fetchCustomers();
     } catch (err) {
@@ -719,6 +721,21 @@ const CustomersPage = () => {
                       ).toLocaleString()}
                     </p>
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Status of Customer <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="status"
+                    required
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    placeholder="Enter current status"
+                  />
                 </div>
 
                 <div className="space-y-1">
