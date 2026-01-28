@@ -5,12 +5,34 @@ const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 
 const calculateEMI = (principal, roi, tenureMonths) => {
-  const r = roi / 12 / 100;
-  const n = tenureMonths;
-  if (r === 0) return parseFloat((principal / n).toFixed(2));
-  const emi = (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+  const p = parseFloat(principal);
+  const r = parseFloat(roi);
+  const n = parseInt(tenureMonths);
+  if (!p || !n) return 0;
+
+  // Flat Interest Calculation: EMI = (Principal / Tenure) + (Principal * Rate / 100)
+  const monthlyInterest = p * (r / 100);
+  const monthlyPrincipal = p / n;
+  const emi = monthlyPrincipal + monthlyInterest;
+
   return parseFloat(emi.toFixed(2));
 };
+
+const calculateEMIApi = asyncHandler(async (req, res, next) => {
+  const { principalAmount, annualInterestRate, tenureMonths } = req.body;
+
+  if (!principalAmount || !annualInterestRate || !tenureMonths) {
+    return next(
+      new ErrorHandler("Please provide principal, rate and tenure", 400),
+    );
+  }
+
+  const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
+
+  sendResponse(res, 200, "success", "EMI calculated successfully", null, {
+    emi,
+  });
+});
 
 const createLoan = asyncHandler(async (req, res, next) => {
   const {
@@ -68,6 +90,11 @@ const createLoan = asyncHandler(async (req, res, next) => {
     tenureMonths,
   );
 
+  const calculatedTotalInterest =
+    parseFloat(principalAmount) *
+    (parseFloat(annualInterestRate) / 100) *
+    parseInt(tenureMonths);
+
   const loan = await Loan.create({
     siNo,
     loanNumber,
@@ -87,7 +114,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     emiStartDate,
     emiEndDate,
     monthlyEMI,
-    totalInterestAmount,
+    totalInterestAmount: calculatedTotalInterest,
     vehicleNumber,
     chassisNumber,
     model,
@@ -208,12 +235,17 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       : loan.tenureMonths;
 
   const monthlyEMI = calculateEMI(updatedPrincipal, updatedRoi, updatedTenure);
+  const calculatedTotalInterest =
+    parseFloat(updatedPrincipal) *
+    (parseFloat(updatedRoi) / 100) *
+    parseInt(updatedTenure);
 
   loan = await Loan.findByIdAndUpdate(
     req.params.id,
     {
       ...req.body,
       monthlyEMI,
+      totalInterestAmount: calculatedTotalInterest,
     },
     { new: true, runValidators: true },
   );
@@ -247,4 +279,5 @@ module.exports = {
   getLoanById,
   updateLoan,
   toggleSeizedStatus,
+  calculateEMIApi,
 };

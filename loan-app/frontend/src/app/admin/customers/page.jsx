@@ -7,6 +7,7 @@ import { useToast } from "../../../context/ToastContext";
 import { getUserFromToken } from "../../../utils/auth";
 import { getCustomers, createCustomer } from "../../../services/customer";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
+import { calculateEMI as fetchEMI } from "../../../services/loan.service";
 
 const CustomersPage = () => {
   const user = getUserFromToken();
@@ -49,28 +50,46 @@ const CustomersPage = () => {
     fetchCustomers();
   }, []);
 
-  const calculateEMI = (principal, roi, tenure) => {
-    const P = parseFloat(principal);
-    const R = parseFloat(roi) / 12 / 100;
-    const N = parseFloat(tenure);
+  useEffect(() => {
+    const P = parseFloat(formData.principalAmount);
+    const R = parseFloat(formData.annualInterestRate);
+    const N = parseFloat(formData.tenureMonths);
 
-    if (!P || !R || !N) return 0;
-
-    const emi = (P * R * Math.pow(1 + R, N)) / (Math.pow(1 + R, N) - 1);
-    return emi.toFixed(2);
-  };
-
-  const currentEMI = useMemo(() => {
-    return calculateEMI(
-      formData.principalAmount,
-      formData.annualInterestRate,
-      formData.tenureMonths,
-    );
+    if (P && R && N) {
+      const getEMI = async () => {
+        try {
+          const res = await fetchEMI({
+            principalAmount: P,
+            annualInterestRate: R,
+            tenureMonths: N,
+          });
+          if (res.data && res.data.emi) {
+            const totalInt = P * (R / 100) * N;
+            setFormData((prev) => ({
+              ...prev,
+              monthlyEMI: res.data.emi,
+              totalInterestAmount: totalInt.toFixed(2),
+            }));
+          }
+        } catch (err) {
+          console.error("Failed to fetch EMI", err);
+        }
+      };
+      getEMI();
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        monthlyEMI: 0,
+        totalInterestAmount: 0,
+      }));
+    }
   }, [
     formData.principalAmount,
     formData.annualInterestRate,
     formData.tenureMonths,
   ]);
+
+  const currentEMI = formData.monthlyEMI || 0;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -455,10 +474,13 @@ const CustomersPage = () => {
                   </div>
                   <div className="text-right">
                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">
-                      Status Code
+                      Total Interest Amount
                     </span>
-                    <p className="text-[10px] font-black text-slate-900 uppercase">
-                      Awaiting Registry
+                    <p className="text-[14px] font-black text-slate-900 uppercase">
+                      ₹
+                      {parseFloat(
+                        formData.totalInterestAmount || 0,
+                      ).toLocaleString()}
                     </p>
                   </div>
                 </div>
