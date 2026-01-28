@@ -52,6 +52,7 @@ const validationSchema = Yup.object().shape({
   vehicleNumber: Yup.string()
     .matches(/^[A-Z]{2}-\d{2}-[A-Z]{1,2}-\d{4}$/, "Format: KA-01-AB-1234")
     .nullable(),
+  status: Yup.string().required("Status is required"),
 });
 
 const LoanForm = ({
@@ -102,6 +103,7 @@ const LoanForm = ({
       guarantorMobileNumbers: Array.isArray(initialData.guarantorMobileNumbers)
         ? initialData.guarantorMobileNumbers
         : [],
+      status: initialData.status || "",
     },
     validationSchema,
     enableReinitialize: true,
@@ -1221,6 +1223,23 @@ const LoanForm = ({
                     )}
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Status <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="status"
+                  value={formik.values.status || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("status")}
+                  placeholder="Enter current status (e.g. Verified, Pending Documents, etc.)"
+                />
+                <ErrorMsg name="status" />
               </div>
             </div>
           </div>
