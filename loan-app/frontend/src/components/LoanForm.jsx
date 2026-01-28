@@ -87,17 +87,23 @@ const LoanForm = ({
     return parts.filter((p) => p.length > 0).join("-");
   };
 
-  // Auto-calculate Fee
-  useEffect(() => {
+  const handleProcessingFeeRateChange = (rate) => {
+    formik.setFieldValue("processingFeeRate", rate);
     const principal = parseFloat(formik.values.principalAmount) || 0;
-    const rate = parseFloat(formik.values.processingFeeRate) || 0;
-    if (principal && rate) {
-      const fee = ((principal * rate) / 100).toFixed(2);
-      if (formik.values.processingFee !== fee) {
-        formik.setFieldValue("processingFee", fee);
-      }
+    if (principal && !isNaN(rate)) {
+      const fee = ((principal * parseFloat(rate)) / 100).toFixed(2);
+      formik.setFieldValue("processingFee", fee);
     }
-  }, [formik.values.principalAmount, formik.values.processingFeeRate]);
+  };
+
+  const handleProcessingFeeChange = (fee) => {
+    formik.setFieldValue("processingFee", fee);
+    const principal = parseFloat(formik.values.principalAmount) || 0;
+    if (principal && !isNaN(fee)) {
+      const rate = ((parseFloat(fee) / principal) * 100).toFixed(2);
+      formik.setFieldValue("processingFeeRate", rate);
+    }
+  };
 
   // Auto-calculate EMI from backend
   useEffect(() => {
@@ -344,7 +350,9 @@ const LoanForm = ({
                   type="number"
                   name="processingFeeRate"
                   value={formik.values.processingFeeRate || ""}
-                  onChange={formik.handleChange}
+                  onChange={(e) =>
+                    handleProcessingFeeRateChange(e.target.value)
+                  }
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
                   className={getFieldClass("processingFeeRate")}
@@ -358,11 +366,12 @@ const LoanForm = ({
                   type="number"
                   name="processingFee"
                   value={formik.values.processingFee || ""}
-                  onChange={formik.handleChange}
+                  onChange={(e) => handleProcessingFeeChange(e.target.value)}
                   onBlur={formik.handleBlur}
-                  readOnly={true} // Auto-calculated
+                  readOnly={isViewOnly}
                   className={
-                    getFieldClass("processingFee") + " bg-slate-100 italic"
+                    getFieldClass("processingFee") +
+                    (isViewOnly ? " bg-slate-100 italic" : "")
                   }
                 />
               </div>
