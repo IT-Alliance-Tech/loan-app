@@ -29,7 +29,11 @@ const CustomersPage = () => {
     principalAmount: "",
     annualInterestRate: "",
     tenureMonths: "",
+    processingFeeRate: "",
+    processingFee: "",
     loanStartDate: new Date().toISOString().split("T")[0],
+    emiStartDate: "",
+    emiEndDate: "",
     remarks: "",
   });
 
@@ -93,7 +97,46 @@ const CustomersPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    let newFormData = { ...formData, [name]: value };
+
+    const principal =
+      parseFloat(
+        name === "principalAmount" ? value : formData.principalAmount,
+      ) || 0;
+
+    if (name === "processingFeeRate") {
+      const rate = parseFloat(value) || 0;
+      const fee = ((principal * rate) / 100).toFixed(2);
+      newFormData.processingFee = fee;
+    } else if (name === "processingFee") {
+      const fee = parseFloat(value) || 0;
+      const rate = principal > 0 ? ((fee / principal) * 100).toFixed(2) : 0;
+      newFormData.processingFeeRate = rate;
+    } else if (name === "principalAmount") {
+      const rate = parseFloat(formData.processingFeeRate) || 0;
+      const fee = ((principal * rate) / 100).toFixed(2);
+      newFormData.processingFee = fee;
+    }
+
+    // Automate Dates
+    const lDate = name === "loanStartDate" ? value : formData.loanStartDate;
+    const tenure =
+      parseInt(name === "tenureMonths" ? value : formData.tenureMonths) || 0;
+
+    if (lDate) {
+      const d = new Date(lDate);
+      const start = new Date(d);
+      start.setMonth(start.getMonth() + 1);
+      newFormData.emiStartDate = start.toISOString().split("T")[0];
+
+      if (tenure) {
+        const end = new Date(d);
+        end.setMonth(end.getMonth() + tenure);
+        newFormData.emiEndDate = end.toISOString().split("T")[0];
+      }
+    }
+
+    setFormData(newFormData);
   };
 
   const handleSubmit = async (e) => {
@@ -341,6 +384,30 @@ const CustomersPage = () => {
                         onChange={handleInputChange}
                       />
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        EMI Start Date
+                      </label>
+                      <input
+                        type="date"
+                        name="emiStartDate"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.emiStartDate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        EMI End Date
+                      </label>
+                      <input
+                        type="date"
+                        name="emiEndDate"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.emiEndDate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -457,6 +524,30 @@ const CustomersPage = () => {
                         required
                         className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
                         value={formData.tenureMonths}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Proc. Fee Rate (%)
+                      </label>
+                      <input
+                        type="number"
+                        name="processingFeeRate"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.processingFeeRate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Processing Fee (₹)
+                      </label>
+                      <input
+                        type="number"
+                        name="processingFee"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.processingFee}
                         onChange={handleInputChange}
                       />
                     </div>
