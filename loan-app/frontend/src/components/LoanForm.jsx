@@ -87,17 +87,23 @@ const LoanForm = ({
     return parts.filter((p) => p.length > 0).join("-");
   };
 
-  // Auto-calculate Fee
-  useEffect(() => {
+  const handleProcessingFeeRateChange = (rate) => {
+    formik.setFieldValue("processingFeeRate", rate);
     const principal = parseFloat(formik.values.principalAmount) || 0;
-    const rate = parseFloat(formik.values.processingFeeRate) || 0;
-    if (principal && rate) {
-      const fee = ((principal * rate) / 100).toFixed(2);
-      if (formik.values.processingFee !== fee) {
-        formik.setFieldValue("processingFee", fee);
-      }
+    if (principal && !isNaN(rate)) {
+      const fee = ((principal * parseFloat(rate)) / 100).toFixed(2);
+      formik.setFieldValue("processingFee", fee);
     }
-  }, [formik.values.principalAmount, formik.values.processingFeeRate]);
+  };
+
+  const handleProcessingFeeChange = (fee) => {
+    formik.setFieldValue("processingFee", fee);
+    const principal = parseFloat(formik.values.principalAmount) || 0;
+    if (principal && !isNaN(fee)) {
+      const rate = ((parseFloat(fee) / principal) * 100).toFixed(2);
+      formik.setFieldValue("processingFeeRate", rate);
+    }
+  };
 
   // Auto-calculate EMI from backend
   useEffect(() => {
@@ -132,6 +138,31 @@ const LoanForm = ({
     formik.values.annualInterestRate,
     formik.values.tenureMonths,
   ]);
+
+  // Auto-calculate EMI Start and End Dates
+  useEffect(() => {
+    const disbursementDate = formik.values.dateLoanDisbursed;
+    const tenure = parseInt(formik.values.tenureMonths);
+
+    if (disbursementDate) {
+      const d = new Date(disbursementDate);
+
+      // EMI Start Date = Disbursement Date + 1 Month
+      const startDate = new Date(d);
+      startDate.setMonth(startDate.getMonth() + 1);
+      formik.setFieldValue(
+        "emiStartDate",
+        startDate.toISOString().split("T")[0],
+      );
+
+      // EMI End Date = Disbursement Date + Tenure Months
+      if (tenure) {
+        const endDate = new Date(d);
+        endDate.setMonth(endDate.getMonth() + tenure);
+        formik.setFieldValue("emiEndDate", endDate.toISOString().split("T")[0]);
+      }
+    }
+  }, [formik.values.dateLoanDisbursed, formik.values.tenureMonths]);
 
   const ErrorMsg = ({ name }) => {
     return formik.touched[name] && formik.errors[name] ? (
@@ -344,7 +375,9 @@ const LoanForm = ({
                   type="number"
                   name="processingFeeRate"
                   value={formik.values.processingFeeRate || ""}
-                  onChange={formik.handleChange}
+                  onChange={(e) =>
+                    handleProcessingFeeRateChange(e.target.value)
+                  }
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
                   className={getFieldClass("processingFeeRate")}
@@ -358,11 +391,12 @@ const LoanForm = ({
                   type="number"
                   name="processingFee"
                   value={formik.values.processingFee || ""}
-                  onChange={formik.handleChange}
+                  onChange={(e) => handleProcessingFeeChange(e.target.value)}
                   onBlur={formik.handleBlur}
-                  readOnly={true} // Auto-calculated
+                  readOnly={isViewOnly}
                   className={
-                    getFieldClass("processingFee") + " bg-slate-100 italic"
+                    getFieldClass("processingFee") +
+                    (isViewOnly ? " bg-slate-100 italic" : "")
                   }
                 />
               </div>
