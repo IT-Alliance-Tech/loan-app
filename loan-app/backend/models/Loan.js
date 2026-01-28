@@ -32,6 +32,18 @@ const loanSchema = new mongoose.Schema(
       required: [true, "Mobile number is required"],
       trim: true,
     },
+    additionalMobileNumbers: {
+      type: [String],
+      default: [],
+    },
+    guarantorName: {
+      type: String,
+      trim: true,
+    },
+    guarantorMobileNumbers: {
+      type: [String],
+      default: [],
+    },
     panNumber: {
       type: String,
       trim: true,
@@ -85,6 +97,10 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    engineNumber: {
+      type: String,
+      trim: true,
+    },
     model: {
       type: String,
       trim: true,
@@ -121,8 +137,8 @@ const loanSchema = new mongoose.Schema(
       type: Date,
     },
     rtoWorkPending: {
-      type: String,
-      trim: true,
+      type: [String],
+      default: [],
     },
     isSeized: {
       type: Boolean,
@@ -138,7 +154,7 @@ const loanSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Loan", loanSchema);

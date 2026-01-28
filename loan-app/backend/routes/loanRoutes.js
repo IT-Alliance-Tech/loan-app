@@ -9,9 +9,16 @@ const {
   toggleSeizedStatus,
   calculateEMIApi,
 } = require("../controllers/loanController");
+const {
+  getRtoWorks,
+  createRtoWork,
+} = require("../controllers/rtoWorkController");
 const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
 
 router.use(isAuthenticated);
+
+router.get("/rto-works", getRtoWorks);
+router.post("/rto-works", createRtoWork);
 
 router
   .route("/")

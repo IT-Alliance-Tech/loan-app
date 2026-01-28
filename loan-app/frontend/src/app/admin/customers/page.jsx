@@ -35,6 +35,9 @@ const CustomersPage = () => {
     emiStartDate: "",
     emiEndDate: "",
     remarks: "",
+    additionalMobileNumbers: [],
+    guarantorName: "",
+    guarantorMobileNumbers: [],
   });
 
   const fetchCustomers = async () => {
@@ -139,6 +142,29 @@ const CustomersPage = () => {
     setFormData(newFormData);
   };
 
+  const addAdditionalMobile = (field) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: [...prev[field], ""],
+    }));
+  };
+
+  const removeAdditionalMobile = (field, index) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: prev[field].filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleArrayInputChange = (field, index, value) => {
+    const val = value.replace(/[^0-9]/g, "");
+    setFormData((prev) => {
+      const newArr = [...prev[field]];
+      newArr[index] = val;
+      return { ...prev, [field]: newArr };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -160,7 +186,12 @@ const CustomersPage = () => {
         annualInterestRate: "",
         tenureMonths: "",
         loanStartDate: new Date().toISOString().split("T")[0],
+        emiStartDate: "",
+        emiEndDate: "",
         remarks: "",
+        additionalMobileNumbers: [],
+        guarantorName: "",
+        guarantorMobileNumbers: [],
       });
       fetchCustomers();
     } catch (err) {
@@ -460,6 +491,120 @@ const CustomersPage = () => {
                         onChange={handleInputChange}
                       />
                     </div>
+                    <div className="space-y-4 col-span-2 pt-2 border-t border-slate-100 mt-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                        <span>Additional Contact Numbers (Customer)</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addAdditionalMobile("additionalMobileNumbers")
+                          }
+                          className="text-primary hover:text-primary/70 transition-colors"
+                        >
+                          + Add Number
+                        </button>
+                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        {formData.additionalMobileNumbers.map((num, idx) => (
+                          <div
+                            key={idx}
+                            className="flex gap-2 animate-in zoom-in duration-200"
+                          >
+                            <input
+                              type="text"
+                              maxLength={10}
+                              className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-primary transition-all"
+                              placeholder={`Alt Number ${idx + 1}`}
+                              value={num}
+                              onChange={(e) =>
+                                handleArrayInputChange(
+                                  "additionalMobileNumbers",
+                                  idx,
+                                  e.target.value,
+                                )
+                              }
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeAdditionalMobile(
+                                  "additionalMobileNumbers",
+                                  idx,
+                                )
+                              }
+                              className="text-red-400 hover:text-red-500 transition-colors"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 col-span-2 pt-4 border-t border-slate-100">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Guarantor Name
+                      </label>
+                      <input
+                        type="text"
+                        name="guarantorName"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.guarantorName}
+                        onChange={handleInputChange}
+                        placeholder="Enter Guarantor Legal Name"
+                      />
+                    </div>
+
+                    <div className="space-y-4 col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                        <span>Guarantor Contact Numbers</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addAdditionalMobile("guarantorMobileNumbers")
+                          }
+                          className="text-primary hover:text-primary/70 transition-colors"
+                        >
+                          + Add Number
+                        </button>
+                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        {formData.guarantorMobileNumbers.map((num, idx) => (
+                          <div
+                            key={idx}
+                            className="flex gap-2 animate-in zoom-in duration-200"
+                          >
+                            <input
+                              type="text"
+                              maxLength={10}
+                              className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-primary transition-all"
+                              placeholder={`Guarantor No. ${idx + 1}`}
+                              value={num}
+                              onChange={(e) =>
+                                handleArrayInputChange(
+                                  "guarantorMobileNumbers",
+                                  idx,
+                                  e.target.value,
+                                )
+                              }
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeAdditionalMobile(
+                                  "guarantorMobileNumbers",
+                                  idx,
+                                )
+                              }
+                              className="text-red-400 hover:text-red-500 transition-colors"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="space-y-1 col-span-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                         Current Address

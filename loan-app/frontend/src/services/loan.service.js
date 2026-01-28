@@ -45,3 +45,16 @@ export const calculateEMI = async (data) => {
     body: JSON.stringify(data),
   });
 };
+
+export const getRtoWorks = async () => {
+  return await apiHandler("/api/loans/rto-works", {
+    method: "GET",
+  });
+};
+
+export const createRtoWork = async (name) => {
+  return await apiHandler("/api/loans/rto-works", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+};
