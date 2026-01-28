@@ -1,9 +1,13 @@
 "use client";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useToast } from "../context/ToastContext";
-import { calculateEMI as fetchEMI } from "../services/loan.service";
+import {
+  calculateEMI as fetchEMI,
+  getRtoWorks,
+  createRtoWork,
+} from "../services/loan.service";
 
 const validationSchema = Yup.object().shape({
   loanNumber: Yup.string().required("Loan number is required"),
@@ -11,11 +15,15 @@ const validationSchema = Yup.object().shape({
   address: Yup.string().required("Address is required"),
   ownRent: Yup.string().required("Please select ownership status"),
   mobileNumber: Yup.string()
-    .matches(
-      /^[6-9]\d{9}$/,
-      "Invalid Mobile Number. Must be 10 digits starting with 6-9.",
-    )
+    .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
     .required("Mobile number is required"),
+  additionalMobileNumbers: Yup.array().of(
+    Yup.string().matches(/^[6-9]\d{9}$/, "Invalid Mobile Number"),
+  ),
+  guarantorName: Yup.string().nullable(),
+  guarantorMobileNumbers: Yup.array().of(
+    Yup.string().matches(/^[6-9]\d{9}$/, "Invalid Mobile Number"),
+  ),
   panNumber: Yup.string()
     .matches(
       /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,
@@ -30,6 +38,9 @@ const validationSchema = Yup.object().shape({
     .required("Principal is required"),
   processingFeeRate: Yup.number().min(0).nullable(),
   processingFee: Yup.number().min(0).nullable(),
+  chassisNumber: Yup.string().nullable(),
+  engineNumber: Yup.string().nullable(),
+  model: Yup.string().nullable(),
   tenureType: Yup.string().required("Tenure type is required"),
   tenureMonths: Yup.number()
     .positive("Must be positive")
@@ -53,14 +64,94 @@ const LoanForm = ({
 }) => {
   const { showToast } = useToast();
 
+  const [rtoOptions, setRtoOptions] = useState([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [isRtoDropdownOpen, setIsRtoDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      setLoadingOptions(true);
+      try {
+        const res = await getRtoWorks();
+        if (res.data) {
+          setRtoOptions(res.data.map((opt) => opt.name));
+        }
+      } catch (err) {
+        console.error("Failed to fetch RTO options", err);
+      } finally {
+        setLoadingOptions(false);
+      }
+    };
+    fetchOptions();
+  }, []);
+
   const formik = useFormik({
-    initialValues: initialData,
+    initialValues: {
+      ...initialData,
+      rtoWorkPending: Array.isArray(initialData.rtoWorkPending)
+        ? initialData.rtoWorkPending
+        : initialData.rtoWorkPending
+          ? [initialData.rtoWorkPending]
+          : [],
+      additionalMobileNumbers: Array.isArray(
+        initialData.additionalMobileNumbers,
+      )
+        ? initialData.additionalMobileNumbers
+        : [],
+      guarantorName: initialData.guarantorName || "",
+      guarantorMobileNumbers: Array.isArray(initialData.guarantorMobileNumbers)
+        ? initialData.guarantorMobileNumbers
+        : [],
+    },
     validationSchema,
     enableReinitialize: true,
-    onSubmit: (values) => {
-      onSubmit(values);
+    onSubmit: async (values) => {
+      // Clean up rtoWorkPending: ensure it's an array and filter out empty strings
+      const rtoWork = Array.isArray(values.rtoWorkPending)
+        ? values.rtoWorkPending.filter((w) => w.trim() !== "")
+        : [];
+
+      // Save any new options to the backend
+      for (const work of rtoWork) {
+        if (!rtoOptions.includes(work)) {
+          try {
+            await createRtoWork(work);
+          } catch (err) {
+            console.error("Failed to save new RTO work option", err);
+          }
+        }
+      }
+
+      onSubmit({ ...values, rtoWorkPending: rtoWork });
     },
   });
+
+  const handleRtoCheckboxChange = (option) => {
+    const current = Array.isArray(formik.values.rtoWorkPending)
+      ? formik.values.rtoWorkPending
+      : [];
+    if (current.includes(option)) {
+      formik.setFieldValue(
+        "rtoWorkPending",
+        current.filter((item) => item !== option),
+      );
+    } else {
+      formik.setFieldValue("rtoWorkPending", [...current, option]);
+    }
+  };
+
+  const [customRto, setCustomRto] = useState("");
+  const handleAddCustomRto = () => {
+    if (customRto.trim()) {
+      const current = Array.isArray(formik.values.rtoWorkPending)
+        ? formik.values.rtoWorkPending
+        : [];
+      if (!current.includes(customRto.trim())) {
+        formik.setFieldValue("rtoWorkPending", [...current, customRto.trim()]);
+      }
+      setCustomRto("");
+    }
+  };
 
   // Auto-format Vehicle Number: KA01TH8520 -> KA-01-TH-8520
   const formatVehicleNumber = (val) => {
@@ -338,6 +429,217 @@ const LoanForm = ({
                   <ErrorMsg name="aadharNumber" />
                 </div>
               </div>
+
+              {/* Guarantor & Multi-Mobile Section */}
+              <div className="md:col-span-2 space-y-6 pt-4 border-t border-slate-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Guarantor Name */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      Guarantor Name
+                    </label>
+                    <input
+                      type="text"
+                      name="guarantorName"
+                      value={formik.values.guarantorName || ""}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      readOnly={isViewOnly}
+                      className={getFieldClass("guarantorName")}
+                      placeholder="Enter Guarantor Name"
+                    />
+                    <ErrorMsg name="guarantorName" />
+                  </div>
+
+                  {/* Multiple Mobile Management */}
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
+                      Additional Mobile Numbers (Customer)
+                    </label>
+                    <div className="space-y-2">
+                      {formik.values.additionalMobileNumbers.map((num, idx) => (
+                        <div
+                          key={idx}
+                          className="flex gap-2 animate-in slide-in-from-left-2 duration-200"
+                        >
+                          <input
+                            type="text"
+                            maxLength={10}
+                            value={num}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^0-9]/g, "");
+                              const newArr = [
+                                ...formik.values.additionalMobileNumbers,
+                              ];
+                              newArr[idx] = val;
+                              formik.setFieldValue(
+                                "additionalMobileNumbers",
+                                newArr,
+                              );
+                            }}
+                            className={getFieldClass(
+                              `additionalMobileNumbers.${idx}`,
+                            )}
+                            placeholder={`Alt number ${idx + 1}`}
+                            readOnly={isViewOnly}
+                          />
+                          {!isViewOnly && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newArr =
+                                  formik.values.additionalMobileNumbers.filter(
+                                    (_, i) => i !== idx,
+                                  );
+                                formik.setFieldValue(
+                                  "additionalMobileNumbers",
+                                  newArr,
+                                );
+                              }}
+                              className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                            >
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {!isViewOnly && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            formik.setFieldValue("additionalMobileNumbers", [
+                              ...formik.values.additionalMobileNumbers,
+                              "",
+                            ])
+                          }
+                          className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/70 transition-colors flex items-center gap-1.5"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="3"
+                              d="M12 4v16m8-8H4"
+                            />
+                          </svg>
+                          Add Contact Number
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Guarantor Mobile Numbers */}
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Guarantor Mobile Numbers
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {formik.values.guarantorMobileNumbers.map((num, idx) => (
+                      <div
+                        key={idx}
+                        className="flex gap-2 animate-in slide-in-from-right-2 duration-200"
+                      >
+                        <input
+                          type="text"
+                          maxLength={10}
+                          value={num}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, "");
+                            const newArr = [
+                              ...formik.values.guarantorMobileNumbers,
+                            ];
+                            newArr[idx] = val;
+                            formik.setFieldValue(
+                              "guarantorMobileNumbers",
+                              newArr,
+                            );
+                          }}
+                          className={getFieldClass(
+                            `guarantorMobileNumbers.${idx}`,
+                          )}
+                          placeholder="10 digit number"
+                          readOnly={isViewOnly}
+                        />
+                        {!isViewOnly && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newArr =
+                                formik.values.guarantorMobileNumbers.filter(
+                                  (_, i) => i !== idx,
+                                );
+                              formik.setFieldValue(
+                                "guarantorMobileNumbers",
+                                newArr,
+                              );
+                            }}
+                            className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {!isViewOnly && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          formik.setFieldValue("guarantorMobileNumbers", [
+                            ...formik.values.guarantorMobileNumbers,
+                            "",
+                          ])
+                        }
+                        className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/70 transition-colors flex items-center gap-1.5"
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="3"
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                        Add Guarantor Contact
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -569,6 +871,25 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Engine Number
+                </label>
+                <input
+                  type="text"
+                  name="engineNumber"
+                  value={formik.values.engineNumber || ""}
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "engineNumber",
+                      e.target.value.toUpperCase(),
+                    )
+                  }
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("engineNumber") + " uppercase"}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Model
                 </label>
                 <input
@@ -692,15 +1013,214 @@ const LoanForm = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   RTO Work Pending
                 </label>
-                <input
-                  type="text"
-                  name="rtoWorkPending"
-                  value={formik.values.rtoWorkPending || ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
-                  className={getFieldClass("rtoWorkPending")}
-                />
+                {!isViewOnly ? (
+                  <div className="relative">
+                    {/* Multi-select Dropdown Trigger */}
+                    <div
+                      onClick={() => setIsRtoDropdownOpen(!isRtoDropdownOpen)}
+                      className={
+                        "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold focus-within:ring-2 focus-within:ring-primary/20 transition-all cursor-pointer flex justify-between items-center gap-2 min-h-[44px]"
+                      }
+                    >
+                      <div className="flex flex-wrap gap-1 flex-1 items-center py-1">
+                        {Array.isArray(formik.values.rtoWorkPending) &&
+                        formik.values.rtoWorkPending.length > 0 ? (
+                          formik.values.rtoWorkPending.map((item) => (
+                            <span
+                              key={item}
+                              className="bg-primary/10 text-primary text-[9px] font-black px-2 py-0.5 rounded-md border border-primary/10 animate-in fade-in zoom-in duration-200"
+                            >
+                              {item}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-slate-400 font-medium text-[11px]">
+                            Select RTO Tasks...
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 ml-auto">
+                        <svg
+                          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-300 ${isRtoDropdownOpen ? "rotate-180" : ""}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="3"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Dropdown Menu - Positioned UPWARDS to avoid clipping at the bottom of the card */}
+                    {isRtoDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setIsRtoDropdownOpen(false)}
+                        ></div>
+
+                        <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 z-50 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300 ring-4 ring-slate-900/5">
+                          <div className="flex justify-between items-center px-1 border-b border-slate-50 pb-2">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                              Availability List
+                            </span>
+                            {Array.isArray(formik.values.rtoWorkPending) &&
+                              formik.values.rtoWorkPending.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    formik.setFieldValue("rtoWorkPending", []);
+                                  }}
+                                  className="text-[9px] font-black text-red-400 uppercase hover:text-red-600 transition-colors"
+                                >
+                                  Clear All
+                                </button>
+                              )}
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-1 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
+                            {loadingOptions ? (
+                              <div className="py-8 text-center">
+                                <span className="text-xs italic text-slate-400">
+                                  Loading Intelligence...
+                                </span>
+                              </div>
+                            ) : (
+                              rtoOptions.map((opt) => (
+                                <label
+                                  key={opt}
+                                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer group transition-all ${
+                                    Array.isArray(
+                                      formik.values.rtoWorkPending,
+                                    ) &&
+                                    formik.values.rtoWorkPending.includes(opt)
+                                      ? "bg-primary/5 border border-primary/10"
+                                      : "hover:bg-slate-50 border border-transparent"
+                                  }`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div
+                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                      Array.isArray(
+                                        formik.values.rtoWorkPending,
+                                      ) &&
+                                      formik.values.rtoWorkPending.includes(opt)
+                                        ? "bg-primary border-primary"
+                                        : "bg-white border-slate-300 group-hover:border-primary"
+                                    }`}
+                                  >
+                                    {Array.isArray(
+                                      formik.values.rtoWorkPending,
+                                    ) &&
+                                      formik.values.rtoWorkPending.includes(
+                                        opt,
+                                      ) && (
+                                        <svg
+                                          className="w-3.5 h-3.5 text-white"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="4"
+                                            d="M5 13l4 4L19 7"
+                                          />
+                                        </svg>
+                                      )}
+                                  </div>
+                                  <input
+                                    type="checkbox"
+                                    className="hidden"
+                                    checked={
+                                      Array.isArray(
+                                        formik.values.rtoWorkPending,
+                                      ) &&
+                                      formik.values.rtoWorkPending.includes(opt)
+                                    }
+                                    onChange={() =>
+                                      handleRtoCheckboxChange(opt)
+                                    }
+                                  />
+                                  <span
+                                    className={`text-sm font-bold transition-colors ${
+                                      Array.isArray(
+                                        formik.values.rtoWorkPending,
+                                      ) &&
+                                      formik.values.rtoWorkPending.includes(opt)
+                                        ? "text-primary"
+                                        : "text-slate-600 group-hover:text-primary"
+                                    }`}
+                                  >
+                                    {opt}
+                                  </span>
+                                </label>
+                              ))
+                            )}
+                          </div>
+
+                          <div className="pt-4 border-t border-slate-100">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                              Custom RTO Task Entry
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder="Task name..."
+                                className="min-w-0 flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300"
+                                value={customRto}
+                                onChange={(e) => setCustomRto(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyPress={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleAddCustomRto();
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddCustomRto();
+                                }}
+                                className="flex-shrink-0 bg-slate-900 text-white px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-95"
+                              >
+                                Append
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 pt-1 border-b border-slate-100 pb-2">
+                    {Array.isArray(formik.values.rtoWorkPending) &&
+                    formik.values.rtoWorkPending.length > 0 ? (
+                      formik.values.rtoWorkPending.map((item) => (
+                        <span
+                          key={item}
+                          className="bg-slate-50 text-slate-500 text-[10px] font-black px-3 py-1 rounded-full border border-slate-100"
+                        >
+                          {item}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm italic text-slate-300 font-bold">
+                        None
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -42,7 +42,10 @@ const AddLoanPage = () => {
     hpEntry: "Not done",
     fcDate: "",
     insuranceDate: "",
-    rtoWorkPending: "HPA,TO",
+    rtoWorkPending: "",
+    additionalMobileNumbers: [],
+    guarantorName: "",
+    guarantorMobileNumbers: [],
   };
 
   const handleSubmit = async (formData) => {
