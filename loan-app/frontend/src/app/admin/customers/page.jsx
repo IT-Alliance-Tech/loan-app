@@ -32,6 +32,8 @@ const CustomersPage = () => {
     processingFeeRate: "",
     processingFee: "",
     loanStartDate: new Date().toISOString().split("T")[0],
+    emiStartDate: "",
+    emiEndDate: "",
     remarks: "",
   });
 
@@ -114,6 +116,24 @@ const CustomersPage = () => {
       const rate = parseFloat(formData.processingFeeRate) || 0;
       const fee = ((principal * rate) / 100).toFixed(2);
       newFormData.processingFee = fee;
+    }
+
+    // Automate Dates
+    const lDate = name === "loanStartDate" ? value : formData.loanStartDate;
+    const tenure =
+      parseInt(name === "tenureMonths" ? value : formData.tenureMonths) || 0;
+
+    if (lDate) {
+      const d = new Date(lDate);
+      const start = new Date(d);
+      start.setMonth(start.getMonth() + 1);
+      newFormData.emiStartDate = start.toISOString().split("T")[0];
+
+      if (tenure) {
+        const end = new Date(d);
+        end.setMonth(end.getMonth() + tenure);
+        newFormData.emiEndDate = end.toISOString().split("T")[0];
+      }
     }
 
     setFormData(newFormData);
@@ -361,6 +381,30 @@ const CustomersPage = () => {
                         required
                         className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
                         value={formData.loanStartDate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        EMI Start Date
+                      </label>
+                      <input
+                        type="date"
+                        name="emiStartDate"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.emiStartDate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        EMI End Date
+                      </label>
+                      <input
+                        type="date"
+                        name="emiEndDate"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.emiEndDate}
                         onChange={handleInputChange}
                       />
                     </div>

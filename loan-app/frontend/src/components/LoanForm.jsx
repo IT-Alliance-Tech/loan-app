@@ -139,6 +139,31 @@ const LoanForm = ({
     formik.values.tenureMonths,
   ]);
 
+  // Auto-calculate EMI Start and End Dates
+  useEffect(() => {
+    const disbursementDate = formik.values.dateLoanDisbursed;
+    const tenure = parseInt(formik.values.tenureMonths);
+
+    if (disbursementDate) {
+      const d = new Date(disbursementDate);
+
+      // EMI Start Date = Disbursement Date + 1 Month
+      const startDate = new Date(d);
+      startDate.setMonth(startDate.getMonth() + 1);
+      formik.setFieldValue(
+        "emiStartDate",
+        startDate.toISOString().split("T")[0],
+      );
+
+      // EMI End Date = Disbursement Date + Tenure Months
+      if (tenure) {
+        const endDate = new Date(d);
+        endDate.setMonth(endDate.getMonth() + tenure);
+        formik.setFieldValue("emiEndDate", endDate.toISOString().split("T")[0]);
+      }
+    }
+  }, [formik.values.dateLoanDisbursed, formik.values.tenureMonths]);
+
   const ErrorMsg = ({ name }) => {
     return formik.touched[name] && formik.errors[name] ? (
       <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
