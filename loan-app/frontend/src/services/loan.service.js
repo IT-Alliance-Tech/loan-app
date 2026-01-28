@@ -38,3 +38,10 @@ export const toggleSeized = async (id) => {
     method: "PATCH",
   });
 };
+
+export const calculateEMI = async (data) => {
+  return await apiHandler("/api/loans/calculate-emi", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+};

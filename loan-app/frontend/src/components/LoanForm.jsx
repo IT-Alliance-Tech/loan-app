@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useToast } from "../context/ToastContext";
+import { calculateEMI as fetchEMI } from "../services/loan.service";
 
 const validationSchema = Yup.object().shape({
   loanNumber: Yup.string().required("Loan number is required"),
@@ -98,17 +99,39 @@ const LoanForm = ({
     }
   }, [formik.values.principalAmount, formik.values.processingFeeRate]);
 
-  const calculateEMI = (p, r_annual, n) => {
-    const principal = parseFloat(p);
-    const roi = parseFloat(r_annual);
-    const tenure = parseInt(n);
-    if (!principal || !roi || !tenure) return 0;
-    const r = roi / 12 / 100;
-    if (r === 0) return (principal / tenure).toFixed(2);
-    const emi =
-      (principal * r * Math.pow(1 + r, tenure)) / (Math.pow(1 + r, tenure) - 1);
-    return emi.toFixed(2);
-  };
+  // Auto-calculate EMI from backend
+  useEffect(() => {
+    const principal = parseFloat(formik.values.principalAmount);
+    const rate = parseFloat(formik.values.annualInterestRate);
+    const tenure = parseInt(formik.values.tenureMonths);
+
+    if (principal && rate && tenure) {
+      const getEMI = async () => {
+        try {
+          const res = await fetchEMI({
+            principalAmount: principal,
+            annualInterestRate: rate,
+            tenureMonths: tenure,
+          });
+          if (res.data && res.data.emi) {
+            formik.setFieldValue("monthlyEMI", res.data.emi);
+            const totalInt = principal * (rate / 100) * tenure;
+            formik.setFieldValue("totalInterestAmount", totalInt.toFixed(2));
+          }
+        } catch (err) {
+          console.error("Failed to fetch EMI", err);
+        }
+      };
+      getEMI();
+    } else {
+      formik.setFieldValue("monthlyEMI", 0);
+      formik.setFieldValue("totalInterestAmount", 0);
+    }
+  }, [
+    formik.values.principalAmount,
+    formik.values.annualInterestRate,
+    formik.values.tenureMonths,
+  ]);
 
   const ErrorMsg = ({ name }) => {
     return formik.touched[name] && formik.errors[name] ? (
@@ -347,18 +370,12 @@ const LoanForm = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Tenure Type <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="tenureType"
-                  value={formik.values.tenureType || ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  disabled={isViewOnly}
-                  className={getFieldClass("tenureType")}
-                >
-                  <option value="Monthly">Monthly</option>
-                  <option value="Weekly">Weekly</option>
-                  <option value="Daily">Daily</option>
-                </select>
+                <input
+                  type="text"
+                  value="Monthly"
+                  readOnly
+                  className={getFieldClass("tenureType") + " bg-slate-100"}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -449,12 +466,7 @@ const LoanForm = ({
                       Monthly EMI
                     </span>
                     <p className="text-xl font-black text-primary">
-                      ₹
-                      {calculateEMI(
-                        formik.values.principalAmount,
-                        formik.values.annualInterestRate,
-                        formik.values.tenureMonths,
-                      )}
+                      ₹{formik.values.monthlyEMI || 0}
                     </p>
                   </div>
                   <div className="text-right">
@@ -465,9 +477,7 @@ const LoanForm = ({
                       type="number"
                       name="totalInterestAmount"
                       value={formik.values.totalInterestAmount || ""}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      readOnly={isViewOnly}
+                      readOnly
                       className="bg-transparent border-b border-slate-200 text-sm font-bold text-slate-700 focus:outline-none focus:border-primary text-right w-32"
                       placeholder="0"
                     />
