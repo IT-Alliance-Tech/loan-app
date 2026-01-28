@@ -38,6 +38,7 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     additionalMobileNumbers,
     guarantorName,
     guarantorMobileNumbers,
+    status,
   } = req.body;
 
   if (
@@ -90,6 +91,7 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     additionalMobileNumbers,
     guarantorName,
     guarantorMobileNumbers,
+    status,
     createdBy: req.user._id,
   });
 

@@ -46,6 +46,7 @@ const AddLoanPage = () => {
     additionalMobileNumbers: [],
     guarantorName: "",
     guarantorMobileNumbers: [],
+    status: "",
   };
 
   const handleSubmit = async (formData) => {
