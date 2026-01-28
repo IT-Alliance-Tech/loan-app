@@ -56,6 +56,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     totalInterestAmount,
     vehicleNumber,
     chassisNumber,
+    engineNumber,
     model,
     typeOfVehicle,
     ywBoard,
@@ -66,6 +67,9 @@ const createLoan = asyncHandler(async (req, res, next) => {
     fcDate,
     insuranceDate,
     rtoWorkPending,
+    additionalMobileNumbers,
+    guarantorName,
+    guarantorMobileNumbers,
   } = req.body;
 
   if (
@@ -117,6 +121,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     totalInterestAmount: calculatedTotalInterest,
     vehicleNumber,
     chassisNumber,
+    engineNumber,
     model,
     typeOfVehicle,
     ywBoard,
@@ -127,6 +132,9 @@ const createLoan = asyncHandler(async (req, res, next) => {
     fcDate,
     insuranceDate,
     rtoWorkPending,
+    additionalMobileNumbers,
+    guarantorName,
+    guarantorMobileNumbers,
     createdBy: req.user._id,
   });
 

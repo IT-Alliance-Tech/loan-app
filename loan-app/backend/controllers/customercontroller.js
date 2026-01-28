@@ -35,6 +35,9 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     aadharNumber,
     processingFee,
     emiStartDate,
+    additionalMobileNumbers,
+    guarantorName,
+    guarantorMobileNumbers,
   } = req.body;
 
   if (
@@ -84,6 +87,9 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     loanStartDate,
     emiStartDate: emiStartDate || loanStartDate,
     remarks,
+    additionalMobileNumbers,
+    guarantorName,
+    guarantorMobileNumbers,
     createdBy: req.user._id,
   });
 
