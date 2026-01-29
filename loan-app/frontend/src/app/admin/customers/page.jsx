@@ -263,8 +263,97 @@ const CustomersPage = () => {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+              {/* MOBILE VIEW (Table Optimized for small screens) */}
+              <div className="md:hidden">
+                <div className="overflow-x-auto scrollbar-none">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                      <tr className="bg-slate-50/50 border-b border-slate-200 uppercase">
+                        <th className="w-[80px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
+                          LOAN NO
+                        </th>
+                        <th className="px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
+                          CUSTOMER NAME
+                        </th>
+                        <th className="w-[100px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
+                          CONTACT
+                        </th>
+                        <th className="w-[100px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider text-right">
+                          MONTHLY EMI
+                        </th>
+                        <th className="w-[80px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider text-center">
+                          STATUS
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {loading ? (
+                        <tr>
+                          <td
+                            colSpan="5"
+                            className="px-4 py-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                          >
+                            Synchronizing Registry...
+                          </td>
+                        </tr>
+                      ) : filteredCustomers.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan="5"
+                            className="px-4 py-12 text-center text-slate-300 font-bold uppercase text-[10px] tracking-widest"
+                          >
+                            No records
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredCustomers.map((cust) => (
+                          <tr
+                            key={cust._id}
+                            className="active:bg-slate-50 transition-colors"
+                          >
+                            <td className="px-4 py-5">
+                              <span className="font-black text-primary uppercase text-[10px] tracking-tighter bg-blue-50 px-2 py-1 rounded-md whitespace-nowrap">
+                                {cust.loanNumber}
+                              </span>
+                            </td>
+                            <td className="px-4 py-5">
+                              <span className="font-black text-slate-900 uppercase text-xs tracking-tighter block truncate">
+                                {cust.customerName}
+                              </span>
+                            </td>
+                            <td className="px-4 py-5 font-bold text-slate-500 text-[10px] whitespace-nowrap">
+                              {cust.mobileNumber}
+                            </td>
+                            <td className="px-4 py-5 text-right font-black text-slate-900 text-[11px] whitespace-nowrap">
+                              ₹{cust.monthlyEMI?.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-5 text-center">
+                              {cust.isSeized ? (
+                                <span className="px-2 py-0.5 bg-red-50 text-red-500 text-[8px] font-black rounded uppercase">
+                                  Seized
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-500 text-[8px] font-black rounded uppercase">
+                                  Active
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="py-3 bg-slate-50/50 border-t border-slate-100 text-center">
+                  <p className="text-[9px] font-bold text-slate-400 italic">
+                    Swipe horizontally to see more details
+                  </p>
+                </div>
+              </div>
+
+              {/* DESKTOP VIEW */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-200">
