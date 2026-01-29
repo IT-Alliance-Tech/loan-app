@@ -25,14 +25,45 @@ const apiHandler = async (endpoint, options = {}, isRetry = false) => {
 
     // If unauthorized and not already retrying, attempt to refresh token
     if (response.status === 401 && !isRetry) {
-      const refreshSuccess = await attemptRefresh();
-      if (refreshSuccess) {
-        // Retry the original request with new token
-        return apiHandler(endpoint, options, true);
-      } else {
-        // Refresh failed, logout user
+      if (isRefreshing) {
+        // If already refreshing, return a promise that resolves when refresh is done
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            // Retry with new token
+            return apiHandler(endpoint, options, true);
+          })
+          .catch((err) => {
+            throw err;
+          });
+      }
+
+      isRefreshing = true;
+
+      try {
+        console.log("Access token expired, attempting refresh...");
+        const refreshSuccess = await attemptRefresh();
+
+        if (refreshSuccess) {
+          console.log("Refresh successful, retrying request...");
+          processQueue(null, getToken());
+          isRefreshing = false;
+          // Retry the original request with new token
+          return apiHandler(endpoint, options, true);
+        } else {
+          console.warn("Refresh failed, logging out...");
+          processQueue(new Error("Refresh failed"), null);
+          isRefreshing = false;
+          // Refresh failed, logout user
+          logoutUser();
+          throw new Error("Session expired. Please login again.");
+        }
+      } catch (error) {
+        processQueue(error, null);
+        isRefreshing = false;
         logoutUser();
-        throw new Error("Session expired. Please login again.");
+        throw error;
       }
     }
 
@@ -46,6 +77,22 @@ const apiHandler = async (endpoint, options = {}, isRetry = false) => {
   } catch (error) {
     throw error;
   }
+};
+
+// Queue to hold requests while refreshing
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+
+  failedQueue = [];
 };
 
 const attemptRefresh = async () => {

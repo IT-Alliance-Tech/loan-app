@@ -44,6 +44,11 @@ const loanSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    guarantorMobileNumber: {
+      type: String,
+      trim: true,
+      required: [true, "Guarantor mobile number is required"],
+    },
     panNumber: {
       type: String,
       trim: true,
@@ -58,6 +63,7 @@ const loanSchema = new mongoose.Schema(
     },
     processingFeeRate: {
       type: Number,
+      default: 0,
     },
     processingFee: {
       type: Number,
@@ -123,11 +129,6 @@ const loanSchema = new mongoose.Schema(
     },
     dealerNumber: {
       type: String,
-      trim: true,
-    },
-    hpEntry: {
-      type: String,
-      default: "Not done",
       trim: true,
     },
     fcDate: {
