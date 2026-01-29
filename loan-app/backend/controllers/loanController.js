@@ -5,12 +5,34 @@ const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 
 const calculateEMI = (principal, roi, tenureMonths) => {
-  const r = roi / 12 / 100;
-  const n = tenureMonths;
-  if (r === 0) return parseFloat((principal / n).toFixed(2));
-  const emi = (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+  const p = parseFloat(principal);
+  const r = parseFloat(roi);
+  const n = parseInt(tenureMonths);
+  if (!p || !n) return 0;
+
+  // Flat Interest Calculation: EMI = (Principal / Tenure) + (Principal * Rate / 100)
+  const monthlyInterest = p * (r / 100);
+  const monthlyPrincipal = p / n;
+  const emi = monthlyPrincipal + monthlyInterest;
+
   return parseFloat(emi.toFixed(2));
 };
+
+const calculateEMIApi = asyncHandler(async (req, res, next) => {
+  const { principalAmount, annualInterestRate, tenureMonths } = req.body;
+
+  if (!principalAmount || !annualInterestRate || !tenureMonths) {
+    return next(
+      new ErrorHandler("Please provide principal, rate and tenure", 400),
+    );
+  }
+
+  const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
+
+  sendResponse(res, 200, "success", "EMI calculated successfully", null, {
+    emi,
+  });
+});
 
 const createLoan = asyncHandler(async (req, res, next) => {
   const {
@@ -34,6 +56,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     totalInterestAmount,
     vehicleNumber,
     chassisNumber,
+    engineNumber,
     model,
     typeOfVehicle,
     ywBoard,
@@ -44,6 +67,10 @@ const createLoan = asyncHandler(async (req, res, next) => {
     fcDate,
     insuranceDate,
     rtoWorkPending,
+    additionalMobileNumbers,
+    guarantorName,
+    guarantorMobileNumbers,
+    status,
   } = req.body;
 
   if (
@@ -65,8 +92,13 @@ const createLoan = asyncHandler(async (req, res, next) => {
   const monthlyEMI = calculateEMI(
     principalAmount,
     annualInterestRate,
-    tenureMonths
+    tenureMonths,
   );
+
+  const calculatedTotalInterest =
+    parseFloat(principalAmount) *
+    (parseFloat(annualInterestRate) / 100) *
+    parseInt(tenureMonths);
 
   const loan = await Loan.create({
     siNo,
@@ -87,9 +119,10 @@ const createLoan = asyncHandler(async (req, res, next) => {
     emiStartDate,
     emiEndDate,
     monthlyEMI,
-    totalInterestAmount,
+    totalInterestAmount: calculatedTotalInterest,
     vehicleNumber,
     chassisNumber,
+    engineNumber,
     model,
     typeOfVehicle,
     ywBoard,
@@ -100,13 +133,17 @@ const createLoan = asyncHandler(async (req, res, next) => {
     fcDate,
     insuranceDate,
     rtoWorkPending,
+    additionalMobileNumbers,
+    guarantorName,
+    guarantorMobileNumbers,
+    status,
     createdBy: req.user._id,
   });
 
   // Generate EMIs
   const emis = [];
   let currentEmiDate = new Date(
-    loan.emiStartDate || loan.dateLoanDisbursed || new Date()
+    loan.emiStartDate || loan.dateLoanDisbursed || new Date(),
   );
 
   for (let i = 1; i <= tenureMonths; i++) {
@@ -131,13 +168,45 @@ const createLoan = asyncHandler(async (req, res, next) => {
     "success",
     "Loan created and EMIs generated successfully",
     null,
-    loan
+    loan,
   );
 });
 
 const getAllLoans = asyncHandler(async (req, res, next) => {
-  const loans = await Loan.find().sort({ createdAt: -1 });
-  sendResponse(res, 200, "success", "Loans fetched successfully", null, loans);
+  const { loanNumber, customerName, mobileNumber, tenureMonths, status } =
+    req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  const query = {};
+
+  if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (customerName)
+    query.customerName = { $regex: customerName, $options: "i" };
+  if (mobileNumber)
+    query.mobileNumber = { $regex: mobileNumber, $options: "i" };
+  if (tenureMonths) query.tenureMonths = tenureMonths;
+  if (status) {
+    if (status === "Seized") query.isSeized = true;
+    if (status === "Active") query.isSeized = false;
+  }
+
+  const total = await Loan.countDocuments(query);
+  const loans = await Loan.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  sendResponse(res, 200, "success", "Loans fetched successfully", null, {
+    loans,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
 });
 
 const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
@@ -176,14 +245,19 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       : loan.tenureMonths;
 
   const monthlyEMI = calculateEMI(updatedPrincipal, updatedRoi, updatedTenure);
+  const calculatedTotalInterest =
+    parseFloat(updatedPrincipal) *
+    (parseFloat(updatedRoi) / 100) *
+    parseInt(updatedTenure);
 
   loan = await Loan.findByIdAndUpdate(
     req.params.id,
     {
       ...req.body,
       monthlyEMI,
+      totalInterestAmount: calculatedTotalInterest,
     },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 
   sendResponse(res, 200, "success", "Loan updated successfully", null, loan);
@@ -204,10 +278,10 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
     "success",
     `Loan ${loan.isSeized ? "seized" : "unseized"} successfully`,
     null,
-    loan
+    loan,
   );
 });
-
+// export
 module.exports = {
   createLoan,
   getAllLoans,
@@ -215,4 +289,5 @@ module.exports = {
   getLoanById,
   updateLoan,
   toggleSeizedStatus,
+  calculateEMIApi,
 };

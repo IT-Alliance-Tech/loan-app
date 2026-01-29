@@ -22,7 +22,7 @@ const AddLoanPage = () => {
     panNumber: "",
     aadharNumber: "",
     principalAmount: "",
-    processingFeeRate: "2",
+    processingFeeRate: "0",
     processingFee: "",
     tenureType: "Monthly",
     tenureMonths: "",
@@ -39,10 +39,13 @@ const AddLoanPage = () => {
     docChecklist: "",
     dealerName: "",
     dealerNumber: "",
-    hpEntry: "Not done",
     fcDate: "",
     insuranceDate: "",
-    rtoWorkPending: "HPA,TO",
+    rtoWorkPending: "",
+    additionalMobileNumbers: [],
+    guarantorName: "",
+    guarantorMobileNumbers: [],
+    status: "",
   };
 
   const handleSubmit = async (formData) => {

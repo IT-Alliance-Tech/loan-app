@@ -32,6 +32,23 @@ const loanSchema = new mongoose.Schema(
       required: [true, "Mobile number is required"],
       trim: true,
     },
+    additionalMobileNumbers: {
+      type: [String],
+      default: [],
+    },
+    guarantorName: {
+      type: String,
+      trim: true,
+    },
+    guarantorMobileNumbers: {
+      type: [String],
+      default: [],
+    },
+    guarantorMobileNumber: {
+      type: String,
+      trim: true,
+      required: [true, "Guarantor mobile number is required"],
+    },
     panNumber: {
       type: String,
       trim: true,
@@ -46,6 +63,7 @@ const loanSchema = new mongoose.Schema(
     },
     processingFeeRate: {
       type: Number,
+      default: 0,
     },
     processingFee: {
       type: Number,
@@ -85,6 +103,10 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    engineNumber: {
+      type: String,
+      trim: true,
+    },
     model: {
       type: String,
       trim: true,
@@ -109,11 +131,6 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    hpEntry: {
-      type: String,
-      default: "Not done",
-      trim: true,
-    },
     fcDate: {
       type: Date,
     },
@@ -121,8 +138,8 @@ const loanSchema = new mongoose.Schema(
       type: Date,
     },
     rtoWorkPending: {
-      type: String,
-      trim: true,
+      type: [String],
+      default: [],
     },
     isSeized: {
       type: Boolean,
@@ -132,13 +149,18 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    status: {
+      type: String,
+      required: [true, "Status is required"],
+      trim: true,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Loan", loanSchema);

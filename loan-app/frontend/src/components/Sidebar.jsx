@@ -6,12 +6,16 @@ import { getUserFromToken } from "../utils/auth";
 
 const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
-   { name: 'Customers', href: '/admin/customers', icon: '👤' },
-   { name: 'Loans', href: '/admin/loans', icon: '💰' },
-   { name: 'Employees', href: '/admin/employees', icon: '👥' },
-   { name: 'EMI Details', href: '/admin/emi-details', icon: '🗓️' },
-   { name: 'Seized Vehicles', href: '/admin/seized-vehicles', icon: '🚗' },
-  
+  { name: "Customers", href: "/admin/customers", icon: "👤" },
+  { name: "Loans", href: "/admin/loans", icon: "💰" },
+  {
+    name: "Employees",
+    href: "/admin/employees",
+    icon: "👥",
+    roles: ["SUPER_ADMIN"],
+  },
+  { name: "EMI Details", href: "/admin/emi-details", icon: "🗓️" },
+  { name: "Seized Vehicles", href: "/admin/seized-vehicles", icon: "🚗" },
 ];
 
 const Sidebar = () => {
@@ -20,26 +24,27 @@ const Sidebar = () => {
   const user = getUserFromToken();
 
   const filteredNavItems = navItems.filter(
-    (item) => !item.roles || item.roles.includes(user?.role)
+    (item) => !item.roles || item.roles.includes(user?.role),
   );
 
   return (
     <>
       {/* DESKTOP SIDEBAR DESIGN */}
       <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0">
-        <div className="p-6">
-          <div className="flex items-center gap-3 px-2 py-4 border-b border-slate-100 mb-6">
-            <div className="bg-primary px-3 py-1.5 rounded-lg shadow-sm">
-              <span className="text-white font-black text-lg tracking-tighter">
-                ILMRS
-              </span>
-            </div>
-            <div className="h-6 w-px bg-slate-200 ml-1"></div>
-            <span className="font-black text-slate-300 tracking-[0.2em] uppercase text-[9px] ml-1">
-              Admin
+        {/* LOGO AREA - SHARED HEIGHT WITH NAVBAR */}
+        <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-200 flex-shrink-0">
+          <div className="bg-primary px-2.5 py-1.5 rounded-lg shadow-sm">
+            <span className="text-white font-black text-base tracking-tighter">
+              ILMRS
             </span>
           </div>
+          <div className="h-5 w-px bg-slate-200"></div>
+          <span className="font-black text-slate-300 tracking-[0.2em] uppercase text-[8px]">
+            Admin
+          </span>
+        </div>
 
+        <div className="flex-1 overflow-y-auto p-6">
           <nav className="space-y-1">
             {filteredNavItems.map((item) => {
               const isActive = pathname === item.href;
@@ -59,22 +64,6 @@ const Sidebar = () => {
               );
             })}
           </nav>
-        </div>
-
-        <div className="mt-auto p-6 border-t border-slate-100">
-          <div className="bg-slate-50 p-4 rounded-2xl flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-black text-primary">
-              {user?.role?.[0]}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black text-slate-900 truncate uppercase tracking-tighter">
-                {user?.email}
-              </p>
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                {user?.role}
-              </p>
-            </div>
-          </div>
         </div>
       </aside>
 
@@ -135,25 +124,6 @@ const Sidebar = () => {
                 );
               })}
             </nav>
-
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50">
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">
-                Account Secure
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-primary font-black shadow-sm">
-                  {user?.role?.[0]}
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-tighter">
-                    {user?.email}
-                  </p>
-                  <p className="text-[9px] font-bold text-primary uppercase">
-                    {user?.role}
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </aside>
       </div>

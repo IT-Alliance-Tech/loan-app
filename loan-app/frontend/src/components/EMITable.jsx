@@ -44,7 +44,10 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
       if (onUpdateSuccess) onUpdateSuccess();
     } catch (error) {
       console.error("Error updating EMI:", error);
-      showToast(error.message || "An error occurred while updating EMI", "error");
+      showToast(
+        error.message || "An error occurred while updating EMI",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -67,23 +70,23 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
                 Due Date
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
                 EMI Amount
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
                 Amount Paid
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
                 Payment Date
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
                 Mode
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
                 Overdue
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-                Status
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+                Payment
               </th>
               {isEditMode && (
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
@@ -104,29 +107,29 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                 <td className="px-6 py-4 text-xs font-medium text-slate-600">
                   {formatDate(emi.dueDate)}
                 </td>
-                <td className="px-6 py-4 text-xs font-black text-slate-900">
+                <td className="px-6 py-4 text-xs font-black text-slate-900 text-center">
                   ₹{emi.emiAmount}
                 </td>
-                <td className="px-6 py-4 text-xs font-medium text-slate-600">
+                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
                   ₹{emi.amountPaid || 0}
                 </td>
-                <td className="px-6 py-4 text-xs font-medium text-slate-600">
+                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
                   {formatDate(emi.paymentDate)}
                 </td>
-                <td className="px-6 py-4 text-xs font-medium text-slate-600">
+                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
                   {emi.paymentMode || "-"}
                 </td>
-                <td className="px-6 py-4 text-xs font-medium text-red-600">
+                <td className="px-6 py-4 text-xs font-medium text-red-600 text-center">
                   ₹{emi.overdue || 0}
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-4 text-center">
                   <span
                     className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       emi.status === "Paid"
                         ? "bg-green-100 text-green-700"
-                        : emi.status === "Overdue"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-amber-100 text-amber-700"
+                        : emi.status === "Partially Paid"
+                          ? "bg-orange-100 text-orange-700"
+                          : "bg-red-100 text-red-700"
                     }`}
                   >
                     {emi.status}
@@ -160,7 +163,8 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   Update EMI #{editingEmi?.emiNumber}
                 </h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  Due Date: {formatDate(editingEmi?.dueDate)} | Amount: ₹{editingEmi?.emiAmount}
+                  Due Date: {formatDate(editingEmi?.dueDate)} | Amount: ₹
+                  {editingEmi?.emiAmount}
                 </p>
               </div>
               <button
@@ -224,7 +228,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
 
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                    Status
+                    Payment
                   </label>
                   <select
                     name="status"
@@ -236,7 +240,6 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                     <option value="Pending">Pending</option>
                     <option value="Paid">Paid</option>
                     <option value="Partially Paid">Partially Paid</option>
-                    <option value="Overdue">Overdue</option>
                   </select>
                 </div>
 
@@ -284,9 +287,24 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                 >
                   {loading ? (
                     <>
-                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <svg
+                        className="animate-spin h-4 w-4 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
                       </svg>
                       Processing...
                     </>
