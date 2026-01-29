@@ -86,7 +86,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                 Overdue
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
-                Status
+                Payment
               </th>
               {isEditMode && (
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
@@ -127,9 +127,9 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                     className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       emi.status === "Paid"
                         ? "bg-green-100 text-green-700"
-                        : emi.status === "Overdue"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-amber-100 text-amber-700"
+                        : emi.status === "Partially Paid"
+                          ? "bg-orange-100 text-orange-700"
+                          : "bg-red-100 text-red-700"
                     }`}
                   >
                     {emi.status}
@@ -228,7 +228,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
 
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                    Status
+                    Payment
                   </label>
                   <select
                     name="status"
@@ -240,7 +240,6 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                     <option value="Pending">Pending</option>
                     <option value="Paid">Paid</option>
                     <option value="Partially Paid">Partially Paid</option>
-                    <option value="Overdue">Overdue</option>
                   </select>
                 </div>
 

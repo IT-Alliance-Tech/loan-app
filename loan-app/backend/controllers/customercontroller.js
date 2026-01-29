@@ -37,6 +37,7 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     emiStartDate,
     additionalMobileNumbers,
     guarantorName,
+    guarantorMobileNumber,
     guarantorMobileNumbers,
     status,
   } = req.body;
