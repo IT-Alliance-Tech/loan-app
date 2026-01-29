@@ -1,4 +1,5 @@
 "use client";
+// Layout updated to move Additional Mobile Numbers (Customer) below the main Mobile Number field.
 import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -18,12 +19,21 @@ const validationSchema = Yup.object().shape({
     .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
     .required("Mobile number is required"),
   additionalMobileNumbers: Yup.array().of(
-    Yup.string().matches(/^[6-9]\d{9}$/, "Invalid Mobile Number"),
+    Yup.string().matches(/^[6-9]\d{9}$/, {
+      message: "Invalid Mobile Number",
+      excludeEmptyString: true,
+    }),
   ),
   guarantorName: Yup.string().nullable(),
   guarantorMobileNumbers: Yup.array().of(
-    Yup.string().matches(/^[6-9]\d{9}$/, "Invalid Mobile Number"),
+    Yup.string().matches(/^[6-9]\d{9}$/, {
+      message: "Invalid Mobile Number",
+      excludeEmptyString: true,
+    }),
   ),
+  guarantorMobileNumber: Yup.string()
+    .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
+    .required("Guarantor mobile number is required"),
   panNumber: Yup.string()
     .matches(
       /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,
@@ -103,6 +113,8 @@ const LoanForm = ({
       guarantorMobileNumbers: Array.isArray(initialData.guarantorMobileNumbers)
         ? initialData.guarantorMobileNumbers
         : [],
+      guarantorMobileNumber: initialData.guarantorMobileNumber || "",
+      processingFeeRate: initialData.processingFeeRate ?? 0,
       status: initialData.status || "",
     },
     validationSchema,
@@ -232,44 +244,48 @@ const LoanForm = ({
     formik.values.tenureMonths,
   ]);
 
-  // Auto-calculate EMI Start and End Dates
+  // Auto-calculate EMI Start Date from Disbursement Date
   useEffect(() => {
     const disbursementDate = formik.values.dateLoanDisbursed;
-    const tenure = parseInt(formik.values.tenureMonths);
-
     if (disbursementDate) {
       const d = new Date(disbursementDate);
-
-      // EMI Start Date = Disbursement Date + 1 Month
       const startDate = new Date(d);
       startDate.setMonth(startDate.getMonth() + 1);
       formik.setFieldValue(
         "emiStartDate",
         startDate.toISOString().split("T")[0],
       );
-
-      // EMI End Date = Disbursement Date + Tenure Months
-      if (tenure) {
-        const endDate = new Date(d);
-        endDate.setMonth(endDate.getMonth() + tenure);
-        formik.setFieldValue("emiEndDate", endDate.toISOString().split("T")[0]);
-      }
     }
-  }, [formik.values.dateLoanDisbursed, formik.values.tenureMonths]);
+  }, [formik.values.dateLoanDisbursed]);
+
+  // Auto-calculate EMI End Date from Start Date & Tenure
+  useEffect(() => {
+    const startDate = formik.values.emiStartDate;
+    const tenure = parseInt(formik.values.tenureMonths);
+    if (startDate && tenure) {
+      const d = new Date(startDate);
+      const endDate = new Date(d);
+      // End Date = Start Date + (Tenure - 1) Months
+      endDate.setMonth(endDate.getMonth() + (tenure - 1));
+      formik.setFieldValue("emiEndDate", endDate.toISOString().split("T")[0]);
+    }
+  }, [formik.values.emiStartDate, formik.values.tenureMonths]);
 
   const ErrorMsg = ({ name }) => {
-    return formik.touched[name] && formik.errors[name] ? (
+    const meta = formik.getFieldMeta(name);
+    return meta.touched && meta.error ? (
       <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
-        {formik.errors[name]}
+        {meta.error}
       </p>
     ) : null;
   };
 
   const getFieldClass = (name) => {
+    const meta = formik.getFieldMeta(name);
     const baseClass =
       "w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 transition-all ";
     const stateClass =
-      formik.touched[name] && formik.errors[name]
+      meta.touched && meta.error
         ? "border-red-300 text-red-900 focus:ring-red-100 placeholder:text-red-200"
         : "border-slate-200 text-slate-700 focus:ring-primary/20 placeholder:text-slate-300";
     return baseClass + stateClass;
@@ -346,7 +362,8 @@ const LoanForm = ({
                 ></textarea>
                 <ErrorMsg name="address" />
               </div>
-              <div className="grid grid-cols-2 gap-6 md:col-span-2">
+              {/* Left Column: Own/Rent & PAN */}
+              <div className="space-y-6">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     Own/Rent <span className="text-red-500">*</span>
@@ -364,29 +381,7 @@ const LoanForm = ({
                   </select>
                   <ErrorMsg name="ownRent" />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Mobile Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="mobileNumber"
-                    maxLength={10}
-                    value={formik.values.mobileNumber || ""}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, "");
-                      if (val.length <= 10)
-                        formik.setFieldValue("mobileNumber", val);
-                    }}
-                    onBlur={formik.handleBlur}
-                    readOnly={isViewOnly}
-                    className={getFieldClass("mobileNumber")}
-                    placeholder="10 digit number"
-                  />
-                  <ErrorMsg name="mobileNumber" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-6 md:col-span-2">
+
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     PAN Number
@@ -409,6 +404,131 @@ const LoanForm = ({
                   />
                   <ErrorMsg name="panNumber" />
                 </div>
+              </div>
+
+              {/* Right Column: Mobile Number & Aadhar Number */}
+              <div className="space-y-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Mobile Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="mobileNumber"
+                    maxLength={10}
+                    value={formik.values.mobileNumber || ""}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      if (val.length <= 10)
+                        formik.setFieldValue("mobileNumber", val);
+                    }}
+                    onBlur={formik.handleBlur}
+                    readOnly={isViewOnly}
+                    className={getFieldClass("mobileNumber")}
+                    placeholder="10 digit number"
+                  />
+                  <ErrorMsg name="mobileNumber" />
+
+                  {/* Additional Mobile Numbers (Customer) */}
+                  <div className="space-y-4 mt-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
+                      Alternative Mobile Number
+                    </label>
+                    <div className="space-y-2">
+                      {formik.values.additionalMobileNumbers.map((num, idx) => (
+                        <div key={idx} className="flex-1">
+                          <div className="flex gap-2 animate-in slide-in-from-left-2 duration-200">
+                            <input
+                              type="text"
+                              name={`additionalMobileNumbers.${idx}`}
+                              maxLength={10}
+                              value={num}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(
+                                  /[^0-9]/g,
+                                  "",
+                                );
+                                const newArr = [
+                                  ...formik.values.additionalMobileNumbers,
+                                ];
+                                newArr[idx] = val;
+                                formik.setFieldValue(
+                                  "additionalMobileNumbers",
+                                  newArr,
+                                );
+                              }}
+                              onBlur={formik.handleBlur}
+                              className={getFieldClass(
+                                `additionalMobileNumbers.${idx}`,
+                              )}
+                              placeholder={`Alt number ${idx + 1}`}
+                              readOnly={isViewOnly}
+                            />
+                            {!isViewOnly && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newArr =
+                                    formik.values.additionalMobileNumbers.filter(
+                                      (_, i) => i !== idx,
+                                    );
+                                  formik.setFieldValue(
+                                    "additionalMobileNumbers",
+                                    newArr,
+                                  );
+                                }}
+                                className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                          <ErrorMsg name={`additionalMobileNumbers.${idx}`} />
+                        </div>
+                      ))}
+                      {!isViewOnly && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            formik.setFieldValue("additionalMobileNumbers", [
+                              ...formik.values.additionalMobileNumbers,
+                              "",
+                            ])
+                          }
+                          className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/70 transition-colors flex items-center gap-1.5"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="3"
+                              d="M12 4v16m8-8H4"
+                            />
+                          </svg>
+                          Add Contact Number
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     Aadhar Number
@@ -453,150 +573,115 @@ const LoanForm = ({
                     <ErrorMsg name="guarantorName" />
                   </div>
 
-                  {/* Multiple Mobile Management */}
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
-                      Additional Mobile Numbers (Customer)
+                  {/* Guarantor Primary Mobile Number */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      Guarantor Mobile Number{" "}
+                      <span className="text-red-500">*</span>
                     </label>
-                    <div className="space-y-2">
-                      {formik.values.additionalMobileNumbers.map((num, idx) => (
-                        <div
-                          key={idx}
-                          className="flex gap-2 animate-in slide-in-from-left-2 duration-200"
-                        >
-                          <input
-                            type="text"
-                            maxLength={10}
-                            value={num}
-                            onChange={(e) => {
-                              const val = e.target.value.replace(/[^0-9]/g, "");
-                              const newArr = [
-                                ...formik.values.additionalMobileNumbers,
-                              ];
-                              newArr[idx] = val;
-                              formik.setFieldValue(
-                                "additionalMobileNumbers",
-                                newArr,
-                              );
-                            }}
-                            className={getFieldClass(
-                              `additionalMobileNumbers.${idx}`,
-                            )}
-                            placeholder={`Alt number ${idx + 1}`}
-                            readOnly={isViewOnly}
-                          />
-                          {!isViewOnly && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newArr =
-                                  formik.values.additionalMobileNumbers.filter(
-                                    (_, i) => i !== idx,
-                                  );
-                                formik.setFieldValue(
-                                  "additionalMobileNumbers",
-                                  newArr,
-                                );
-                              }}
-                              className="p-2 text-red-400 hover:text-red-600 transition-colors"
-                            >
-                              <svg
-                                className="w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      {!isViewOnly && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            formik.setFieldValue("additionalMobileNumbers", [
-                              ...formik.values.additionalMobileNumbers,
-                              "",
-                            ])
-                          }
-                          className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/70 transition-colors flex items-center gap-1.5"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="3"
-                              d="M12 4v16m8-8H4"
-                            />
-                          </svg>
-                          Add Contact Number
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                    <input
+                      type="text"
+                      name="guarantorMobileNumber"
+                      maxLength={10}
+                      value={formik.values.guarantorMobileNumber || ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, "");
+                        if (val.length <= 10)
+                          formik.setFieldValue("guarantorMobileNumber", val);
+                      }}
+                      onBlur={formik.handleBlur}
+                      readOnly={isViewOnly}
+                      className={getFieldClass("guarantorMobileNumber")}
+                      placeholder="Enter Guarantor Mobile Number"
+                    />
+                    <ErrorMsg name="guarantorMobileNumber" />
 
-                {/* Guarantor Mobile Numbers */}
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Guarantor Mobile Numbers
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {formik.values.guarantorMobileNumbers.map((num, idx) => (
-                      <div
-                        key={idx}
-                        className="flex gap-2 animate-in slide-in-from-right-2 duration-200"
-                      >
-                        <input
-                          type="text"
-                          maxLength={10}
-                          value={num}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9]/g, "");
-                            const newArr = [
-                              ...formik.values.guarantorMobileNumbers,
-                            ];
-                            newArr[idx] = val;
-                            formik.setFieldValue(
-                              "guarantorMobileNumbers",
-                              newArr,
-                            );
-                          }}
-                          className={getFieldClass(
-                            `guarantorMobileNumbers.${idx}`,
-                          )}
-                          placeholder="10 digit number"
-                          readOnly={isViewOnly}
-                        />
+                    {/* Additional Guarantor Mobile Numbers (Nesting inside this column) */}
+                    <div className="space-y-4 mt-6">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Alternative Mobile Number
+                      </label>
+                      <div className="space-y-2">
+                        {formik.values.guarantorMobileNumbers.map(
+                          (num, idx) => (
+                            <div key={idx} className="flex-1">
+                              <div className="flex gap-2 animate-in slide-in-from-right-2 duration-200">
+                                <input
+                                  type="text"
+                                  name={`guarantorMobileNumbers.${idx}`}
+                                  maxLength={10}
+                                  value={num}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(
+                                      /[^0-9]/g,
+                                      "",
+                                    );
+                                    const newArr = [
+                                      ...formik.values.guarantorMobileNumbers,
+                                    ];
+                                    newArr[idx] = val;
+                                    formik.setFieldValue(
+                                      "guarantorMobileNumbers",
+                                      newArr,
+                                    );
+                                  }}
+                                  onBlur={formik.handleBlur}
+                                  className={getFieldClass(
+                                    `guarantorMobileNumbers.${idx}`,
+                                  )}
+                                  placeholder="10 digit number"
+                                  readOnly={isViewOnly}
+                                />
+                                {!isViewOnly && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newArr =
+                                        formik.values.guarantorMobileNumbers.filter(
+                                          (_, i) => i !== idx,
+                                        );
+                                      formik.setFieldValue(
+                                        "guarantorMobileNumbers",
+                                        newArr,
+                                      );
+                                    }}
+                                    className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                                  >
+                                    <svg
+                                      className="w-5 h-5"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                      />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                              <ErrorMsg
+                                name={`guarantorMobileNumbers.${idx}`}
+                              />
+                            </div>
+                          ),
+                        )}
                         {!isViewOnly && (
                           <button
                             type="button"
-                            onClick={() => {
-                              const newArr =
-                                formik.values.guarantorMobileNumbers.filter(
-                                  (_, i) => i !== idx,
-                                );
-                              formik.setFieldValue(
-                                "guarantorMobileNumbers",
-                                newArr,
-                              );
-                            }}
-                            className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                            onClick={() =>
+                              formik.setFieldValue("guarantorMobileNumbers", [
+                                ...formik.values.guarantorMobileNumbers,
+                                "",
+                              ])
+                            }
+                            className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/70 transition-colors flex items-center gap-1.5"
                           >
                             <svg
-                              className="w-5 h-5"
+                              className="w-3.5 h-3.5"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -604,41 +689,15 @@ const LoanForm = ({
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                strokeWidth="3"
+                                d="M12 4v16m8-8H4"
                               />
                             </svg>
+                            Add Guarantor Contact
                           </button>
                         )}
                       </div>
-                    ))}
-                    {!isViewOnly && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          formik.setFieldValue("guarantorMobileNumbers", [
-                            ...formik.values.guarantorMobileNumbers,
-                            "",
-                          ])
-                        }
-                        className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/70 transition-colors flex items-center gap-1.5"
-                      >
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="3"
-                            d="M12 4v16m8-8H4"
-                          />
-                        </svg>
-                        Add Guarantor Contact
-                      </button>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -648,7 +707,7 @@ const LoanForm = ({
           {/* Loan Terms */}
           <div className="space-y-4">
             <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
-              Loan Terms
+              Loan Terms (monthly)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-1">
@@ -702,17 +761,6 @@ const LoanForm = ({
                     getFieldClass("processingFee") +
                     (isViewOnly ? " bg-slate-100 italic" : "")
                   }
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Tenure Type <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value="Monthly"
-                  readOnly
-                  className={getFieldClass("tenureType") + " bg-slate-100"}
                 />
               </div>
               <div className="space-y-1">
@@ -938,7 +986,7 @@ const LoanForm = ({
           </div>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Dealer Name
@@ -966,22 +1014,6 @@ const LoanForm = ({
                   readOnly={isViewOnly}
                   className={getFieldClass("dealerNumber")}
                 />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  HP Entry
-                </label>
-                <select
-                  name="hpEntry"
-                  value={formik.values.hpEntry || ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  disabled={isViewOnly}
-                  className={getFieldClass("hpEntry")}
-                >
-                  <option value="Not done">Not done</option>
-                  <option value="Done">Done</option>
-                </select>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -1030,9 +1062,31 @@ const LoanForm = ({
                           formik.values.rtoWorkPending.map((item) => (
                             <span
                               key={item}
-                              className="bg-primary/10 text-primary text-[9px] font-black px-2 py-0.5 rounded-md border border-primary/10 animate-in fade-in zoom-in duration-200"
+                              className="bg-primary/10 text-primary text-[9px] font-black px-2 py-0.5 rounded-md border border-primary/10 animate-in fade-in zoom-in duration-200 flex items-center gap-1"
                             >
                               {item}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRtoCheckboxChange(item);
+                                }}
+                                className="hover:text-red-500 transition-colors p-0.5"
+                              >
+                                <svg
+                                  className="w-2.5 h-2.5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="3"
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
                             </span>
                           ))
                         ) : (
@@ -1168,35 +1222,47 @@ const LoanForm = ({
                             )}
                           </div>
 
-                          <div className="pt-4 border-t border-slate-100">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                              Custom RTO Task Entry
-                            </p>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                placeholder="Task name..."
-                                className="min-w-0 flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300"
-                                value={customRto}
-                                onChange={(e) => setCustomRto(e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyPress={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
+                          <div className="pt-4 border-t border-slate-100 space-y-4">
+                            <div>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                Custom RTO Task Entry
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="Task name..."
+                                  className="min-w-0 flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300"
+                                  value={customRto}
+                                  onChange={(e) => setCustomRto(e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyPress={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleAddCustomRto();
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
                                     e.stopPropagation();
                                     handleAddCustomRto();
-                                  }
-                                }}
-                              />
+                                  }}
+                                  className="flex-shrink-0 bg-slate-900 text-white px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-95"
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="pt-2">
                               <button
                                 type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddCustomRto();
-                                }}
-                                className="flex-shrink-0 bg-slate-900 text-white px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-95"
+                                onClick={() => setIsRtoDropdownOpen(false)}
+                                className="w-full bg-primary text-white py-2.5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:bg-blue-700 transition-all active:scale-[0.98]"
                               >
-                                Append
+                                Done
                               </button>
                             </div>
                           </div>

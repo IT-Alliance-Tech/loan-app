@@ -90,6 +90,7 @@ const LoginPage = () => {
               className="input-field"
               placeholder="e.g. admin@company.com"
               required
+              suppressHydrationWarning
             />
           </div>
 
@@ -102,6 +103,7 @@ const LoginPage = () => {
                 type="button"
                 onClick={() => router.push("/admin/login/forgot-password")}
                 className="text-[10px] font-bold text-primary uppercase hover:underline tracking-tight"
+                suppressHydrationWarning
               >
                 Forgot?
               </button>
@@ -114,12 +116,14 @@ const LoginPage = () => {
                 className="input-field pr-12"
                 placeholder="••••••••"
                 required
+                suppressHydrationWarning
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors p-1"
                 aria-label={showPassword ? "Hide password" : "Show password"}
+                suppressHydrationWarning
               >
                 {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
@@ -137,6 +141,7 @@ const LoginPage = () => {
                 onChange={(e) => setAccessKey(e.target.value)}
                 className="input-field border-primary/30 bg-blue-50/30 pr-12"
                 placeholder="••••••••"
+                suppressHydrationWarning
               />
               <button
                 type="button"
@@ -145,6 +150,7 @@ const LoginPage = () => {
                 aria-label={
                   showAccessKey ? "Hide access key" : "Show access key"
                 }
+                suppressHydrationWarning
               >
                 {showAccessKey ? <EyeOffIcon /> : <EyeIcon />}
               </button>
@@ -155,6 +161,7 @@ const LoginPage = () => {
             type="submit"
             disabled={loading}
             className="w-full btn-primary py-3.5 rounded-lg disabled:opacity-50 mt-4"
+            suppressHydrationWarning
           >
             {loading ? "Verifying Credentials..." : "Sign In to Dashboard"}
           </button>
