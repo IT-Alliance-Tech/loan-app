@@ -15,7 +15,7 @@ const calculateEMI = (principal, roi, tenureMonths) => {
   const emi = (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
   return parseFloat(emi.toFixed(2));
 };
-
+// run the script
 const run = async () => {
   try {
     console.log("Connecting to MongoDB...");
@@ -37,7 +37,7 @@ const run = async () => {
       }
 
       console.log(
-        `Generating EMIs for Loan: ${loan.loanNumber} (${loan.customerName})...`
+        `Generating EMIs for Loan: ${loan.loanNumber} (${loan.customerName})...`,
       );
 
       const tenureMonths = loan.tenureMonths || 12;
@@ -50,7 +50,7 @@ const run = async () => {
 
       const emis = [];
       let currentEmiDate = new Date(
-        loan.emiStartDate || loan.loanStartDate || new Date()
+        loan.emiStartDate || loan.loanStartDate || new Date(),
       );
 
       for (let i = 1; i <= tenureMonths; i++) {
