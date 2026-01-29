@@ -194,6 +194,18 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
 
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                    Remaining Amount
+                  </label>
+                  <input
+                    type="text"
+                    value={`₹${Math.max(0, (editingEmi?.emiAmount || 0) - (editData.amountPaid || 0)).toFixed(2)}`}
+                    disabled
+                    className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
                     Payment Date
                   </label>
                   <input
@@ -243,7 +255,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   </select>
                 </div>
 
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
                     Overdue Amount
                   </label>

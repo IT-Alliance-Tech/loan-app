@@ -89,7 +89,7 @@ const EditLoanPage = () => {
         loan.isSeized
           ? "Loan unseized successfully"
           : "Loan seized successfully",
-        "success"
+        "success",
       );
       await fetchLoanData();
     } catch (err) {
@@ -151,33 +151,34 @@ const EditLoanPage = () => {
                     onSubmit={handleSubmit}
                     onCancel={() => router.push("/admin/loans")}
                     submitting={submitting}
-                    renderExtraActions={() => (
-                      <button
-                        type="button"
-                        onClick={handleToggleSeized}
-                        disabled={submitting}
-                        className={`${
-                          loan.isSeized
-                            ? "bg-green-600 hover:bg-green-700"
-                            : "bg-red-600 hover:bg-red-700"
-                        } text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2`}
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                          />
-                        </svg>
-                        {loan.isSeized ? "Unseize Loan" : "Seize Loan"}
-                      </button>
-                    )}
+                    renderExtraActions={() =>
+                      // <button
+                      //   type="button"
+                      //   onClick={handleToggleSeized}
+                      //   disabled={submitting}
+                      //   className={`${
+                      //     loan.isSeized
+                      //       ? "bg-green-600 hover:bg-green-700"
+                      //       : "bg-red-600 hover:bg-red-700"
+                      //   } text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2`}
+                      // >
+                      //   <svg
+                      //     className="w-4 h-4"
+                      //     fill="none"
+                      //     stroke="currentColor"
+                      //     viewBox="0 0 24 24"
+                      //   >
+                      //     <path
+                      //       strokeLinecap="round"
+                      //       strokeLinejoin="round"
+                      //       strokeWidth="2"
+                      //       d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      //     />
+                      //   </svg>
+                      //   {loan.isSeized ? "Unseize Loan" : "Seize Loan"}
+                      // </button>
+                      null
+                    }
                   />
 
                   <div className="mt-12">
