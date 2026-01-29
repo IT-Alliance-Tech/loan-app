@@ -246,109 +246,195 @@ const EMIDetailsPage = () => {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto bg-white rounded-3xl border border-slate-200 shadow-sm">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-slate-50/50 border-b border-slate-200">
-                      <tr>
-                        <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                          Acc No.
-                        </th>
-                        <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                          Customer Profile
-                        </th>
-                        <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">
-                          EMI Milestone
-                        </th>
-                        <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">
-                          Total Value
-                        </th>
-                        <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">
-                          Balance Paid
-                        </th>
-                        <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">
-                          Next Due
-                        </th>
-                        <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">
-                          Activity
-                        </th>
-                        <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {customerWiseEMIs.map((group) => (
-                        <tr
-                          key={group.loanId || group.loanNumber}
-                          className="hover:bg-slate-50/50 transition-colors cursor-pointer"
-                          onClick={() =>
-                            (window.location.href = `/admin/loans/edit/${group.loanId}`)
-                          }
-                        >
-                          <td className="px-6 py-4">
-                            <span className="bg-blue-50 text-sky-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">
-                              {group.loanNumber}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <p className="text-xs font-black text-slate-900 uppercase tracking-tighter">
-                              {group.customerName}
-                            </p>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="flex flex-col items-center gap-1">
-                              <span className="text-[10px] font-black text-slate-900">
-                                {group.paidEMIs} / {group.totalEMIs}
-                              </span>
-                              <div className="w-20 h-1 bg-slate-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-primary transition-all duration-500"
-                                  style={{
-                                    width: `${
-                                      (group.paidEMIs / group.totalEMIs) * 100
-                                    }%`,
-                                  }}
-                                ></div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-right text-xs font-bold text-slate-900">
-                            ₹{group.totalAmount.toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <span className="text-xs font-black text-emerald-600">
-                              ₹{group.amountPaid.toLocaleString()}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">
-                              {formatDate(group.nextDueDate)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                              {formatDate(group.lastPaymentDate)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span
-                              className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                group.status === "Paid"
-                                  ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                                  : group.status === "Overdue"
-                                    ? "bg-red-50 text-red-600 border border-red-100"
-                                    : group.status === "Partially Paid"
-                                      ? "bg-blue-50 text-blue-600 border border-blue-100"
-                                      : "bg-amber-50 text-amber-600 border border-amber-100"
-                              }`}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+                  {/* MOBILE VIEW */}
+                  <div className="md:hidden">
+                    <div className="overflow-x-auto scrollbar-none">
+                      <table className="w-full text-left border-collapse min-w-[700px]">
+                        <thead>
+                          <tr className="bg-slate-50/50 border-b border-slate-200">
+                            <th className="w-[100px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400">
+                              LOAN NO
+                            </th>
+                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400">
+                              CUSTOMER
+                            </th>
+                            <th className="w-[100px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400 text-center">
+                              MILESTONE
+                            </th>
+                            <th className="w-[120px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400 text-right">
+                              PAID
+                            </th>
+                            <th className="w-[100px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400 text-center">
+                              NEXT DUE
+                            </th>
+                            <th className="w-[100px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400 text-center">
+                              STATUS
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {customerWiseEMIs.map((group) => (
+                            <tr
+                              key={group.loanId || group.loanNumber}
+                              className="active:bg-slate-50 transition-colors"
+                              onClick={() =>
+                                (window.location.href = `/admin/loans/edit/${group.loanId}`)
+                              }
                             >
-                              {group.status}
-                            </span>
-                          </td>
+                              <td className="px-4 py-5">
+                                <span className="bg-blue-50 text-sky-600 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-tighter whitespace-nowrap">
+                                  {group.loanNumber}
+                                </span>
+                              </td>
+                              <td className="px-4 py-5">
+                                <p className="text-[11px] font-black text-slate-900 uppercase tracking-tighter truncate">
+                                  {group.customerName}
+                                </p>
+                              </td>
+                              <td className="px-4 py-5 text-center">
+                                <span className="text-[10px] font-black text-slate-900">
+                                  {group.paidEMIs}/{group.totalEMIs}
+                                </span>
+                              </td>
+                              <td className="px-4 py-5 text-right font-black text-emerald-600 text-[11px] whitespace-nowrap">
+                                ₹{group.amountPaid.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-5 text-center">
+                                <span className="text-[10px] font-bold text-slate-600 uppercase whitespace-nowrap">
+                                  {formatDate(group.nextDueDate)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-5 text-center">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter border ${
+                                    group.status === "Paid"
+                                      ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                      : group.status === "Overdue"
+                                        ? "bg-red-50 text-red-600 border-red-100"
+                                        : "bg-amber-50 text-amber-600 border-amber-100"
+                                  }`}
+                                >
+                                  {group.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="py-3 bg-slate-50/50 border-t border-slate-100 text-center">
+                      <p className="text-[9px] font-bold text-slate-400 italic">
+                        Swipe horizontally for timeline details
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* DESKTOP VIEW */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-50/50 border-b border-slate-200">
+                        <tr>
+                          <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                            Acc No.
+                          </th>
+                          <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                            Customer Profile
+                          </th>
+                          <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">
+                            EMI Milestone
+                          </th>
+                          <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">
+                            Total Value
+                          </th>
+                          <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">
+                            Balance Paid
+                          </th>
+                          <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">
+                            Next Due
+                          </th>
+                          <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">
+                            Activity
+                          </th>
+                          <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">
+                            Status
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {customerWiseEMIs.map((group) => (
+                          <tr
+                            key={group.loanId || group.loanNumber}
+                            className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                            onClick={() =>
+                              (window.location.href = `/admin/loans/edit/${group.loanId}`)
+                            }
+                          >
+                            <td className="px-6 py-4">
+                              <span className="bg-blue-50 text-sky-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">
+                                {group.loanNumber}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-xs font-black text-slate-900 uppercase tracking-tighter">
+                                {group.customerName}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="text-[10px] font-black text-slate-900">
+                                  {group.paidEMIs} / {group.totalEMIs}
+                                </span>
+                                <div className="w-20 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary transition-all duration-500"
+                                    style={{
+                                      width: `${
+                                        (group.paidEMIs / group.totalEMIs) * 100
+                                      }%`,
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right text-xs font-bold text-slate-900">
+                              ₹{group.totalAmount.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <span className="text-xs font-black text-emerald-600">
+                                ₹{group.amountPaid.toLocaleString()}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">
+                                {formatDate(group.nextDueDate)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                                {formatDate(group.lastPaymentDate)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                  group.status === "Paid"
+                                    ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                    : group.status === "Overdue"
+                                      ? "bg-red-50 text-red-600 border border-red-100"
+                                      : group.status === "Partially Paid"
+                                        ? "bg-blue-50 text-blue-600 border border-blue-100"
+                                        : "bg-amber-50 text-amber-600 border border-amber-100"
+                                }`}
+                              >
+                                {group.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
               <Pagination
