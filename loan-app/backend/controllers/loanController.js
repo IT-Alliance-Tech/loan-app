@@ -1,6 +1,7 @@
 const Loan = require("../models/Loan");
 const EMI = require("../models/EMI");
 const ErrorHandler = require("../utils/ErrorHandler");
+const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 
@@ -152,12 +153,10 @@ const createLoan = asyncHandler(async (req, res, next) => {
       loanNumber: loan.loanNumber,
       customerName: loan.customerName,
       emiNumber: i,
-      dueDate: new Date(currentEmiDate),
+      dueDate: addMonths(new Date(currentEmiDate), i - 1),
       emiAmount: monthlyEMI,
       status: "Pending",
     });
-    // Increment month
-    currentEmiDate.setMonth(currentEmiDate.getMonth() + 1);
   }
 
   await EMI.insertMany(emis);
@@ -281,6 +280,136 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
     loan,
   );
 });
+
+const getPendingPayments = asyncHandler(async (req, res, next) => {
+  const { customerName, loanNumber, vehicleNumber } = req.query;
+
+  let query = {};
+
+  if (customerName) {
+    query.customerName = { $regex: customerName, $options: "i" };
+  }
+  if (loanNumber) {
+    query.loanNumber = { $regex: loanNumber, $options: "i" };
+  }
+  if (vehicleNumber) {
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  }
+
+  const pendingPayments = await Loan.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $project: {
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumber: 1,
+        vehicleNumber: 1,
+        model: 1,
+        guarantorName: 1,
+        guarantorMobileNumber: 1,
+        principalAmount: 1,
+        totalInterestAmount: 1,
+        paymentStatus: { $ifNull: ["$paymentStatus", "Pending"] },
+        emis: 1,
+      },
+    },
+    {
+      $addFields: {
+        totalPaid: { $sum: "$emis.amountPaid" },
+        pendingEmis: {
+          $filter: {
+            input: "$emis",
+            as: "emi",
+            cond: {
+              $and: [
+                { $ne: ["$$emi.status", "Paid"] },
+                { $lte: ["$$emi.dueDate", new Date()] },
+              ],
+            },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumber: 1,
+        vehicleNumber: 1,
+        model: 1,
+        guarantorName: 1,
+        guarantorMobileNumber: 1,
+        principalAmount: 1,
+        totalInterestAmount: 1,
+        totalPaid: 1,
+        paymentStatus: 1,
+        pendingCount: { $size: "$pendingEmis" },
+        totalPendingAmount: {
+          $reduce: {
+            input: "$pendingEmis",
+            initialValue: 0,
+            in: {
+              $add: [
+                "$$value",
+                { $subtract: ["$$this.emiAmount", "$$this.amountPaid"] },
+              ],
+            },
+          },
+        },
+        lastDueDate: { $max: "$pendingEmis.dueDate" },
+        outstandingAmount: {
+          $subtract: [
+            { $add: ["$principalAmount", "$totalInterestAmount"] },
+            "$totalPaid",
+          ],
+        },
+      },
+    },
+    { $match: { pendingCount: { $gt: 0 } } },
+  ]);
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Pending payments fetched successfully",
+    null,
+    pendingPayments,
+  );
+});
+
+const updatePaymentStatus = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { paymentStatus } = req.body;
+
+  const loan = await Loan.findByIdAndUpdate(
+    id,
+    { paymentStatus },
+    { new: true, runValidators: true },
+  );
+
+  if (!loan) {
+    return next(new ErrorResponse("Loan not found", 404));
+  }
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Payment status updated successfully",
+    null,
+    loan,
+  );
+});
+
 // export
 module.exports = {
   createLoan,
@@ -290,4 +419,6 @@ module.exports = {
   updateLoan,
   toggleSeizedStatus,
   calculateEMIApi,
+  getPendingPayments,
+  updatePaymentStatus,
 };

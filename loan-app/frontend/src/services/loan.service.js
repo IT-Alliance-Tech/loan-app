@@ -58,3 +58,20 @@ export const createRtoWork = async (name) => {
     body: JSON.stringify({ name }),
   });
 };
+
+export const getSeizedPending = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return await apiHandler(
+    `/api/loans/pending-payments${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+    },
+  );
+};
+
+export const updatePaymentStatus = async (id, paymentStatus) => {
+  return await apiHandler(`/api/loans/${id}/payment-status`, {
+    method: "PATCH",
+    body: JSON.stringify({ paymentStatus }),
+  });
+};
