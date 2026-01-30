@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Loan = require("../models/Loan");
 const EMI = require("../models/EMI");
 const ErrorHandler = require("../utils/ErrorHandler");
@@ -282,7 +283,7 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
 });
 
 const getPendingPayments = asyncHandler(async (req, res, next) => {
-  const { customerName, loanNumber, vehicleNumber } = req.query;
+  const { customerName, loanNumber, vehicleNumber, status } = req.query;
 
   let query = {};
 
@@ -307,30 +308,16 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
       },
     },
     {
-      $project: {
-        loanNumber: 1,
-        customerName: 1,
-        mobileNumber: 1,
-        vehicleNumber: 1,
-        model: 1,
-        guarantorName: 1,
-        guarantorMobileNumber: 1,
-        principalAmount: 1,
-        totalInterestAmount: 1,
-        paymentStatus: { $ifNull: ["$paymentStatus", "Pending"] },
-        emis: 1,
-      },
-    },
-    {
       $addFields: {
-        totalPaid: { $sum: "$emis.amountPaid" },
         pendingEmis: {
           $filter: {
             input: "$emis",
             as: "emi",
             cond: {
               $and: [
-                { $ne: ["$$emi.status", "Paid"] },
+                status
+                  ? { $eq: ["$$emi.status", status] }
+                  : { $ne: ["$$emi.status", "Paid"] },
                 { $lte: ["$$emi.dueDate", new Date()] },
               ],
             },
@@ -338,42 +325,24 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         },
       },
     },
+    { $unwind: "$pendingEmis" },
     {
       $project: {
+        _id: "$pendingEmis._id",
+        loanId: "$_id",
         loanNumber: 1,
         customerName: 1,
         mobileNumber: 1,
         vehicleNumber: 1,
         model: 1,
-        guarantorName: 1,
-        guarantorMobileNumber: 1,
-        principalAmount: 1,
-        totalInterestAmount: 1,
-        totalPaid: 1,
-        paymentStatus: 1,
-        pendingCount: { $size: "$pendingEmis" },
-        totalPendingAmount: {
-          $reduce: {
-            input: "$pendingEmis",
-            initialValue: 0,
-            in: {
-              $add: [
-                "$$value",
-                { $subtract: ["$$this.emiAmount", "$$this.amountPaid"] },
-              ],
-            },
-          },
-        },
-        lastDueDate: { $max: "$pendingEmis.dueDate" },
-        outstandingAmount: {
-          $subtract: [
-            { $add: ["$principalAmount", "$totalInterestAmount"] },
-            "$totalPaid",
-          ],
-        },
+        emiAmount: "$pendingEmis.emiAmount",
+        amountPaid: "$pendingEmis.amountPaid",
+        dueDate: "$pendingEmis.dueDate",
+        remarks: { $ifNull: ["$pendingEmis.remarks", "$paymentStatus", ""] },
+        emiNumber: "$pendingEmis.emiNumber",
       },
     },
-    { $match: { pendingCount: { $gt: 0 } } },
+    { $sort: { dueDate: 1 } },
   ]);
 
   sendResponse(
@@ -383,6 +352,61 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     "Pending payments fetched successfully",
     null,
     pendingPayments,
+  );
+});
+
+const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  console.log("Fetching EMI Details for ID:", id);
+  const emiDetails = await EMI.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(id) } },
+    {
+      $lookup: {
+        from: "loans",
+        localField: "loanId",
+        foreignField: "_id",
+        as: "loan",
+      },
+    },
+    { $unwind: "$loan" },
+    {
+      $project: {
+        _id: 1,
+        loanId: "$loan._id",
+        loanNumber: "$loan.loanNumber",
+        customerName: "$loan.customerName",
+        mobileNumber: "$loan.mobileNumber",
+        address: "$loan.address",
+        guarantorName: "$loan.guarantorName",
+        guarantorMobileNumber: "$loan.guarantorMobileNumber",
+        vehicleNumber: "$loan.vehicleNumber",
+        model: "$loan.model",
+        engineNumber: "$loan.engineNumber",
+        chassisNumber: "$loan.chassisNumber",
+        principalAmount: "$loan.principalAmount",
+        monthlyEMI: "$loan.monthlyEMI",
+        emiAmount: "$emiAmount",
+        amountPaid: "$amountPaid",
+        status: "$status",
+        dueDate: "$dueDate",
+        remarks: { $ifNull: ["$remarks", "$loan.paymentStatus", ""] },
+        emiNumber: 1,
+      },
+    },
+  ]);
+
+  if (!emiDetails || emiDetails.length === 0) {
+    return next(new ErrorHandler(`EMI details not found for ID: ${id}`, 404));
+  }
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "EMI details fetched successfully",
+    null,
+    emiDetails[0],
   );
 });
 
@@ -420,5 +444,6 @@ module.exports = {
   toggleSeizedStatus,
   calculateEMIApi,
   getPendingPayments,
+  getPendingEmiDetails,
   updatePaymentStatus,
 };

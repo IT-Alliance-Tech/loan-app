@@ -6,7 +6,7 @@ import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import { getSeizedPending } from "../../../services/loan.service";
 
-const PendingPaymentsPage = () => {
+const PartialPaymentsPage = () => {
   const router = useRouter();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,10 @@ const PendingPaymentsPage = () => {
   const fetchSeizedPending = async (params = {}) => {
     try {
       setLoading(true);
-      const res = await getSeizedPending({ ...params, status: "Pending" });
+      const res = await getSeizedPending({
+        ...params,
+        status: "Partially Paid",
+      });
       if (res.data) {
         setData(res.data);
       }
@@ -79,10 +82,10 @@ const PendingPaymentsPage = () => {
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
-                    Pending Payments
+                    Partial Payments
                   </h1>
                   <p className="text-slate-400 font-bold text-[9px] sm:text-[10px] uppercase tracking-[0.2em] mt-2">
-                    Monitoring outstanding payments for assets
+                    Monitoring partially paid installments
                   </p>
                 </div>
               </div>
@@ -141,7 +144,7 @@ const PendingPaymentsPage = () => {
                           Applicant Name
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                          Pending Amount
+                          Remaining Amount
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Remarks
@@ -188,7 +191,7 @@ const PendingPaymentsPage = () => {
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <div className="flex flex-col items-center">
-                                <span className="text-sm font-black text-red-600 tracking-tight">
+                                <span className="text-sm font-black text-orange-600 tracking-tight">
                                   ₹
                                   {(
                                     item.emiAmount - item.amountPaid
@@ -319,4 +322,4 @@ const PendingPaymentsPage = () => {
   );
 };
 
-export default PendingPaymentsPage;
+export default PartialPaymentsPage;
