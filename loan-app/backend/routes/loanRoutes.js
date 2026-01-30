@@ -8,6 +8,8 @@ const {
   updateLoan,
   toggleSeizedStatus,
   calculateEMIApi,
+  getPendingPayments,
+  updatePaymentStatus,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
@@ -26,6 +28,16 @@ router
   .post(authorizeRoles("SUPER_ADMIN"), createLoan);
 
 router.post("/calculate-emi", calculateEMIApi);
+router.get(
+  "/pending-payments",
+  authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
+  getPendingPayments,
+);
+router.patch(
+  "/:id/payment-status",
+  authorizeRoles("SUPER_ADMIN"),
+  updatePaymentStatus,
+);
 
 router.get("/search/:loanNumber", getLoanByLoanNumber);
 

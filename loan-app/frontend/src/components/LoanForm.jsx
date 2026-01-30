@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useToast } from "../context/ToastContext";
+import { addMonths, format } from "date-fns";
 import {
   calculateEMI as fetchEMI,
   getRtoWorks,
@@ -249,12 +250,8 @@ const LoanForm = ({
     const disbursementDate = formik.values.dateLoanDisbursed;
     if (disbursementDate) {
       const d = new Date(disbursementDate);
-      const startDate = new Date(d);
-      startDate.setMonth(startDate.getMonth() + 1);
-      formik.setFieldValue(
-        "emiStartDate",
-        startDate.toISOString().split("T")[0],
-      );
+      const startDate = addMonths(d, 1);
+      formik.setFieldValue("emiStartDate", format(startDate, "yyyy-MM-dd"));
     }
   }, [formik.values.dateLoanDisbursed]);
 
@@ -264,10 +261,9 @@ const LoanForm = ({
     const tenure = parseInt(formik.values.tenureMonths);
     if (startDate && tenure) {
       const d = new Date(startDate);
-      const endDate = new Date(d);
       // End Date = Start Date + (Tenure - 1) Months
-      endDate.setMonth(endDate.getMonth() + (tenure - 1));
-      formik.setFieldValue("emiEndDate", endDate.toISOString().split("T")[0]);
+      const endDate = addMonths(d, tenure - 1);
+      formik.setFieldValue("emiEndDate", format(endDate, "yyyy-MM-dd"));
     }
   }, [formik.values.emiStartDate, formik.values.tenureMonths]);
 

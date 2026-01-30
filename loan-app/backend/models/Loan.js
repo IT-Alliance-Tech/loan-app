@@ -154,6 +154,11 @@ const loanSchema = new mongoose.Schema(
       required: [true, "Status is required"],
       trim: true,
     },
+    paymentStatus: {
+      type: String,
+      default: "Pending",
+      trim: true,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
