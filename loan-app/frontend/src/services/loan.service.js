@@ -69,6 +69,12 @@ export const getSeizedPending = async (params = {}) => {
   );
 };
 
+export const getPendingEmiDetails = async (id) => {
+  return await apiHandler(`/api/loans/pending-details/${id}`, {
+    method: "GET",
+  });
+};
+
 export const updatePaymentStatus = async (id, paymentStatus) => {
   return await apiHandler(`/api/loans/${id}/payment-status`, {
     method: "PATCH",
