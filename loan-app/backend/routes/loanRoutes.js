@@ -9,6 +9,7 @@ const {
   toggleSeizedStatus,
   calculateEMIApi,
   getPendingPayments,
+  getPendingEmiDetails,
   updatePaymentStatus,
 } = require("../controllers/loanController");
 const {
@@ -32,6 +33,11 @@ router.get(
   "/pending-payments",
   authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
   getPendingPayments,
+);
+router.get(
+  "/pending-details/:id",
+  authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
+  getPendingEmiDetails,
 );
 router.patch(
   "/:id/payment-status",

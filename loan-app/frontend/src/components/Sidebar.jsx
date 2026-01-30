@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { getUserFromToken } from "../utils/auth";
 
@@ -15,12 +16,34 @@ const navItems = [
   },
   { name: "EMI Details", href: "/admin/emi-details", icon: "🗓️" },
   { name: "Seized Vehicles", href: "/admin/seized-vehicles", icon: "🚗" },
-  { name: "Pending Payments", href: "/admin/pending-payments", icon: "💸" },
+  {
+    name: "Payments",
+    icon: "💸",
+    subItems: [
+      { name: "Pending", href: "/admin/pending-payments" },
+      { name: "Partial", href: "/admin/partial-payments" },
+    ],
+  },
 ];
 
 const Sidebar = () => {
   const pathname = usePathname();
   const user = getUserFromToken();
+  const [expandedMenus, setExpandedMenus] = useState({});
+
+  useEffect(() => {
+    // Auto-expand menu if sub-item is active
+    const activeSubMenu = navItems.find((item) =>
+      item.subItems?.some((sub) => pathname === sub.href),
+    );
+    if (activeSubMenu) {
+      setExpandedMenus((prev) => ({ ...prev, [activeSubMenu.name]: true }));
+    }
+  }, [pathname]);
+
+  const toggleMenu = (name) => {
+    setExpandedMenus((prev) => ({ ...prev, [name]: !prev[name] }));
+  };
 
   const filteredNavItems = navItems.filter(
     (item) => !item.roles || item.roles.includes(user?.role),
@@ -45,6 +68,64 @@ const Sidebar = () => {
         <div className="flex-1 overflow-y-auto p-6">
           <nav className="space-y-1">
             {filteredNavItems.map((item) => {
+              if (item.subItems) {
+                const isExpanded = expandedMenus[item.name];
+                const isAnySubActive = item.subItems.some(
+                  (sub) => pathname === sub.href,
+                );
+                return (
+                  <div key={item.name} className="space-y-1">
+                    <button
+                      onClick={() => toggleMenu(item.name)}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                        isAnySubActive
+                          ? "text-primary bg-primary/5"
+                          : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-base">{item.icon}</span>
+                        {item.name}
+                      </div>
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="3"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="ml-4 pl-4 border-l-2 border-slate-100 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                        {item.subItems.map((sub) => {
+                          const isSubActive = pathname === sub.href;
+                          return (
+                            <Link
+                              key={sub.name}
+                              href={sub.href}
+                              className={`flex items-center gap-3 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                isSubActive
+                                  ? "bg-primary text-white shadow-lg shadow-blue-100"
+                                  : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                              }`}
+                            >
+                              {sub.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               const isActive = pathname === item.href;
               return (
                 <Link
@@ -67,6 +148,24 @@ const Sidebar = () => {
 
       {/* MOBILE BOTTOM NAV */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-[90] px-2 py-2 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+        {expandedMenus["mobilePayments"] && (
+          <div className="absolute bottom-full left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-slate-100 flex gap-4 animate-in slide-in-from-bottom-5 duration-300">
+            <Link
+              href="/admin/pending-payments"
+              onClick={() => toggleMenu("mobilePayments")}
+              className="flex-1 py-4 bg-primary text-white text-center rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-200"
+            >
+              Pending
+            </Link>
+            <Link
+              href="/admin/partial-payments"
+              onClick={() => toggleMenu("mobilePayments")}
+              className="flex-1 py-4 bg-slate-900 text-white text-center rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-200"
+            >
+              Partial
+            </Link>
+          </div>
+        )}
         <div className="flex justify-around items-center max-w-xl mx-auto">
           {[
             {
@@ -146,27 +245,9 @@ const Sidebar = () => {
               ),
             },
             {
-              name: "Seized",
-              href: "/admin/seized-vehicles",
-              icon: (
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18.7 7.2c-.3-.7-1-1.2-1.7-1.2H7c-.7 0-1.4.5-1.7 1.2L3.5 11.1C2.7 11.3 2 12.1 2 13v3c0 .6.4 1 1 1h2M7 17a2 2 0 100-4 2 2 0 000 4zM17 17a2 2 0 100-4 2 2 0 000 4z"
-                  />
-                </svg>
-              ),
-            },
-            {
-              name: "Pending",
-              href: "/admin/pending-payments",
+              name: "Payments",
+              onClick: () => toggleMenu("mobilePayments"),
+              isActive: pathname.includes("payments"),
               icon: (
                 <svg
                   className="w-5 h-5"
@@ -184,11 +265,17 @@ const Sidebar = () => {
               ),
             },
           ].map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              item.isActive !== undefined
+                ? item.isActive
+                : pathname === item.href;
+            const Component = item.href ? Link : "button";
+
             return (
-              <Link
+              <Component
                 key={item.name}
                 href={item.href}
+                onClick={item.onClick}
                 className={`flex flex-col items-center gap-1.5 p-2 transition-all ${
                   isActive
                     ? "text-primary bg-primary/5 rounded-2xl"
@@ -207,7 +294,7 @@ const Sidebar = () => {
                 >
                   {item.name}
                 </span>
-              </Link>
+              </Component>
             );
           })}
         </div>
