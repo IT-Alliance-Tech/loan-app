@@ -332,6 +332,9 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
 
 const getPendingPayments = asyncHandler(async (req, res, next) => {
   const { customerName, loanNumber, vehicleNumber, status } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
 
   let query = {};
 
@@ -345,7 +348,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
   }
 
-  const pendingPayments = await Loan.aggregate([
+  const result = await Loan.aggregate([
     { $match: query },
     {
       $lookup: {
@@ -391,7 +394,16 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
       },
     },
     { $sort: { dueDate: 1 } },
+    {
+      $facet: {
+        payments: [{ $skip: skip }, { $limit: limit }],
+        totalCount: [{ $count: "count" }],
+      },
+    },
   ]);
+
+  const payments = result[0].payments;
+  const total = result[0].totalCount[0]?.count || 0;
 
   sendResponse(
     res,
@@ -399,7 +411,15 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     "success",
     "Pending payments fetched successfully",
     null,
-    pendingPayments,
+    {
+      payments,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
   );
 });
 
