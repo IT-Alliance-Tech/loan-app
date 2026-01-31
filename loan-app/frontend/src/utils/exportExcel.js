@@ -52,7 +52,9 @@ export const exportLoansToExcel = async (
       customerName: loan.customerName,
       address: loan.address,
       ownRent: loan.ownRent,
-      mobileNumber: loan.mobileNumber,
+      mobileNumber: Array.isArray(loan.mobileNumbers)
+        ? loan.mobileNumbers.join(", ")
+        : loan.mobileNumber,
       panNumber: loan.panNumber,
       aadharNumber: loan.aadharNumber,
       principalAmount: loan.principalAmount || 0,

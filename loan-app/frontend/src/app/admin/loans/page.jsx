@@ -250,7 +250,7 @@ const LoansPage = () => {
                                     {loan.customerName}
                                   </span>
                                   <span className="text-[11px] font-medium text-slate-400 mt-1 tracking-tight">
-                                    {loan.mobileNumber}
+                                    {loan.mobileNumbers?.[0] || "No number"}
                                   </span>
                                 </div>
                               </td>
@@ -404,7 +404,7 @@ const LoansPage = () => {
                                 {loan.customerName}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-slate-500 font-bold text-xs tracking-widest">
-                                {loan.mobileNumber}
+                                {loan.mobileNumbers?.[0] || "No number"}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center font-black text-primary text-xs">
                                 ₹{loan.monthlyEMI?.toLocaleString()}
