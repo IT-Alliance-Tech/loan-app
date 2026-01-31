@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useToast } from "../context/ToastContext";
+import { addMonths, format } from "date-fns";
 import {
   calculateEMI as fetchEMI,
   getRtoWorks,
@@ -15,25 +16,21 @@ const validationSchema = Yup.object().shape({
   customerName: Yup.string().required("Customer name is required"),
   address: Yup.string().required("Address is required"),
   ownRent: Yup.string().required("Please select ownership status"),
-  mobileNumber: Yup.string()
-    .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
-    .required("Mobile number is required"),
-  additionalMobileNumbers: Yup.array().of(
-    Yup.string().matches(/^[6-9]\d{9}$/, {
-      message: "Invalid Mobile Number",
-      excludeEmptyString: true,
-    }),
-  ),
+  mobileNumbers: Yup.array()
+    .of(
+      Yup.string()
+        .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
+        .required("Mobile number is required"),
+    )
+    .min(1, "At least one customer mobile number is required"),
   guarantorName: Yup.string().nullable(),
-  guarantorMobileNumbers: Yup.array().of(
-    Yup.string().matches(/^[6-9]\d{9}$/, {
-      message: "Invalid Mobile Number",
-      excludeEmptyString: true,
-    }),
-  ),
-  guarantorMobileNumber: Yup.string()
-    .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
-    .required("Guarantor mobile number is required"),
+  guarantorMobileNumbers: Yup.array()
+    .of(
+      Yup.string()
+        .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
+        .required("Mobile number is required"),
+    )
+    .min(1, "At least one guarantor mobile number is required"),
   panNumber: Yup.string()
     .matches(
       /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,
@@ -104,16 +101,20 @@ const LoanForm = ({
         : initialData.rtoWorkPending
           ? [initialData.rtoWorkPending]
           : [],
-      additionalMobileNumbers: Array.isArray(
-        initialData.additionalMobileNumbers,
-      )
-        ? initialData.additionalMobileNumbers
-        : [],
+      mobileNumbers: Array.isArray(initialData.mobileNumbers)
+        ? initialData.mobileNumbers
+        : initialData.mobileNumber
+          ? [
+              initialData.mobileNumber,
+              ...(initialData.additionalMobileNumbers || []),
+            ]
+          : [""],
       guarantorName: initialData.guarantorName || "",
       guarantorMobileNumbers: Array.isArray(initialData.guarantorMobileNumbers)
         ? initialData.guarantorMobileNumbers
-        : [],
-      guarantorMobileNumber: initialData.guarantorMobileNumber || "",
+        : initialData.guarantorMobileNumber
+          ? [initialData.guarantorMobileNumber]
+          : [""],
       processingFeeRate: initialData.processingFeeRate ?? 0,
       status: initialData.status || "",
     },
@@ -249,12 +250,8 @@ const LoanForm = ({
     const disbursementDate = formik.values.dateLoanDisbursed;
     if (disbursementDate) {
       const d = new Date(disbursementDate);
-      const startDate = new Date(d);
-      startDate.setMonth(startDate.getMonth() + 1);
-      formik.setFieldValue(
-        "emiStartDate",
-        startDate.toISOString().split("T")[0],
-      );
+      const startDate = addMonths(d, 1);
+      formik.setFieldValue("emiStartDate", format(startDate, "yyyy-MM-dd"));
     }
   }, [formik.values.dateLoanDisbursed]);
 
@@ -264,10 +261,9 @@ const LoanForm = ({
     const tenure = parseInt(formik.values.tenureMonths);
     if (startDate && tenure) {
       const d = new Date(startDate);
-      const endDate = new Date(d);
       // End Date = Start Date + (Tenure - 1) Months
-      endDate.setMonth(endDate.getMonth() + (tenure - 1));
-      formik.setFieldValue("emiEndDate", endDate.toISOString().split("T")[0]);
+      const endDate = addMonths(d, tenure - 1);
+      formik.setFieldValue("emiEndDate", format(endDate, "yyyy-MM-dd"));
     }
   }, [formik.values.emiStartDate, formik.values.tenureMonths]);
 
@@ -409,38 +405,17 @@ const LoanForm = ({
               {/* Right Column: Mobile Number & Aadhar Number */}
               <div className="space-y-6">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Mobile Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="mobileNumber"
-                    maxLength={10}
-                    value={formik.values.mobileNumber || ""}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, "");
-                      if (val.length <= 10)
-                        formik.setFieldValue("mobileNumber", val);
-                    }}
-                    onBlur={formik.handleBlur}
-                    readOnly={isViewOnly}
-                    className={getFieldClass("mobileNumber")}
-                    placeholder="10 digit number"
-                  />
-                  <ErrorMsg name="mobileNumber" />
-
-                  {/* Additional Mobile Numbers (Customer) */}
-                  <div className="space-y-4 mt-4">
+                  <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
-                      Alternative Mobile Number
+                      Mobile Numbers <span className="text-red-500">*</span>
                     </label>
                     <div className="space-y-2">
-                      {formik.values.additionalMobileNumbers.map((num, idx) => (
+                      {formik.values.mobileNumbers.map((num, idx) => (
                         <div key={idx} className="flex-1">
                           <div className="flex gap-2 animate-in slide-in-from-left-2 duration-200">
                             <input
                               type="text"
-                              name={`additionalMobileNumbers.${idx}`}
+                              name={`mobileNumbers.${idx}`}
                               maxLength={10}
                               value={num}
                               onChange={(e) => {
@@ -448,34 +423,28 @@ const LoanForm = ({
                                   /[^0-9]/g,
                                   "",
                                 );
-                                const newArr = [
-                                  ...formik.values.additionalMobileNumbers,
-                                ];
+                                const newArr = [...formik.values.mobileNumbers];
                                 newArr[idx] = val;
-                                formik.setFieldValue(
-                                  "additionalMobileNumbers",
-                                  newArr,
-                                );
+                                formik.setFieldValue("mobileNumbers", newArr);
                               }}
                               onBlur={formik.handleBlur}
-                              className={getFieldClass(
-                                `additionalMobileNumbers.${idx}`,
-                              )}
-                              placeholder={`Alt number ${idx + 1}`}
+                              className={getFieldClass(`mobileNumbers.${idx}`)}
+                              placeholder={
+                                idx === 0
+                                  ? "Primary Mobile Member"
+                                  : `Alternative Number ${idx}`
+                              }
                               readOnly={isViewOnly}
                             />
-                            {!isViewOnly && (
+                            {!isViewOnly && idx > 0 && (
                               <button
                                 type="button"
                                 onClick={() => {
                                   const newArr =
-                                    formik.values.additionalMobileNumbers.filter(
+                                    formik.values.mobileNumbers.filter(
                                       (_, i) => i !== idx,
                                     );
-                                  formik.setFieldValue(
-                                    "additionalMobileNumbers",
-                                    newArr,
-                                  );
+                                  formik.setFieldValue("mobileNumbers", newArr);
                                 }}
                                 className="p-2 text-red-400 hover:text-red-600 transition-colors"
                               >
@@ -495,15 +464,15 @@ const LoanForm = ({
                               </button>
                             )}
                           </div>
-                          <ErrorMsg name={`additionalMobileNumbers.${idx}`} />
+                          <ErrorMsg name={`mobileNumbers.${idx}`} />
                         </div>
                       ))}
                       {!isViewOnly && (
                         <button
                           type="button"
                           onClick={() =>
-                            formik.setFieldValue("additionalMobileNumbers", [
-                              ...formik.values.additionalMobileNumbers,
+                            formik.setFieldValue("mobileNumbers", [
+                              ...formik.values.mobileNumbers,
                               "",
                             ])
                           }
@@ -573,130 +542,107 @@ const LoanForm = ({
                     <ErrorMsg name="guarantorName" />
                   </div>
 
-                  {/* Guarantor Primary Mobile Number */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Guarantor Mobile Number{" "}
+                  {/* Guarantor Mobile Numbers */}
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
+                      Guarantor Mobile Numbers{" "}
                       <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      name="guarantorMobileNumber"
-                      maxLength={10}
-                      value={formik.values.guarantorMobileNumber || ""}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9]/g, "");
-                        if (val.length <= 10)
-                          formik.setFieldValue("guarantorMobileNumber", val);
-                      }}
-                      onBlur={formik.handleBlur}
-                      readOnly={isViewOnly}
-                      className={getFieldClass("guarantorMobileNumber")}
-                      placeholder="Enter Guarantor Mobile Number"
-                    />
-                    <ErrorMsg name="guarantorMobileNumber" />
-
-                    {/* Additional Guarantor Mobile Numbers (Nesting inside this column) */}
-                    <div className="space-y-4 mt-6">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        Alternative Mobile Number
-                      </label>
-                      <div className="space-y-2">
-                        {formik.values.guarantorMobileNumbers.map(
-                          (num, idx) => (
-                            <div key={idx} className="flex-1">
-                              <div className="flex gap-2 animate-in slide-in-from-right-2 duration-200">
-                                <input
-                                  type="text"
-                                  name={`guarantorMobileNumbers.${idx}`}
-                                  maxLength={10}
-                                  value={num}
-                                  onChange={(e) => {
-                                    const val = e.target.value.replace(
-                                      /[^0-9]/g,
-                                      "",
+                    <div className="space-y-2">
+                      {formik.values.guarantorMobileNumbers.map((num, idx) => (
+                        <div key={idx} className="flex-1">
+                          <div className="flex gap-2 animate-in slide-in-from-right-2 duration-200">
+                            <input
+                              type="text"
+                              name={`guarantorMobileNumbers.${idx}`}
+                              maxLength={10}
+                              value={num}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(
+                                  /[^0-9]/g,
+                                  "",
+                                );
+                                const newArr = [
+                                  ...formik.values.guarantorMobileNumbers,
+                                ];
+                                newArr[idx] = val;
+                                formik.setFieldValue(
+                                  "guarantorMobileNumbers",
+                                  newArr,
+                                );
+                              }}
+                              onBlur={formik.handleBlur}
+                              className={getFieldClass(
+                                `guarantorMobileNumbers.${idx}`,
+                              )}
+                              placeholder={
+                                idx === 0
+                                  ? "Primary Guarantor Mobile"
+                                  : `Alternative Number ${idx}`
+                              }
+                              readOnly={isViewOnly}
+                            />
+                            {!isViewOnly && idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newArr =
+                                    formik.values.guarantorMobileNumbers.filter(
+                                      (_, i) => i !== idx,
                                     );
-                                    const newArr = [
-                                      ...formik.values.guarantorMobileNumbers,
-                                    ];
-                                    newArr[idx] = val;
-                                    formik.setFieldValue(
-                                      "guarantorMobileNumbers",
-                                      newArr,
-                                    );
-                                  }}
-                                  onBlur={formik.handleBlur}
-                                  className={getFieldClass(
-                                    `guarantorMobileNumbers.${idx}`,
-                                  )}
-                                  placeholder="10 digit number"
-                                  readOnly={isViewOnly}
-                                />
-                                {!isViewOnly && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const newArr =
-                                        formik.values.guarantorMobileNumbers.filter(
-                                          (_, i) => i !== idx,
-                                        );
-                                      formik.setFieldValue(
-                                        "guarantorMobileNumbers",
-                                        newArr,
-                                      );
-                                    }}
-                                    className="p-2 text-red-400 hover:text-red-600 transition-colors"
-                                  >
-                                    <svg
-                                      className="w-5 h-5"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                      />
-                                    </svg>
-                                  </button>
-                                )}
-                              </div>
-                              <ErrorMsg
-                                name={`guarantorMobileNumbers.${idx}`}
-                              />
-                            </div>
-                          ),
-                        )}
-                        {!isViewOnly && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              formik.setFieldValue("guarantorMobileNumbers", [
-                                ...formik.values.guarantorMobileNumbers,
-                                "",
-                              ])
-                            }
-                            className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/70 transition-colors flex items-center gap-1.5"
+                                  formik.setFieldValue(
+                                    "guarantorMobileNumbers",
+                                    newArr,
+                                  );
+                                }}
+                                className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                          <ErrorMsg name={`guarantorMobileNumbers.${idx}`} />
+                        </div>
+                      ))}
+                      {!isViewOnly && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            formik.setFieldValue("guarantorMobileNumbers", [
+                              ...formik.values.guarantorMobileNumbers,
+                              "",
+                            ])
+                          }
+                          className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/70 transition-colors flex items-center gap-1.5"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="3"
-                                d="M12 4v16m8-8H4"
-                              />
-                            </svg>
-                            Add Guarantor Contact
-                          </button>
-                        )}
-                      </div>
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="3"
+                              d="M12 4v16m8-8H4"
+                            />
+                          </svg>
+                          Add Guarantor Contact
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

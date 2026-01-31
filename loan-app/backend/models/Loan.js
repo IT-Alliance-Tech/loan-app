@@ -27,14 +27,15 @@ const loanSchema = new mongoose.Schema(
       enum: ["Own", "Rent"],
       trim: true,
     },
-    mobileNumber: {
-      type: String,
-      required: [true, "Mobile number is required"],
-      trim: true,
-    },
-    additionalMobileNumbers: {
+    mobileNumbers: {
       type: [String],
-      default: [],
+      required: [true, "At least one customer mobile number is required"],
+      validate: {
+        validator: function (v) {
+          return v && v.length > 0;
+        },
+        message: "At least one customer mobile number is required",
+      },
     },
     guarantorName: {
       type: String,
@@ -42,12 +43,13 @@ const loanSchema = new mongoose.Schema(
     },
     guarantorMobileNumbers: {
       type: [String],
-      default: [],
-    },
-    guarantorMobileNumber: {
-      type: String,
-      trim: true,
-      required: [true, "Guarantor mobile number is required"],
+      required: [true, "At least one guarantor mobile number is required"],
+      validate: {
+        validator: function (v) {
+          return v && v.length > 0;
+        },
+        message: "At least one guarantor mobile number is required",
+      },
     },
     panNumber: {
       type: String,
@@ -152,6 +154,11 @@ const loanSchema = new mongoose.Schema(
     status: {
       type: String,
       required: [true, "Status is required"],
+      trim: true,
+    },
+    paymentStatus: {
+      type: String,
+      default: "Pending",
       trim: true,
     },
     createdBy: {

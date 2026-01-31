@@ -191,25 +191,25 @@ const LoansPage = () => {
               <div className="md:hidden mb-8">
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
                   <div className="overflow-x-auto scrollbar-none">
-                    <table className="w-full text-left border-collapse min-w-[800px]">
+                    <table className="w-full text-left border-collapse min-w-[600px]">
                       <thead>
                         <tr className="bg-slate-50/30 border-b border-slate-100 uppercase">
-                          <th className="pl-6 py-4 text-[9px] font-bold text-slate-400 tracking-[0.15em] whitespace-nowrap">
+                          <th className="w-[80px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
                             LOAN NO
                           </th>
-                          <th className="px-6 py-4 text-[9px] font-bold text-slate-400 tracking-[0.15em] whitespace-nowrap">
+                          <th className="px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
                             CUSTOMER NAME
                           </th>
-                          <th className="px-6 py-4 text-[9px] font-bold text-slate-400 tracking-[0.15em] text-center whitespace-nowrap">
+                          <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             EMI
                           </th>
-                          <th className="px-6 py-4 text-[9px] font-bold text-slate-400 tracking-[0.15em] text-center whitespace-nowrap">
+                          <th className="w-[80px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             TENURE
                           </th>
-                          <th className="px-6 py-4 text-[9px] font-bold text-slate-400 tracking-[0.15em] text-center whitespace-nowrap">
+                          <th className="w-[80px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             STATUS
                           </th>
-                          <th className="pr-6 py-4 text-[9px] font-bold text-slate-400 tracking-[0.15em] text-center whitespace-nowrap">
+                          <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             ACTIONS
                           </th>
                         </tr>
@@ -239,22 +239,22 @@ const LoansPage = () => {
                               key={loan._id}
                               className="active:bg-slate-50 transition-colors"
                             >
-                              <td className="pl-6 py-6 whitespace-nowrap">
+                              <td className="px-4 py-6 whitespace-nowrap">
                                 <span className="font-bold text-slate-900 tracking-tight text-base">
                                   {loan.loanNumber}
                                 </span>
                               </td>
-                              <td className="px-6 py-6">
+                              <td className="px-4 py-6">
                                 <div className="flex flex-col">
                                   <span className="font-bold text-slate-700 text-base leading-tight">
                                     {loan.customerName}
                                   </span>
                                   <span className="text-[11px] font-medium text-slate-400 mt-1 tracking-tight">
-                                    {loan.mobileNumber}
+                                    {loan.mobileNumbers?.[0] || "No number"}
                                   </span>
                                 </div>
                               </td>
-                              <td className="px-6 py-6 text-center whitespace-nowrap text-[#2463EB] font-black text-base">
+                              <td className="px-4 py-6 text-center whitespace-nowrap text-[#2463EB] font-black text-base">
                                 ₹
                                 {
                                   loan.monthlyEMI
@@ -262,19 +262,19 @@ const LoansPage = () => {
                                     .split(".")[0]
                                 }
                               </td>
-                              <td className="px-6 py-6 text-center whitespace-nowrap">
+                              <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 text-[10px] font-bold border border-slate-100">
                                   {loan.tenureMonths}M
                                 </span>
                               </td>
-                              <td className="px-6 py-6 text-center whitespace-nowrap">
+                              <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <span
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${loan.isSeized ? "bg-red-50 text-red-500 border-red-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"}`}
                                 >
                                   {loan.isSeized ? "Seized" : "Active"}
                                 </span>
                               </td>
-                              <td className="pr-6 py-6 text-center whitespace-nowrap">
+                              <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <div className="flex justify-center items-center gap-4">
                                   <button
                                     onClick={() =>
@@ -404,7 +404,7 @@ const LoansPage = () => {
                                 {loan.customerName}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-slate-500 font-bold text-xs tracking-widest">
-                                {loan.mobileNumber}
+                                {loan.mobileNumbers?.[0] || "No number"}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center font-black text-primary text-xs">
                                 ₹{loan.monthlyEMI?.toLocaleString()}

@@ -23,8 +23,8 @@ const CustomersPage = () => {
   const [formData, setFormData] = useState({
     loanNumber: "",
     customerName: "",
-    mobileNumber: "",
-    alternateMobile: "",
+    mobileNumbers: [""],
+    alternateMobile: "", // Internal backup, but primary is in mobileNumbers[0]
     address: "",
     principalAmount: "",
     annualInterestRate: "",
@@ -35,9 +35,8 @@ const CustomersPage = () => {
     emiStartDate: "",
     emiEndDate: "",
     remarks: "",
-    additionalMobileNumbers: [],
     guarantorName: "",
-    guarantorMobileNumbers: [],
+    guarantorMobileNumbers: [""],
     status: "",
   });
 
@@ -180,7 +179,7 @@ const CustomersPage = () => {
       setFormData({
         loanNumber: "",
         customerName: "",
-        mobileNumber: "",
+        mobileNumbers: [""],
         alternateMobile: "",
         address: "",
         principalAmount: "",
@@ -190,9 +189,8 @@ const CustomersPage = () => {
         emiStartDate: "",
         emiEndDate: "",
         remarks: "",
-        additionalMobileNumbers: [],
         guarantorName: "",
-        guarantorMobileNumbers: [],
+        guarantorMobileNumbers: [""],
         status: "",
       });
       fetchCustomers();
@@ -263,8 +261,97 @@ const CustomersPage = () => {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+              {/* MOBILE VIEW (Table Optimized for small screens) */}
+              <div className="md:hidden">
+                <div className="overflow-x-auto scrollbar-none">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                      <tr className="bg-slate-50/50 border-b border-slate-200 uppercase">
+                        <th className="w-[80px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
+                          LOAN NO
+                        </th>
+                        <th className="px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
+                          CUSTOMER NAME
+                        </th>
+                        <th className="w-[100px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
+                          CONTACT
+                        </th>
+                        <th className="w-[100px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider text-right">
+                          MONTHLY EMI
+                        </th>
+                        <th className="w-[80px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider text-center">
+                          STATUS
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {loading ? (
+                        <tr>
+                          <td
+                            colSpan="5"
+                            className="px-4 py-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                          >
+                            Synchronizing Registry...
+                          </td>
+                        </tr>
+                      ) : filteredCustomers.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan="5"
+                            className="px-4 py-12 text-center text-slate-300 font-bold uppercase text-[10px] tracking-widest"
+                          >
+                            No records
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredCustomers.map((cust) => (
+                          <tr
+                            key={cust._id}
+                            className="active:bg-slate-50 transition-colors"
+                          >
+                            <td className="px-4 py-5">
+                              <span className="font-black text-primary uppercase text-[10px] tracking-tighter bg-blue-50 px-2 py-1 rounded-md whitespace-nowrap">
+                                {cust.loanNumber}
+                              </span>
+                            </td>
+                            <td className="px-4 py-5">
+                              <span className="font-black text-slate-900 uppercase text-xs tracking-tighter block truncate">
+                                {cust.customerName}
+                              </span>
+                            </td>
+                            <td className="px-4 py-5 font-bold text-slate-500 text-[10px] whitespace-nowrap">
+                              {cust.mobileNumbers?.[0] || "No number"}
+                            </td>
+                            <td className="px-4 py-5 text-right font-black text-slate-900 text-[11px] whitespace-nowrap">
+                              ₹{cust.monthlyEMI?.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-5 text-center">
+                              {cust.isSeized ? (
+                                <span className="px-2 py-0.5 bg-red-50 text-red-500 text-[8px] font-black rounded uppercase">
+                                  Seized
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-500 text-[8px] font-black rounded uppercase">
+                                  Active
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="py-3 bg-slate-50/50 border-t border-slate-100 text-center">
+                  <p className="text-[9px] font-bold text-slate-400 italic">
+                    Swipe horizontally to see more details
+                  </p>
+                </div>
+              </div>
+
+              {/* DESKTOP VIEW */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-200">
@@ -322,7 +409,7 @@ const CustomersPage = () => {
                             {cust.customerName}
                           </td>
                           <td className="px-6 py-4 font-bold text-slate-500 text-xs">
-                            {cust.mobileNumber}
+                            {cust.mobileNumbers?.[0] || "No number"}
                           </td>
                           <td className="px-6 py-4 text-right">
                             <span className="font-black text-slate-900 text-xs">
@@ -468,46 +555,19 @@ const CustomersPage = () => {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Primary Mobile
-                      </label>
-                      <input
-                        type="text"
-                        name="mobileNumber"
-                        required
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
-                        value={formData.mobileNumber}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Alternate Contact
-                      </label>
-                      <input
-                        type="text"
-                        name="alternateMobile"
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
-                        value={formData.alternateMobile}
-                        onChange={handleInputChange}
-                      />
-                    </div>
                     <div className="space-y-4 col-span-2 pt-2 border-t border-slate-100 mt-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
-                        <span>Additional Contact Numbers (Customer)</span>
+                        <span>Customer Contact Numbers</span>
                         <button
                           type="button"
-                          onClick={() =>
-                            addAdditionalMobile("additionalMobileNumbers")
-                          }
+                          onClick={() => addAdditionalMobile("mobileNumbers")}
                           className="text-primary hover:text-primary/70 transition-colors"
                         >
                           + Add Number
                         </button>
                       </label>
                       <div className="grid grid-cols-2 gap-4">
-                        {formData.additionalMobileNumbers.map((num, idx) => (
+                        {formData.mobileNumbers.map((num, idx) => (
                           <div
                             key={idx}
                             className="flex gap-2 animate-in zoom-in duration-200"
@@ -516,28 +576,31 @@ const CustomersPage = () => {
                               type="text"
                               maxLength={10}
                               className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-primary transition-all"
-                              placeholder={`Alt Number ${idx + 1}`}
+                              placeholder={
+                                idx === 0
+                                  ? "Primary Mobile"
+                                  : `Alt Number ${idx}`
+                              }
                               value={num}
                               onChange={(e) =>
                                 handleArrayInputChange(
-                                  "additionalMobileNumbers",
+                                  "mobileNumbers",
                                   idx,
                                   e.target.value,
                                 )
                               }
                             />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                removeAdditionalMobile(
-                                  "additionalMobileNumbers",
-                                  idx,
-                                )
-                              }
-                              className="text-red-400 hover:text-red-500 transition-colors"
-                            >
-                              &times;
-                            </button>
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeAdditionalMobile("mobileNumbers", idx)
+                                }
+                                className="text-red-400 hover:text-red-500 transition-colors"
+                              >
+                                &times;
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -580,7 +643,11 @@ const CustomersPage = () => {
                               type="text"
                               maxLength={10}
                               className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-primary transition-all"
-                              placeholder={`Guarantor No. ${idx + 1}`}
+                              placeholder={
+                                idx === 0
+                                  ? "Primary Guarantor No."
+                                  : `Alt Number ${idx}`
+                              }
                               value={num}
                               onChange={(e) =>
                                 handleArrayInputChange(
@@ -590,18 +657,20 @@ const CustomersPage = () => {
                                 )
                               }
                             />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                removeAdditionalMobile(
-                                  "guarantorMobileNumbers",
-                                  idx,
-                                )
-                              }
-                              className="text-red-400 hover:text-red-500 transition-colors"
-                            >
-                              &times;
-                            </button>
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeAdditionalMobile(
+                                    "guarantorMobileNumbers",
+                                    idx,
+                                  )
+                                }
+                                className="text-red-400 hover:text-red-500 transition-colors"
+                              >
+                                &times;
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

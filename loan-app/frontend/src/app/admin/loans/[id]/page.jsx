@@ -9,6 +9,7 @@ import EMITable from "../../../../components/EMITable";
 import { useToast } from "../../../../context/ToastContext";
 import { getLoanById } from "../../../../services/loan.service";
 import { getEMIsByLoanId } from "../../../../services/customer";
+import { flattenLoan } from "../../../../utils/loanUtils";
 
 const ViewLoanPage = () => {
   const router = useRouter();
@@ -26,7 +27,8 @@ const ViewLoanPage = () => {
           getEMIsByLoanId(id),
         ]);
 
-        const data = loanRes.data;
+        const rawData = loanRes.data;
+        const data = rawData.loanInfo ? flattenLoan(rawData) : rawData;
         const emiData = emiRes.data || [];
 
         // Format dates for input[type="date"]
