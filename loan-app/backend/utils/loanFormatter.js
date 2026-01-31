@@ -12,74 +12,54 @@ const formatLoanResponse = (loanDoc) => {
   const loan = loanDoc.toObject ? loanDoc.toObject() : loanDoc;
 
   return {
-    loanInfo: {
-      id: loan._id,
+    customerDetails: {
+      customerName: loan.customerName,
+      address: loan.address,
+      ownRent: loan.ownRent,
+      panNumber: loan.panNumber,
+      aadharNumber: loan.aadharNumber,
+      mobileNumbers: loan.mobileNumbers || [],
+      address: loan.address,
+      guarantorName: loan.guarantorName,
+      guarantorMobileNumbers: loan.guarantorMobileNumbers || [],
+    },
+    loanTerms: {
       loanNumber: loan.loanNumber,
+      principalAmount: loan.principalAmount,
+      annualInterestRate: loan.annualInterestRate,
+      tenureMonths: loan.tenureMonths,
+      tenureType: loan.tenureType,
+      dateLoanDisbursed: loan.dateLoanDisbursed,
+      emiStartDate: loan.emiStartDate,
+      emiEndDate: loan.emiEndDate,
+      monthlyEMI: loan.monthlyEMI,
+      totalInterestAmount: loan.totalInterestAmount,
+      processingFee: loan.processingFee,
+      processingFeeRate: loan.processingFeeRate,
+    },
+    vehicleInformation: {
+      vehicleNumber: loan.vehicleNumber,
+      chassisNumber: loan.chassisNumber,
+      engineNumber: loan.engineNumber,
+      model: loan.model,
+      typeOfVehicle: loan.typeOfVehicle,
+      ywBoard: loan.ywBoard,
+      dealerName: loan.dealerName,
+      dealerNumber: loan.dealerNumber,
+      fcDate: loan.fcDate,
+      insuranceDate: loan.insuranceDate,
+      rtoWorkPending: loan.rtoWorkPending || [],
+    },
+    status: {
       status: loan.status,
       paymentStatus: loan.paymentStatus,
       isSeized: loan.isSeized || false,
+      docChecklist: loan.docChecklist,
+      remarks: loan.remarks,
+      id: loan._id,
       createdBy: loan.createdBy,
       createdAt: loan.createdAt,
       updatedAt: loan.updatedAt,
-    },
-    customer: {
-      name: loan.customerName,
-      address: loan.address,
-      ownRent: loan.ownRent,
-      contact: {
-        mobileNumbers: loan.mobileNumbers || [],
-        alternateMobile: loan.alternateMobile || "",
-      },
-      identifiers: {
-        panNumber: loan.panNumber,
-        aadharNumber: loan.aadharNumber,
-      },
-    },
-    guarantor: {
-      name: loan.guarantorName,
-      contact: {
-        mobileNumbers: loan.guarantorMobileNumbers || [],
-      },
-    },
-    financials: {
-      principalAmount: loan.principalAmount,
-      annualInterestRate: loan.annualInterestRate,
-      tenure: {
-        months: loan.tenureMonths,
-        type: loan.tenureType,
-      },
-      emi: {
-        monthlyAmount: loan.monthlyEMI,
-        totalInterest: loan.totalInterestAmount,
-        startDate: loan.emiStartDate,
-        endDate: loan.emiEndDate,
-      },
-      fees: {
-        processingFeeRate: loan.processingFeeRate,
-        processingFee: loan.processingFee,
-      },
-    },
-    vehicleDetails: {
-      registrationNumber: loan.vehicleNumber,
-      model: loan.model,
-      chassisNumber: loan.chassisNumber,
-      engineNumber: loan.engineNumber,
-      type: loan.typeOfVehicle,
-      boardType: loan.ywBoard,
-    },
-    extras: {
-      dealerInfo: {
-        name: loan.dealerName,
-        number: loan.dealerNumber,
-      },
-      dates: {
-        disbursement: loan.dateLoanDisbursed,
-        fcDate: loan.fcDate,
-        insuranceDate: loan.insuranceDate,
-      },
-      rtoWorkPending: loan.rtoWorkPending || [],
-      docChecklist: loan.docChecklist,
-      remarks: loan.remarks,
     },
   };
 };
