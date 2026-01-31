@@ -146,7 +146,7 @@ const LoanPendingViewPage = () => {
                   </button>
                   <div>
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
-                      Pending Case Details
+                      Pending EMI Details
                     </h1>
                     <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-1">
                       Manage collection response for {loan.loanNumber}

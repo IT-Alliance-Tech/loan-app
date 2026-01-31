@@ -23,6 +23,16 @@ const PendingPaymentsPage = () => {
     fetchSeizedPending();
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        fetchSeizedPending({ loanNumber: searchQuery });
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const fetchSeizedPending = async (params = {}) => {
     try {
       setLoading(true);
@@ -141,6 +151,9 @@ const PendingPaymentsPage = () => {
                           Applicant Name
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                          Month
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Pending Amount
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
@@ -155,7 +168,7 @@ const PendingPaymentsPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="5"
+                            colSpan="6"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             Loading records...
@@ -164,7 +177,7 @@ const PendingPaymentsPage = () => {
                       ) : data.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="5"
+                            colSpan="6"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             No records found
@@ -187,18 +200,20 @@ const PendingPaymentsPage = () => {
                               </span>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
+                              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                {new Date(item.dueDate).toLocaleDateString(
+                                  "en-US",
+                                  { month: "short", year: "numeric" },
+                                )}
+                              </span>
+                            </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap">
                               <div className="flex flex-col items-center">
                                 <span className="text-sm font-black text-red-600 tracking-tight">
                                   ₹
                                   {(
                                     item.emiAmount - item.amountPaid
                                   ).toLocaleString()}
-                                </span>
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                                  {new Date(item.dueDate).toLocaleDateString(
-                                    "en-US",
-                                    { month: "short", year: "numeric" },
-                                  )}
                                 </span>
                               </div>
                             </td>
