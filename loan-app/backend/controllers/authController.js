@@ -8,13 +8,13 @@ const generateTokens = (user) => {
   const accessToken = jwt.sign(
     { id: user._id, email: user.email, role: user.role, name: user.name },
     process.env.JWT_SECRET,
-    { expiresIn: "1h" },
+    { expiresIn: "10m" },
   );
 
   const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
-    { expiresIn: "7d" },
+    { expiresIn: "15d" },
   );
 
   return { accessToken, refreshToken };
@@ -53,7 +53,7 @@ const login = asyncHandler(async (req, res, next) => {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 15 * 24 * 60 * 60 * 1000, // 15 days
   });
 
   return sendResponse(res, 200, "success", "Login successful", null, {
@@ -93,7 +93,7 @@ const refreshToken = asyncHandler(async (req, res, next) => {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: 15 * 24 * 60 * 60 * 1000, // 15 days
   });
 
   return sendResponse(res, 200, "success", "Token refreshed", null, {
