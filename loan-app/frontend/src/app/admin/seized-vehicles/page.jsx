@@ -110,7 +110,7 @@ const SeizedVehiclesPage = () => {
                                   {loan.customerName}
                                 </span>
                                 <span className="text-[10px] font-bold text-slate-400 mt-1">
-                                  {loan.mobileNumber}
+                                  {loan.mobileNumbers?.[0] || "No number"}
                                 </span>
                               </div>
                             </td>

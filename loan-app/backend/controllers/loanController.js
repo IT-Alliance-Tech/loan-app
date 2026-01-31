@@ -5,6 +5,7 @@ const ErrorHandler = require("../utils/ErrorHandler");
 const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
+const { formatLoanResponse } = require("../utils/loanFormatter");
 
 const calculateEMI = (principal, roi, tenureMonths) => {
   const p = parseFloat(principal);
@@ -43,7 +44,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     customerName,
     address,
     ownRent,
-    mobileNumber,
+    mobileNumbers,
     panNumber,
     aadharNumber,
     principalAmount,
@@ -69,7 +70,6 @@ const createLoan = asyncHandler(async (req, res, next) => {
     fcDate,
     insuranceDate,
     rtoWorkPending,
-    additionalMobileNumbers,
     guarantorName,
     guarantorMobileNumbers,
     status,
@@ -78,7 +78,8 @@ const createLoan = asyncHandler(async (req, res, next) => {
   if (
     !loanNumber ||
     !customerName ||
-    !mobileNumber ||
+    !mobileNumbers ||
+    mobileNumbers.length === 0 ||
     !principalAmount ||
     !annualInterestRate ||
     !tenureMonths
@@ -108,7 +109,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     customerName,
     address,
     ownRent,
-    mobileNumber,
+    mobileNumbers,
     panNumber,
     aadharNumber,
     principalAmount,
@@ -135,7 +136,6 @@ const createLoan = asyncHandler(async (req, res, next) => {
     fcDate,
     insuranceDate,
     rtoWorkPending,
-    additionalMobileNumbers,
     guarantorName,
     guarantorMobileNumbers,
     status,
@@ -168,7 +168,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     "success",
     "Loan created and EMIs generated successfully",
     null,
-    loan,
+    formatLoanResponse(loan),
   );
 });
 
@@ -185,7 +185,7 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   if (customerName)
     query.customerName = { $regex: customerName, $options: "i" };
   if (mobileNumber)
-    query.mobileNumber = { $regex: mobileNumber, $options: "i" };
+    query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
   if (tenureMonths) query.tenureMonths = tenureMonths;
   if (status) {
     if (status === "Seized") query.isSeized = true;
@@ -214,7 +214,14 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
-  sendResponse(res, 200, "success", "Loan found", null, loan);
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Loan found",
+    null,
+    formatLoanResponse(loan),
+  );
 });
 
 const getLoanById = asyncHandler(async (req, res, next) => {
@@ -222,7 +229,14 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
-  sendResponse(res, 200, "success", "Loan found", null, loan);
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Loan found",
+    null,
+    formatLoanResponse(loan),
+  );
 });
 
 const updateLoan = asyncHandler(async (req, res, next) => {
@@ -260,7 +274,14 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     { new: true, runValidators: true },
   );
 
-  sendResponse(res, 200, "success", "Loan updated successfully", null, loan);
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Loan updated successfully",
+    null,
+    formatLoanResponse(loan),
+  );
 });
 
 const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
@@ -278,7 +299,7 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
     "success",
     `Loan ${loan.isSeized ? "seized" : "unseized"} successfully`,
     null,
-    loan,
+    formatLoanResponse(loan),
   );
 });
 
@@ -332,7 +353,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         loanId: "$_id",
         loanNumber: 1,
         customerName: 1,
-        mobileNumber: 1,
+        mobileNumbers: 1,
         vehicleNumber: 1,
         model: 1,
         emiAmount: "$pendingEmis.emiAmount",
@@ -376,10 +397,10 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
         loanId: "$loan._id",
         loanNumber: "$loan.loanNumber",
         customerName: "$loan.customerName",
-        mobileNumber: "$loan.mobileNumber",
+        mobileNumbers: "$loan.mobileNumbers",
         address: "$loan.address",
         guarantorName: "$loan.guarantorName",
-        guarantorMobileNumber: "$loan.guarantorMobileNumber",
+        guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
         vehicleNumber: "$loan.vehicleNumber",
         model: "$loan.model",
         engineNumber: "$loan.engineNumber",
@@ -430,7 +451,7 @@ const updatePaymentStatus = asyncHandler(async (req, res, next) => {
     "success",
     "Payment status updated successfully",
     null,
-    loan,
+    formatLoanResponse(loan),
   );
 });
 

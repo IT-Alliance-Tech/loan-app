@@ -13,6 +13,7 @@ import {
   toggleSeized,
 } from "../../../../../services/loan.service";
 import { getEMIsByLoanId } from "../../../../../services/customer";
+import { flattenLoan } from "../../../../../utils/loanUtils";
 
 const EditLoanPage = () => {
   const router = useRouter();
@@ -30,7 +31,8 @@ const EditLoanPage = () => {
         getEMIsByLoanId(id),
       ]);
 
-      const data = loanRes.data;
+      const rawData = loanRes.data;
+      const data = rawData.loanInfo ? flattenLoan(rawData) : rawData;
       const emiData = emiRes.data || [];
 
       // Format dates for input[type="date"]

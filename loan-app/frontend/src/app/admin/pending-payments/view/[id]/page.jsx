@@ -183,9 +183,11 @@ const LoanPendingViewPage = () => {
                         <p className="text-sm font-black text-slate-900 uppercase">
                           {loan.customerName}
                         </p>
-                        <p className="text-xs font-bold text-slate-500 mt-1">
-                          {loan.mobileNumber}
-                        </p>
+                        <div className="text-xs font-bold text-slate-500 mt-1 space-y-1">
+                          {loan.mobileNumbers?.map((num, idx) => (
+                            <p key={idx}>{num}</p>
+                          ))}
+                        </div>
                         <p className="text-[10px] text-slate-400 mt-3 leading-relaxed">
                           {loan.address}
                         </p>
@@ -197,9 +199,15 @@ const LoanPendingViewPage = () => {
                         <p className="text-sm font-black text-slate-900 uppercase">
                           {loan.guarantorName || "N/A"}
                         </p>
-                        <p className="text-xs font-bold text-slate-500 mt-1">
-                          {loan.guarantorMobileNumber || "N/A"}
-                        </p>
+                        <div className="text-xs font-bold text-slate-500 mt-1 space-y-1">
+                          {loan.guarantorMobileNumbers?.length > 0 ? (
+                            loan.guarantorMobileNumbers.map((num, idx) => (
+                              <p key={idx}>{num}</p>
+                            ))
+                          ) : (
+                            <p>N/A</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
