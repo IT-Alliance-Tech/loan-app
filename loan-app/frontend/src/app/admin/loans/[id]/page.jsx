@@ -27,28 +27,41 @@ const ViewLoanPage = () => {
           getEMIsByLoanId(id),
         ]);
 
-        const rawData = loanRes.data;
-        const data = rawData.loanInfo ? flattenLoan(rawData) : rawData;
+        const data = loanRes.data; // Already structured from backend
         const emiData = emiRes.data || [];
 
         // Format dates for input[type="date"]
         const formattedData = {
           ...data,
-          dateLoanDisbursed: data.dateLoanDisbursed
-            ? new Date(data.dateLoanDisbursed).toISOString().split("T")[0]
-            : "",
-          emiStartDate: data.emiStartDate
-            ? new Date(data.emiStartDate).toISOString().split("T")[0]
-            : "",
-          emiEndDate: data.emiEndDate
-            ? new Date(data.emiEndDate).toISOString().split("T")[0]
-            : "",
-          fcDate: data.fcDate
-            ? new Date(data.fcDate).toISOString().split("T")[0]
-            : "",
-          insuranceDate: data.insuranceDate
-            ? new Date(data.insuranceDate).toISOString().split("T")[0]
-            : "",
+          loanTerms: {
+            ...data.loanTerms,
+            dateLoanDisbursed: data.loanTerms?.dateLoanDisbursed
+              ? new Date(data.loanTerms.dateLoanDisbursed)
+                  .toISOString()
+                  .split("T")[0]
+              : "",
+            emiStartDate: data.loanTerms?.emiStartDate
+              ? new Date(data.loanTerms.emiStartDate)
+                  .toISOString()
+                  .split("T")[0]
+              : "",
+            emiEndDate: data.loanTerms?.emiEndDate
+              ? new Date(data.loanTerms.emiEndDate).toISOString().split("T")[0]
+              : "",
+          },
+          vehicleInformation: {
+            ...data.vehicleInformation,
+            fcDate: data.vehicleInformation?.fcDate
+              ? new Date(data.vehicleInformation.fcDate)
+                  .toISOString()
+                  .split("T")[0]
+              : "",
+            insuranceDate: data.vehicleInformation?.insuranceDate
+              ? new Date(data.vehicleInformation.insuranceDate)
+                  .toISOString()
+                  .split("T")[0]
+              : "",
+          },
         };
 
         setLoan(formattedData);

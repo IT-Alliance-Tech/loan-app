@@ -12,54 +12,68 @@ import {
 } from "../services/loan.service";
 
 const validationSchema = Yup.object().shape({
-  loanNumber: Yup.string().required("Loan number is required"),
-  customerName: Yup.string().required("Customer name is required"),
-  address: Yup.string().required("Address is required"),
-  ownRent: Yup.string().required("Please select ownership status"),
-  mobileNumbers: Yup.array()
-    .of(
-      Yup.string()
-        .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
-        .required("Mobile number is required"),
-    )
-    .min(1, "At least one customer mobile number is required"),
-  guarantorName: Yup.string().nullable(),
-  guarantorMobileNumbers: Yup.array()
-    .of(
-      Yup.string()
-        .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
-        .required("Mobile number is required"),
-    )
-    .min(1, "At least one guarantor mobile number is required"),
-  panNumber: Yup.string()
-    .matches(
-      /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,
-      "Invalid PAN format (e.g., ABCDE1234F)",
-    )
-    .nullable(),
-  aadharNumber: Yup.string()
-    .matches(/^\d{12}$/, "Invalid Aadhar. Must be 12 digits")
-    .nullable(),
-  principalAmount: Yup.number()
-    .positive("Must be positive")
-    .required("Principal is required"),
-  processingFeeRate: Yup.number().min(0).nullable(),
-  processingFee: Yup.number().min(0).nullable(),
-  chassisNumber: Yup.string().nullable(),
-  engineNumber: Yup.string().nullable(),
-  model: Yup.string().nullable(),
-  tenureType: Yup.string().required("Tenure type is required"),
-  tenureMonths: Yup.number()
-    .positive("Must be positive")
-    .integer()
-    .required("Tenure is required"),
-  annualInterestRate: Yup.number()
-    .min(0, "Interest cannot be negative")
-    .required("Interest rate is required"),
-  vehicleNumber: Yup.string()
-    .matches(/^[A-Z]{2}-\d{2}-[A-Z]{1,2}-\d{4}$/, "Format: KA-01-AB-1234")
-    .nullable(),
-  status: Yup.string().required("Status is required"),
+  customerDetails: Yup.object({
+    customerName: Yup.string().required("Customer name is required"),
+    address: Yup.string().required("Address is required"),
+    ownRent: Yup.string().required("Please select ownership status"),
+    mobileNumbers: Yup.array()
+      .of(
+        Yup.string()
+          .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
+          .required("Mobile number is required"),
+      )
+      .min(1, "At least one customer mobile number is required"),
+    guarantorName: Yup.string().nullable(),
+    guarantorMobileNumbers: Yup.array()
+      .of(
+        Yup.string()
+          .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
+          .required("Mobile number is required"),
+      )
+      .min(1, "At least one guarantor mobile number is required"),
+    panNumber: Yup.string()
+      .matches(
+        /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,
+        "Invalid PAN format (e.g., ABCDE1234F)",
+      )
+      .nullable(),
+    aadharNumber: Yup.string()
+      .matches(/^\d{12}$/, "Invalid Aadhar. Must be 12 digits")
+      .nullable(),
+  }),
+  loanTerms: Yup.object({
+    loanNumber: Yup.string().required("Loan number is required"),
+    principalAmount: Yup.number()
+      .positive("Must be positive")
+      .required("Principal is required"),
+    processingFeeRate: Yup.number().min(0).nullable(),
+    processingFee: Yup.number().min(0).nullable(),
+    tenureMonths: Yup.number()
+      .positive("Must be positive")
+      .integer()
+      .required("Tenure is required"),
+    tenureType: Yup.string().required("Tenure type is required"),
+    annualInterestRate: Yup.number()
+      .min(0, "Interest cannot be negative")
+      .required("Interest rate is required"),
+  }),
+  vehicleInformation: Yup.object({
+    vehicleNumber: Yup.string()
+      .matches(/^[A-Z]{2}-\d{2}-[A-Z]{1,2}-\d{4}$/, "Format: KA-01-AB-1234")
+      .nullable(),
+    chassisNumber: Yup.string().nullable(),
+    engineNumber: Yup.string().nullable(),
+    model: Yup.string().nullable(),
+    typeOfVehicle: Yup.string().nullable(),
+    ywBoard: Yup.string().nullable(),
+    dealerName: Yup.string().nullable(),
+    dealerNumber: Yup.string().nullable(),
+    fcDate: Yup.string().nullable(),
+    insuranceDate: Yup.string().nullable(),
+  }),
+  status: Yup.object({
+    status: Yup.string().required("Status is required"),
+  }),
 });
 
 const LoanForm = ({
@@ -95,35 +109,71 @@ const LoanForm = ({
 
   const formik = useFormik({
     initialValues: {
-      ...initialData,
-      rtoWorkPending: Array.isArray(initialData.rtoWorkPending)
-        ? initialData.rtoWorkPending
-        : initialData.rtoWorkPending
-          ? [initialData.rtoWorkPending]
+      customerDetails: {
+        customerName: initialData?.customerDetails?.customerName || "",
+        address: initialData?.customerDetails?.address || "",
+        ownRent: initialData?.customerDetails?.ownRent || "Own",
+        mobileNumbers: Array.isArray(
+          initialData?.customerDetails?.mobileNumbers,
+        )
+          ? initialData.customerDetails.mobileNumbers
+          : [""],
+        panNumber: initialData?.customerDetails?.panNumber || "",
+        aadharNumber: initialData?.customerDetails?.aadharNumber || "",
+        guarantorName: initialData?.customerDetails?.guarantorName || "",
+        guarantorMobileNumbers: Array.isArray(
+          initialData?.customerDetails?.guarantorMobileNumbers,
+        )
+          ? initialData.customerDetails.guarantorMobileNumbers
+          : [""],
+      },
+      loanTerms: {
+        loanNumber: initialData?.loanTerms?.loanNumber || "",
+        principalAmount: initialData?.loanTerms?.principalAmount || 0,
+        processingFeeRate: initialData?.loanTerms?.processingFeeRate || 0,
+        processingFee: initialData?.loanTerms?.processingFee || 0,
+        tenureMonths: initialData?.loanTerms?.tenureMonths || 0,
+        tenureType: initialData?.loanTerms?.tenureType || "Monthly",
+        annualInterestRate: initialData?.loanTerms?.annualInterestRate || 0,
+        dateLoanDisbursed: initialData?.loanTerms?.dateLoanDisbursed || "",
+        emiStartDate: initialData?.loanTerms?.emiStartDate || "",
+        emiEndDate: initialData?.loanTerms?.emiEndDate || "",
+        monthlyEMI: initialData?.loanTerms?.monthlyEMI || 0,
+        totalInterestAmount: initialData?.loanTerms?.totalInterestAmount || 0,
+      },
+      vehicleInformation: {
+        vehicleNumber: initialData?.vehicleInformation?.vehicleNumber || "",
+        chassisNumber: initialData?.vehicleInformation?.chassisNumber || "",
+        engineNumber: initialData?.vehicleInformation?.engineNumber || "",
+        model: initialData?.vehicleInformation?.model || "",
+        typeOfVehicle: initialData?.vehicleInformation?.typeOfVehicle || "",
+        ywBoard: initialData?.vehicleInformation?.ywBoard || "Yellow",
+        dealerName: initialData?.vehicleInformation?.dealerName || "",
+        dealerNumber: initialData?.vehicleInformation?.dealerNumber || "",
+        fcDate: initialData?.vehicleInformation?.fcDate || "",
+        insuranceDate: initialData?.vehicleInformation?.insuranceDate || "",
+        rtoWorkPending: Array.isArray(
+          initialData?.vehicleInformation?.rtoWorkPending,
+        )
+          ? initialData.vehicleInformation.rtoWorkPending
           : [],
-      mobileNumbers: Array.isArray(initialData.mobileNumbers)
-        ? initialData.mobileNumbers
-        : initialData.mobileNumber
-          ? [
-              initialData.mobileNumber,
-              ...(initialData.additionalMobileNumbers || []),
-            ]
-          : [""],
-      guarantorName: initialData.guarantorName || "",
-      guarantorMobileNumbers: Array.isArray(initialData.guarantorMobileNumbers)
-        ? initialData.guarantorMobileNumbers
-        : initialData.guarantorMobileNumber
-          ? [initialData.guarantorMobileNumber]
-          : [""],
-      processingFeeRate: initialData.processingFeeRate ?? 0,
-      status: initialData.status || "",
+      },
+      status: {
+        status: initialData?.status?.status || "",
+        paymentStatus: initialData?.status?.paymentStatus || "Pending",
+        isSeized: initialData?.status?.isSeized || false,
+        docChecklist: initialData?.status?.docChecklist || "",
+        remarks: initialData?.status?.remarks || "",
+      },
     },
     validationSchema,
     enableReinitialize: true,
     onSubmit: async (values) => {
       // Clean up rtoWorkPending: ensure it's an array and filter out empty strings
-      const rtoWork = Array.isArray(values.rtoWorkPending)
-        ? values.rtoWorkPending.filter((w) => w.trim() !== "")
+      const rtoWork = Array.isArray(values.vehicleInformation.rtoWorkPending)
+        ? values.vehicleInformation.rtoWorkPending.filter(
+            (w) => w.trim() !== "",
+          )
         : [];
 
       // Save any new options to the backend
@@ -137,32 +187,48 @@ const LoanForm = ({
         }
       }
 
-      onSubmit({ ...values, rtoWorkPending: rtoWork });
+      onSubmit({
+        ...values,
+        vehicleInformation: {
+          ...values.vehicleInformation,
+          rtoWorkPending: rtoWork,
+        },
+      });
     },
   });
 
   const handleRtoCheckboxChange = (option) => {
-    const current = Array.isArray(formik.values.rtoWorkPending)
-      ? formik.values.rtoWorkPending
+    const current = Array.isArray(
+      formik.values.vehicleInformation.rtoWorkPending,
+    )
+      ? formik.values.vehicleInformation.rtoWorkPending
       : [];
     if (current.includes(option)) {
       formik.setFieldValue(
-        "rtoWorkPending",
+        "vehicleInformation.rtoWorkPending",
         current.filter((item) => item !== option),
       );
     } else {
-      formik.setFieldValue("rtoWorkPending", [...current, option]);
+      formik.setFieldValue("vehicleInformation.rtoWorkPending", [
+        ...current,
+        option,
+      ]);
     }
   };
 
   const [customRto, setCustomRto] = useState("");
   const handleAddCustomRto = () => {
     if (customRto.trim()) {
-      const current = Array.isArray(formik.values.rtoWorkPending)
-        ? formik.values.rtoWorkPending
+      const current = Array.isArray(
+        formik.values.vehicleInformation.rtoWorkPending,
+      )
+        ? formik.values.vehicleInformation.rtoWorkPending
         : [];
       if (!current.includes(customRto.trim())) {
-        formik.setFieldValue("rtoWorkPending", [...current, customRto.trim()]);
+        formik.setFieldValue("vehicleInformation.rtoWorkPending", [
+          ...current,
+          customRto.trim(),
+        ]);
       }
       setCustomRto("");
     }
@@ -194,28 +260,28 @@ const LoanForm = ({
   };
 
   const handleProcessingFeeRateChange = (rate) => {
-    formik.setFieldValue("processingFeeRate", rate);
-    const principal = parseFloat(formik.values.principalAmount) || 0;
+    formik.setFieldValue("loanTerms.processingFeeRate", rate);
+    const principal = parseFloat(formik.values.loanTerms.principalAmount) || 0;
     if (principal && !isNaN(rate)) {
       const fee = ((principal * parseFloat(rate)) / 100).toFixed(2);
-      formik.setFieldValue("processingFee", fee);
+      formik.setFieldValue("loanTerms.processingFee", fee);
     }
   };
 
   const handleProcessingFeeChange = (fee) => {
-    formik.setFieldValue("processingFee", fee);
-    const principal = parseFloat(formik.values.principalAmount) || 0;
+    formik.setFieldValue("loanTerms.processingFee", fee);
+    const principal = parseFloat(formik.values.loanTerms.principalAmount) || 0;
     if (principal && !isNaN(fee)) {
       const rate = ((parseFloat(fee) / principal) * 100).toFixed(2);
-      formik.setFieldValue("processingFeeRate", rate);
+      formik.setFieldValue("loanTerms.processingFeeRate", rate);
     }
   };
 
   // Auto-calculate EMI from backend
   useEffect(() => {
-    const principal = parseFloat(formik.values.principalAmount);
-    const rate = parseFloat(formik.values.annualInterestRate);
-    const tenure = parseInt(formik.values.tenureMonths);
+    const principal = parseFloat(formik.values.loanTerms.principalAmount);
+    const rate = parseFloat(formik.values.loanTerms.annualInterestRate);
+    const tenure = parseInt(formik.values.loanTerms.tenureMonths);
 
     if (principal && rate && tenure) {
       const getEMI = async () => {
@@ -226,9 +292,12 @@ const LoanForm = ({
             tenureMonths: tenure,
           });
           if (res.data && res.data.emi) {
-            formik.setFieldValue("monthlyEMI", res.data.emi);
+            formik.setFieldValue("loanTerms.monthlyEMI", res.data.emi);
             const totalInt = principal * (rate / 100) * tenure;
-            formik.setFieldValue("totalInterestAmount", totalInt.toFixed(2));
+            formik.setFieldValue(
+              "loanTerms.totalInterestAmount",
+              totalInt.toFixed(2),
+            );
           }
         } catch (err) {
           console.error("Failed to fetch EMI", err);
@@ -236,36 +305,45 @@ const LoanForm = ({
       };
       getEMI();
     } else {
-      formik.setFieldValue("monthlyEMI", 0);
-      formik.setFieldValue("totalInterestAmount", 0);
+      formik.setFieldValue("loanTerms.monthlyEMI", 0);
+      formik.setFieldValue("loanTerms.totalInterestAmount", 0);
     }
   }, [
-    formik.values.principalAmount,
-    formik.values.annualInterestRate,
-    formik.values.tenureMonths,
+    formik.values.loanTerms.principalAmount,
+    formik.values.loanTerms.annualInterestRate,
+    formik.values.loanTerms.tenureMonths,
   ]);
 
   // Auto-calculate EMI Start Date from Disbursement Date
   useEffect(() => {
-    const disbursementDate = formik.values.dateLoanDisbursed;
+    const disbursementDate = formik.values.loanTerms.dateLoanDisbursed;
     if (disbursementDate) {
       const d = new Date(disbursementDate);
       const startDate = addMonths(d, 1);
-      formik.setFieldValue("emiStartDate", format(startDate, "yyyy-MM-dd"));
+      formik.setFieldValue(
+        "loanTerms.emiStartDate",
+        format(startDate, "yyyy-MM-dd"),
+      );
     }
-  }, [formik.values.dateLoanDisbursed]);
+  }, [formik.values.loanTerms.dateLoanDisbursed]);
 
   // Auto-calculate EMI End Date from Start Date & Tenure
   useEffect(() => {
-    const startDate = formik.values.emiStartDate;
-    const tenure = parseInt(formik.values.tenureMonths);
+    const startDate = formik.values.loanTerms.emiStartDate;
+    const tenure = parseInt(formik.values.loanTerms.tenureMonths);
     if (startDate && tenure) {
       const d = new Date(startDate);
       // End Date = Start Date + (Tenure - 1) Months
       const endDate = addMonths(d, tenure - 1);
-      formik.setFieldValue("emiEndDate", format(endDate, "yyyy-MM-dd"));
+      formik.setFieldValue(
+        "loanTerms.emiEndDate",
+        format(endDate, "yyyy-MM-dd"),
+      );
     }
-  }, [formik.values.emiStartDate, formik.values.tenureMonths]);
+  }, [
+    formik.values.loanTerms.emiStartDate,
+    formik.values.loanTerms.tenureMonths,
+  ]);
 
   const ErrorMsg = ({ name }) => {
     const meta = formik.getFieldMeta(name);
@@ -303,20 +381,22 @@ const LoanForm = ({
                 </label>
                 <input
                   type="text"
-                  name="loanNumber"
-                  value={formik.values.loanNumber || ""}
+                  name="loanTerms.loanNumber"
+                  value={formik.values.loanTerms.loanNumber || ""}
                   onChange={(e) =>
                     formik.setFieldValue(
-                      "loanNumber",
+                      "loanTerms.loanNumber",
                       e.target.value.toUpperCase(),
                     )
                   }
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("loanNumber") + " uppercase"}
+                  className={
+                    getFieldClass("loanTerms.loanNumber") + " uppercase"
+                  }
                   placeholder="LN-001"
                 />
-                <ErrorMsg name="loanNumber" />
+                <ErrorMsg name="loanTerms.loanNumber" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -324,15 +404,15 @@ const LoanForm = ({
                 </label>
                 <input
                   type="text"
-                  name="customerName"
-                  value={formik.values.customerName || ""}
+                  name="customerDetails.customerName"
+                  value={formik.values.customerDetails.customerName || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("customerName")}
+                  className={getFieldClass("customerDetails.customerName")}
                   placeholder="Full Name"
                 />
-                <ErrorMsg name="customerName" />
+                <ErrorMsg name="customerDetails.customerName" />
               </div>
             </div>
           </div>
@@ -348,15 +428,15 @@ const LoanForm = ({
                   Current Address <span className="text-red-500">*</span>
                 </label>
                 <textarea
-                  name="address"
-                  value={formik.values.address || ""}
+                  name="customerDetails.address"
+                  value={formik.values.customerDetails.address || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
                   rows="2"
-                  className={getFieldClass("address")}
+                  className={getFieldClass("customerDetails.address")}
                 ></textarea>
-                <ErrorMsg name="address" />
+                <ErrorMsg name="customerDetails.address" />
               </div>
               {/* Left Column: Own/Rent & PAN */}
               <div className="space-y-6">
@@ -365,17 +445,17 @@ const LoanForm = ({
                     Own/Rent <span className="text-red-500">*</span>
                   </label>
                   <select
-                    name="ownRent"
-                    value={formik.values.ownRent || ""}
+                    name="customerDetails.ownRent"
+                    value={formik.values.customerDetails.ownRent || ""}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     disabled={isViewOnly}
-                    className={getFieldClass("ownRent")}
+                    className={getFieldClass("customerDetails.ownRent")}
                   >
                     <option value="Own">Own</option>
                     <option value="Rent">Rent</option>
                   </select>
-                  <ErrorMsg name="ownRent" />
+                  <ErrorMsg name="customerDetails.ownRent" />
                 </div>
 
                 <div className="space-y-1">
@@ -384,21 +464,23 @@ const LoanForm = ({
                   </label>
                   <input
                     type="text"
-                    name="panNumber"
+                    name="customerDetails.panNumber"
                     maxLength={10}
-                    value={formik.values.panNumber || ""}
+                    value={formik.values.customerDetails.panNumber || ""}
                     onChange={(e) =>
                       formik.setFieldValue(
-                        "panNumber",
+                        "customerDetails.panNumber",
                         e.target.value.toUpperCase(),
                       )
                     }
                     onBlur={formik.handleBlur}
                     readOnly={isViewOnly}
-                    className={getFieldClass("panNumber") + " uppercase"}
+                    className={
+                      getFieldClass("customerDetails.panNumber") + " uppercase"
+                    }
                     placeholder="ABCDE1234F"
                   />
-                  <ErrorMsg name="panNumber" />
+                  <ErrorMsg name="customerDetails.panNumber" />
                 </div>
               </div>
 
@@ -410,71 +492,89 @@ const LoanForm = ({
                       Mobile Numbers <span className="text-red-500">*</span>
                     </label>
                     <div className="space-y-2">
-                      {formik.values.mobileNumbers.map((num, idx) => (
-                        <div key={idx} className="flex-1">
-                          <div className="flex gap-2 animate-in slide-in-from-left-2 duration-200">
-                            <input
-                              type="text"
-                              name={`mobileNumbers.${idx}`}
-                              maxLength={10}
-                              value={num}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(
-                                  /[^0-9]/g,
-                                  "",
-                                );
-                                const newArr = [...formik.values.mobileNumbers];
-                                newArr[idx] = val;
-                                formik.setFieldValue("mobileNumbers", newArr);
-                              }}
-                              onBlur={formik.handleBlur}
-                              className={getFieldClass(`mobileNumbers.${idx}`)}
-                              placeholder={
-                                idx === 0
-                                  ? "Primary Mobile Member"
-                                  : `Alternative Number ${idx}`
-                              }
-                              readOnly={isViewOnly}
-                            />
-                            {!isViewOnly && idx > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newArr =
-                                    formik.values.mobileNumbers.filter(
-                                      (_, i) => i !== idx,
-                                    );
-                                  formik.setFieldValue("mobileNumbers", newArr);
+                      {formik.values.customerDetails.mobileNumbers.map(
+                        (num, idx) => (
+                          <div key={idx} className="flex-1">
+                            <div className="flex gap-2 animate-in slide-in-from-left-2 duration-200">
+                              <input
+                                type="text"
+                                name={`customerDetails.mobileNumbers.${idx}`}
+                                maxLength={10}
+                                value={num}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(
+                                    /[^0-9]/g,
+                                    "",
+                                  );
+                                  const newArr = [
+                                    ...formik.values.customerDetails
+                                      .mobileNumbers,
+                                  ];
+                                  newArr[idx] = val;
+                                  formik.setFieldValue(
+                                    "customerDetails.mobileNumbers",
+                                    newArr,
+                                  );
                                 }}
-                                className="p-2 text-red-400 hover:text-red-600 transition-colors"
-                              >
-                                <svg
-                                  className="w-5 h-5"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                                onBlur={formik.handleBlur}
+                                className={getFieldClass(
+                                  `customerDetails.mobileNumbers.${idx}`,
+                                )}
+                                placeholder={
+                                  idx === 0
+                                    ? "Primary Mobile Member"
+                                    : `Alternative Number ${idx}`
+                                }
+                                readOnly={isViewOnly}
+                              />
+                              {!isViewOnly && idx > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newArr =
+                                      formik.values.customerDetails.mobileNumbers.filter(
+                                        (_, i) => i !== idx,
+                                      );
+                                    formik.setFieldValue(
+                                      "customerDetails.mobileNumbers",
+                                      newArr,
+                                    );
+                                  }}
+                                  className="p-2 text-red-400 hover:text-red-600 transition-colors"
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                  />
-                                </svg>
-                              </button>
-                            )}
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                            <ErrorMsg
+                              name={`customerDetails.mobileNumbers.${idx}`}
+                            />
                           </div>
-                          <ErrorMsg name={`mobileNumbers.${idx}`} />
-                        </div>
-                      ))}
+                        ),
+                      )}
                       {!isViewOnly && (
                         <button
                           type="button"
                           onClick={() =>
-                            formik.setFieldValue("mobileNumbers", [
-                              ...formik.values.mobileNumbers,
-                              "",
-                            ])
+                            formik.setFieldValue(
+                              "customerDetails.mobileNumbers",
+                              [
+                                ...formik.values.customerDetails.mobileNumbers,
+                                "",
+                              ],
+                            )
                           }
                           className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/70 transition-colors flex items-center gap-1.5"
                         >
@@ -504,20 +604,23 @@ const LoanForm = ({
                   </label>
                   <input
                     type="text"
-                    name="aadharNumber"
+                    name="customerDetails.aadharNumber"
                     maxLength={12}
-                    value={formik.values.aadharNumber || ""}
+                    value={formik.values.customerDetails.aadharNumber || ""}
                     onChange={(e) => {
                       const val = e.target.value.replace(/[^0-9]/g, "");
                       if (val.length <= 12)
-                        formik.setFieldValue("aadharNumber", val);
+                        formik.setFieldValue(
+                          "customerDetails.aadharNumber",
+                          val,
+                        );
                     }}
                     onBlur={formik.handleBlur}
                     readOnly={isViewOnly}
-                    className={getFieldClass("aadharNumber")}
+                    className={getFieldClass("customerDetails.aadharNumber")}
                     placeholder="12 digit number"
                   />
-                  <ErrorMsg name="aadharNumber" />
+                  <ErrorMsg name="customerDetails.aadharNumber" />
                 </div>
               </div>
 
@@ -531,15 +634,15 @@ const LoanForm = ({
                     </label>
                     <input
                       type="text"
-                      name="guarantorName"
-                      value={formik.values.guarantorName || ""}
+                      name="customerDetails.guarantorName"
+                      value={formik.values.customerDetails.guarantorName || ""}
                       onChange={formik.handleChange}
                       onBlur={formik.handleBlur}
                       readOnly={isViewOnly}
-                      className={getFieldClass("guarantorName")}
+                      className={getFieldClass("customerDetails.guarantorName")}
                       placeholder="Enter Guarantor Name"
                     />
-                    <ErrorMsg name="guarantorName" />
+                    <ErrorMsg name="customerDetails.guarantorName" />
                   </div>
 
                   {/* Guarantor Mobile Numbers */}
@@ -549,81 +652,90 @@ const LoanForm = ({
                       <span className="text-red-500">*</span>
                     </label>
                     <div className="space-y-2">
-                      {formik.values.guarantorMobileNumbers.map((num, idx) => (
-                        <div key={idx} className="flex-1">
-                          <div className="flex gap-2 animate-in slide-in-from-right-2 duration-200">
-                            <input
-                              type="text"
-                              name={`guarantorMobileNumbers.${idx}`}
-                              maxLength={10}
-                              value={num}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(
-                                  /[^0-9]/g,
-                                  "",
-                                );
-                                const newArr = [
-                                  ...formik.values.guarantorMobileNumbers,
-                                ];
-                                newArr[idx] = val;
-                                formik.setFieldValue(
-                                  "guarantorMobileNumbers",
-                                  newArr,
-                                );
-                              }}
-                              onBlur={formik.handleBlur}
-                              className={getFieldClass(
-                                `guarantorMobileNumbers.${idx}`,
-                              )}
-                              placeholder={
-                                idx === 0
-                                  ? "Primary Guarantor Mobile"
-                                  : `Alternative Number ${idx}`
-                              }
-                              readOnly={isViewOnly}
-                            />
-                            {!isViewOnly && idx > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newArr =
-                                    formik.values.guarantorMobileNumbers.filter(
-                                      (_, i) => i !== idx,
-                                    );
+                      {formik.values.customerDetails.guarantorMobileNumbers.map(
+                        (num, idx) => (
+                          <div key={idx} className="flex-1">
+                            <div className="flex gap-2 animate-in slide-in-from-right-2 duration-200">
+                              <input
+                                type="text"
+                                name={`customerDetails.guarantorMobileNumbers.${idx}`}
+                                maxLength={10}
+                                value={num}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(
+                                    /[^0-9]/g,
+                                    "",
+                                  );
+                                  const newArr = [
+                                    ...formik.values.customerDetails
+                                      .guarantorMobileNumbers,
+                                  ];
+                                  newArr[idx] = val;
                                   formik.setFieldValue(
-                                    "guarantorMobileNumbers",
+                                    "customerDetails.guarantorMobileNumbers",
                                     newArr,
                                   );
                                 }}
-                                className="p-2 text-red-400 hover:text-red-600 transition-colors"
-                              >
-                                <svg
-                                  className="w-5 h-5"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                                onBlur={formik.handleBlur}
+                                className={getFieldClass(
+                                  `customerDetails.guarantorMobileNumbers.${idx}`,
+                                )}
+                                placeholder={
+                                  idx === 0
+                                    ? "Primary Guarantor Mobile"
+                                    : `Alternative Number ${idx}`
+                                }
+                                readOnly={isViewOnly}
+                              />
+                              {!isViewOnly && idx > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newArr =
+                                      formik.values.customerDetails.guarantorMobileNumbers.filter(
+                                        (_, i) => i !== idx,
+                                      );
+                                    formik.setFieldValue(
+                                      "customerDetails.guarantorMobileNumbers",
+                                      newArr,
+                                    );
+                                  }}
+                                  className="p-2 text-red-400 hover:text-red-600 transition-colors"
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                  />
-                                </svg>
-                              </button>
-                            )}
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                            <ErrorMsg
+                              name={`customerDetails.guarantorMobileNumbers.${idx}`}
+                            />
                           </div>
-                          <ErrorMsg name={`guarantorMobileNumbers.${idx}`} />
-                        </div>
-                      ))}
+                        ),
+                      )}
                       {!isViewOnly && (
                         <button
                           type="button"
                           onClick={() =>
-                            formik.setFieldValue("guarantorMobileNumbers", [
-                              ...formik.values.guarantorMobileNumbers,
-                              "",
-                            ])
+                            formik.setFieldValue(
+                              "customerDetails.guarantorMobileNumbers",
+                              [
+                                ...formik.values.customerDetails
+                                  .guarantorMobileNumbers,
+                                "",
+                              ],
+                            )
                           }
                           className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary/70 transition-colors flex items-center gap-1.5"
                         >
@@ -666,15 +778,17 @@ const LoanForm = ({
                   </span>
                   <input
                     type="number"
-                    name="principalAmount"
-                    value={formik.values.principalAmount || ""}
+                    name="loanTerms.principalAmount"
+                    value={formik.values.loanTerms.principalAmount || ""}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     readOnly={isViewOnly}
-                    className={getFieldClass("principalAmount") + " pl-8 pr-4"}
+                    className={
+                      getFieldClass("loanTerms.principalAmount") + " pl-8 pr-4"
+                    }
                   />
                 </div>
-                <ErrorMsg name="principalAmount" />
+                <ErrorMsg name="loanTerms.principalAmount" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -682,14 +796,14 @@ const LoanForm = ({
                 </label>
                 <input
                   type="number"
-                  name="processingFeeRate"
-                  value={formik.values.processingFeeRate || ""}
+                  name="loanTerms.processingFeeRate"
+                  value={formik.values.loanTerms.processingFeeRate || ""}
                   onChange={(e) =>
                     handleProcessingFeeRateChange(e.target.value)
                   }
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("processingFeeRate")}
+                  className={getFieldClass("loanTerms.processingFeeRate")}
                 />
               </div>
               <div className="space-y-1">
@@ -698,13 +812,13 @@ const LoanForm = ({
                 </label>
                 <input
                   type="number"
-                  name="processingFee"
-                  value={formik.values.processingFee || ""}
+                  name="loanTerms.processingFee"
+                  value={formik.values.loanTerms.processingFee || ""}
                   onChange={(e) => handleProcessingFeeChange(e.target.value)}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
                   className={
-                    getFieldClass("processingFee") +
+                    getFieldClass("loanTerms.processingFee") +
                     (isViewOnly ? " bg-slate-100 italic" : "")
                   }
                 />
@@ -715,14 +829,14 @@ const LoanForm = ({
                 </label>
                 <input
                   type="number"
-                  name="tenureMonths"
-                  value={formik.values.tenureMonths || ""}
+                  name="loanTerms.tenureMonths"
+                  value={formik.values.loanTerms.tenureMonths || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("tenureMonths")}
+                  className={getFieldClass("loanTerms.tenureMonths")}
                 />
-                <ErrorMsg name="tenureMonths" />
+                <ErrorMsg name="loanTerms.tenureMonths" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -731,14 +845,14 @@ const LoanForm = ({
                 <input
                   type="number"
                   step="0.01"
-                  name="annualInterestRate"
-                  value={formik.values.annualInterestRate || ""}
+                  name="loanTerms.annualInterestRate"
+                  value={formik.values.loanTerms.annualInterestRate || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("annualInterestRate")}
+                  className={getFieldClass("loanTerms.annualInterestRate")}
                 />
-                <ErrorMsg name="annualInterestRate" />
+                <ErrorMsg name="loanTerms.annualInterestRate" />
               </div>
             </div>
           </div>
@@ -755,12 +869,12 @@ const LoanForm = ({
                 </label>
                 <input
                   type="date"
-                  name="dateLoanDisbursed"
-                  value={formik.values.dateLoanDisbursed || ""}
+                  name="loanTerms.dateLoanDisbursed"
+                  value={formik.values.loanTerms.dateLoanDisbursed || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("dateLoanDisbursed")}
+                  className={getFieldClass("loanTerms.dateLoanDisbursed")}
                 />
               </div>
               <div className="space-y-1">
@@ -769,12 +883,12 @@ const LoanForm = ({
                 </label>
                 <input
                   type="date"
-                  name="emiStartDate"
-                  value={formik.values.emiStartDate || ""}
+                  name="loanTerms.emiStartDate"
+                  value={formik.values.loanTerms.emiStartDate || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("emiStartDate")}
+                  className={getFieldClass("loanTerms.emiStartDate")}
                 />
               </div>
               <div className="space-y-1">
@@ -783,12 +897,12 @@ const LoanForm = ({
                 </label>
                 <input
                   type="date"
-                  name="emiEndDate"
-                  value={formik.values.emiEndDate || ""}
+                  name="loanTerms.emiEndDate"
+                  value={formik.values.loanTerms.emiEndDate || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("emiEndDate")}
+                  className={getFieldClass("loanTerms.emiEndDate")}
                 />
               </div>
               <div className="md:col-span-3">
@@ -798,7 +912,7 @@ const LoanForm = ({
                       Monthly EMI
                     </span>
                     <p className="text-xl font-black text-primary">
-                      ₹{formik.values.monthlyEMI || 0}
+                      ₹{formik.values.loanTerms.monthlyEMI || 0}
                     </p>
                   </div>
                   <div className="text-right">
@@ -807,8 +921,8 @@ const LoanForm = ({
                     </label>
                     <input
                       type="number"
-                      name="totalInterestAmount"
-                      value={formik.values.totalInterestAmount || ""}
+                      name="loanTerms.totalInterestAmount"
+                      value={formik.values.loanTerms.totalInterestAmount || ""}
                       readOnly
                       className="bg-transparent border-b border-slate-200 text-sm font-bold text-slate-700 focus:outline-none focus:border-primary text-right w-32"
                       placeholder="0"
@@ -831,20 +945,23 @@ const LoanForm = ({
                 </label>
                 <input
                   type="text"
-                  name="vehicleNumber"
-                  value={formik.values.vehicleNumber || ""}
+                  name="vehicleInformation.vehicleNumber"
+                  value={formik.values.vehicleInformation.vehicleNumber || ""}
                   onChange={(e) =>
                     formik.setFieldValue(
-                      "vehicleNumber",
+                      "vehicleInformation.vehicleNumber",
                       formatVehicleNumber(e.target.value),
                     )
                   }
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("vehicleNumber") + " uppercase"}
+                  className={
+                    getFieldClass("vehicleInformation.vehicleNumber") +
+                    " uppercase"
+                  }
                   placeholder="KA-01-AB-1234"
                 />
-                <ErrorMsg name="vehicleNumber" />
+                <ErrorMsg name="vehicleInformation.vehicleNumber" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -852,17 +969,20 @@ const LoanForm = ({
                 </label>
                 <input
                   type="text"
-                  name="chassisNumber"
-                  value={formik.values.chassisNumber || ""}
+                  name="vehicleInformation.chassisNumber"
+                  value={formik.values.vehicleInformation.chassisNumber || ""}
                   onChange={(e) =>
                     formik.setFieldValue(
-                      "chassisNumber",
+                      "vehicleInformation.chassisNumber",
                       e.target.value.toUpperCase(),
                     )
                   }
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("chassisNumber") + " uppercase"}
+                  className={
+                    getFieldClass("vehicleInformation.chassisNumber") +
+                    " uppercase"
+                  }
                 />
               </div>
               <div className="space-y-1">
@@ -871,17 +991,20 @@ const LoanForm = ({
                 </label>
                 <input
                   type="text"
-                  name="engineNumber"
-                  value={formik.values.engineNumber || ""}
+                  name="vehicleInformation.engineNumber"
+                  value={formik.values.vehicleInformation.engineNumber || ""}
                   onChange={(e) =>
                     formik.setFieldValue(
-                      "engineNumber",
+                      "vehicleInformation.engineNumber",
                       e.target.value.toUpperCase(),
                     )
                   }
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("engineNumber") + " uppercase"}
+                  className={
+                    getFieldClass("vehicleInformation.engineNumber") +
+                    " uppercase"
+                  }
                 />
               </div>
               <div className="space-y-1">
@@ -890,12 +1013,12 @@ const LoanForm = ({
                 </label>
                 <input
                   type="text"
-                  name="model"
-                  value={formik.values.model || ""}
+                  name="vehicleInformation.model"
+                  value={formik.values.vehicleInformation.model || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("model")}
+                  className={getFieldClass("vehicleInformation.model")}
                 />
               </div>
               <div className="space-y-1">
@@ -904,12 +1027,12 @@ const LoanForm = ({
                 </label>
                 <input
                   type="text"
-                  name="typeOfVehicle"
-                  value={formik.values.typeOfVehicle || ""}
+                  name="vehicleInformation.typeOfVehicle"
+                  value={formik.values.vehicleInformation.typeOfVehicle || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("typeOfVehicle")}
+                  className={getFieldClass("vehicleInformation.typeOfVehicle")}
                 />
               </div>
               <div className="space-y-1">
@@ -917,12 +1040,12 @@ const LoanForm = ({
                   Board (Yellow/White)
                 </label>
                 <select
-                  name="ywBoard"
-                  value={formik.values.ywBoard || ""}
+                  name="vehicleInformation.ywBoard"
+                  value={formik.values.vehicleInformation.ywBoard || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   disabled={isViewOnly}
-                  className={getFieldClass("ywBoard")}
+                  className={getFieldClass("vehicleInformation.ywBoard")}
                 >
                   <option value="Yellow">Yellow</option>
                   <option value="White">White</option>
@@ -939,12 +1062,12 @@ const LoanForm = ({
                 </label>
                 <input
                   type="text"
-                  name="dealerName"
-                  value={formik.values.dealerName || ""}
+                  name="vehicleInformation.dealerName"
+                  value={formik.values.vehicleInformation.dealerName || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("dealerName")}
+                  className={getFieldClass("vehicleInformation.dealerName")}
                 />
               </div>
               <div className="space-y-1">
@@ -953,12 +1076,12 @@ const LoanForm = ({
                 </label>
                 <input
                   type="text"
-                  name="dealerNumber"
-                  value={formik.values.dealerNumber || ""}
+                  name="vehicleInformation.dealerNumber"
+                  value={formik.values.vehicleInformation.dealerNumber || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("dealerNumber")}
+                  className={getFieldClass("vehicleInformation.dealerNumber")}
                 />
               </div>
               <div className="space-y-1">
@@ -967,12 +1090,12 @@ const LoanForm = ({
                 </label>
                 <input
                   type="date"
-                  name="fcDate"
-                  value={formik.values.fcDate || ""}
+                  name="vehicleInformation.fcDate"
+                  value={formik.values.vehicleInformation.fcDate || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("fcDate")}
+                  className={getFieldClass("vehicleInformation.fcDate")}
                 />
               </div>
               <div className="space-y-1">
@@ -981,12 +1104,12 @@ const LoanForm = ({
                 </label>
                 <input
                   type="date"
-                  name="insuranceDate"
-                  value={formik.values.insuranceDate || ""}
+                  name="vehicleInformation.insuranceDate"
+                  value={formik.values.vehicleInformation.insuranceDate || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("insuranceDate")}
+                  className={getFieldClass("vehicleInformation.insuranceDate")}
                 />
               </div>
               <div className="space-y-1">
@@ -1003,38 +1126,43 @@ const LoanForm = ({
                       }
                     >
                       <div className="flex flex-wrap gap-1 flex-1 items-center py-1">
-                        {Array.isArray(formik.values.rtoWorkPending) &&
-                        formik.values.rtoWorkPending.length > 0 ? (
-                          formik.values.rtoWorkPending.map((item) => (
-                            <span
-                              key={item}
-                              className="bg-primary/10 text-primary text-[9px] font-black px-2 py-0.5 rounded-md border border-primary/10 animate-in fade-in zoom-in duration-200 flex items-center gap-1"
-                            >
-                              {item}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRtoCheckboxChange(item);
-                                }}
-                                className="hover:text-red-500 transition-colors p-0.5"
+                        {Array.isArray(
+                          formik.values.vehicleInformation.rtoWorkPending,
+                        ) &&
+                        formik.values.vehicleInformation.rtoWorkPending.length >
+                          0 ? (
+                          formik.values.vehicleInformation.rtoWorkPending.map(
+                            (item) => (
+                              <span
+                                key={item}
+                                className="bg-primary/10 text-primary text-[9px] font-black px-2 py-0.5 rounded-md border border-primary/10 animate-in fade-in zoom-in duration-200 flex items-center gap-1"
                               >
-                                <svg
-                                  className="w-2.5 h-2.5"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                                {item}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRtoCheckboxChange(item);
+                                  }}
+                                  className="hover:text-red-500 transition-colors p-0.5"
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="3"
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
-                            </span>
-                          ))
+                                  <svg
+                                    className="w-2.5 h-2.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="3"
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
+                              </span>
+                            ),
+                          )
                         ) : (
                           <span className="text-slate-400 font-medium text-[11px]">
                             Select RTO Tasks...
@@ -1071,13 +1199,19 @@ const LoanForm = ({
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
                               Availability List
                             </span>
-                            {Array.isArray(formik.values.rtoWorkPending) &&
-                              formik.values.rtoWorkPending.length > 0 && (
+                            {Array.isArray(
+                              formik.values.vehicleInformation.rtoWorkPending,
+                            ) &&
+                              formik.values.vehicleInformation.rtoWorkPending
+                                .length > 0 && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    formik.setFieldValue("rtoWorkPending", []);
+                                    formik.setFieldValue(
+                                      "vehicleInformation.rtoWorkPending",
+                                      [],
+                                    );
                                   }}
                                   className="text-[9px] font-black text-red-400 uppercase hover:text-red-600 transition-colors"
                                 >
@@ -1099,9 +1233,12 @@ const LoanForm = ({
                                   key={opt}
                                   className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer group transition-all ${
                                     Array.isArray(
-                                      formik.values.rtoWorkPending,
+                                      formik.values.vehicleInformation
+                                        .rtoWorkPending,
                                     ) &&
-                                    formik.values.rtoWorkPending.includes(opt)
+                                    formik.values.vehicleInformation.rtoWorkPending.includes(
+                                      opt,
+                                    )
                                       ? "bg-primary/5 border border-primary/10"
                                       : "hover:bg-slate-50 border border-transparent"
                                   }`}
@@ -1110,17 +1247,21 @@ const LoanForm = ({
                                   <div
                                     className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
                                       Array.isArray(
-                                        formik.values.rtoWorkPending,
+                                        formik.values.vehicleInformation
+                                          .rtoWorkPending,
                                       ) &&
-                                      formik.values.rtoWorkPending.includes(opt)
+                                      formik.values.vehicleInformation.rtoWorkPending.includes(
+                                        opt,
+                                      )
                                         ? "bg-primary border-primary"
                                         : "bg-white border-slate-300 group-hover:border-primary"
                                     }`}
                                   >
                                     {Array.isArray(
-                                      formik.values.rtoWorkPending,
+                                      formik.values.vehicleInformation
+                                        .rtoWorkPending,
                                     ) &&
-                                      formik.values.rtoWorkPending.includes(
+                                      formik.values.vehicleInformation.rtoWorkPending.includes(
                                         opt,
                                       ) && (
                                         <svg
@@ -1143,9 +1284,12 @@ const LoanForm = ({
                                     className="hidden"
                                     checked={
                                       Array.isArray(
-                                        formik.values.rtoWorkPending,
+                                        formik.values.vehicleInformation
+                                          .rtoWorkPending,
                                       ) &&
-                                      formik.values.rtoWorkPending.includes(opt)
+                                      formik.values.vehicleInformation.rtoWorkPending.includes(
+                                        opt,
+                                      )
                                     }
                                     onChange={() =>
                                       handleRtoCheckboxChange(opt)
@@ -1154,9 +1298,12 @@ const LoanForm = ({
                                   <span
                                     className={`text-sm font-bold transition-colors ${
                                       Array.isArray(
-                                        formik.values.rtoWorkPending,
+                                        formik.values.vehicleInformation
+                                          .rtoWorkPending,
                                       ) &&
-                                      formik.values.rtoWorkPending.includes(opt)
+                                      formik.values.vehicleInformation.rtoWorkPending.includes(
+                                        opt,
+                                      )
                                         ? "text-primary"
                                         : "text-slate-600 group-hover:text-primary"
                                     }`}
@@ -1218,16 +1365,21 @@ const LoanForm = ({
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2 pt-1 border-b border-slate-100 pb-2">
-                    {Array.isArray(formik.values.rtoWorkPending) &&
-                    formik.values.rtoWorkPending.length > 0 ? (
-                      formik.values.rtoWorkPending.map((item) => (
-                        <span
-                          key={item}
-                          className="bg-slate-50 text-slate-500 text-[10px] font-black px-3 py-1 rounded-full border border-slate-100"
-                        >
-                          {item}
-                        </span>
-                      ))
+                    {Array.isArray(
+                      formik.values.vehicleInformation.rtoWorkPending,
+                    ) &&
+                    formik.values.vehicleInformation.rtoWorkPending.length >
+                      0 ? (
+                      formik.values.vehicleInformation.rtoWorkPending.map(
+                        (item) => (
+                          <span
+                            key={item}
+                            className="bg-slate-50 text-slate-500 text-[10px] font-black px-3 py-1 rounded-full border border-slate-100"
+                          >
+                            {item}
+                          </span>
+                        ),
+                      )
                     ) : (
                       <span className="text-sm italic text-slate-300 font-bold">
                         None
@@ -1243,15 +1395,15 @@ const LoanForm = ({
                 </label>
                 <input
                   type="text"
-                  name="status"
-                  value={formik.values.status || ""}
+                  name="status.status"
+                  value={formik.values.status.status || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("status")}
+                  className={getFieldClass("status.status")}
                   placeholder="Enter current status (e.g. Verified, Pending Documents, etc.)"
                 />
-                <ErrorMsg name="status" />
+                <ErrorMsg name="status.status" />
               </div>
             </div>
           </div>
