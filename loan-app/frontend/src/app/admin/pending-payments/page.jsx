@@ -5,6 +5,7 @@ import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import { getSeizedPending } from "../../../services/loan.service";
+import Pagination from "../../../components/Pagination";
 
 const PendingPaymentsPage = () => {
   const router = useRouter();
@@ -19,14 +20,21 @@ const PendingPaymentsPage = () => {
     vehicleNumber: "",
   });
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [limit] = useState(10);
+
   useEffect(() => {
-    fetchSeizedPending();
-  }, []);
+    fetchSeizedPending({ page: currentPage, limit });
+  }, [currentPage]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery !== undefined) {
-        fetchSeizedPending({ loanNumber: searchQuery });
+        setCurrentPage(1);
+        fetchSeizedPending({ loanNumber: searchQuery, page: 1, limit });
       }
     }, 500);
 
@@ -36,9 +44,19 @@ const PendingPaymentsPage = () => {
   const fetchSeizedPending = async (params = {}) => {
     try {
       setLoading(true);
-      const res = await getSeizedPending({ ...params, status: "Pending" });
+      const res = await getSeizedPending({
+        ...params,
+        status: params.status || "Pending",
+        limit,
+      });
       if (res.data) {
-        setData(res.data);
+        if (res.data.payments) {
+          setData(res.data.payments);
+          setTotalPages(res.data.pagination.totalPages);
+          setTotalRecords(res.data.pagination.total);
+        } else {
+          setData(res.data);
+        }
       }
       setError("");
     } catch (err) {
@@ -48,14 +66,20 @@ const PendingPaymentsPage = () => {
     }
   };
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   const handleSearch = (e) => {
     if (e) e.preventDefault();
-    fetchSeizedPending({ loanNumber: searchQuery });
+    setCurrentPage(1);
+    fetchSeizedPending({ loanNumber: searchQuery, page: 1, limit });
   };
 
   const handleAdvancedSearch = (e) => {
     if (e) e.preventDefault();
-    fetchSeizedPending(filters);
+    setCurrentPage(1);
+    fetchSeizedPending({ ...filters, page: 1, limit });
     setIsFilterOpen(false);
   };
 
@@ -72,7 +96,8 @@ const PendingPaymentsPage = () => {
     };
     setFilters(emptyFilters);
     setSearchQuery("");
-    fetchSeizedPending({});
+    setCurrentPage(1);
+    fetchSeizedPending({ page: 1, limit });
     setIsFilterOpen(false);
   };
 
@@ -241,6 +266,14 @@ const PendingPaymentsPage = () => {
                   </table>
                 </div>
               </div>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                totalRecords={totalRecords}
+                limit={limit}
+              />
             </div>
           </main>
         </div>
