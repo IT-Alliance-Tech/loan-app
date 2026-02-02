@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Loan = require("../models/Loan");
 const EMI = require("../models/EMI");
 const ErrorHandler = require("../utils/ErrorHandler");
@@ -155,6 +156,12 @@ const getCustomerByLoanNumber = asyncHandler(async (req, res, next) => {
 });
 
 const updateCustomer = asyncHandler(async (req, res, next) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(req.params.id) ||
+    req.params.id === "undefined"
+  ) {
+    return next(new ErrorHandler("Invalid Customer ID provided", 400));
+  }
   let loan = await Loan.findById(req.params.id);
   if (!loan) {
     return next(new ErrorHandler("Loan record not found", 404));
@@ -179,6 +186,10 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { amountPaid, paymentMode, paymentDate, overdue, status, remarks } =
     req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
+    return next(new ErrorHandler("Invalid EMI ID provided", 400));
+  }
 
   let emi = await EMI.findById(id);
   if (!emi) {
@@ -221,7 +232,11 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
 });
 
 const getEMIsByLoanId = asyncHandler(async (req, res, next) => {
-  const emis = await EMI.find({ loanId: req.params.loanId }).sort({
+  const { loanId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(loanId) || loanId === "undefined") {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
+  const emis = await EMI.find({ loanId }).sort({
     emiNumber: 1,
   });
   sendResponse(res, 200, "success", "EMIs fetched successfully", null, emis);

@@ -200,6 +200,12 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
 });
 
 const getLoanById = asyncHandler(async (req, res, next) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(req.params.id) ||
+    req.params.id === "undefined"
+  ) {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
   const loan = await Loan.findById(req.params.id);
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
@@ -215,6 +221,12 @@ const getLoanById = asyncHandler(async (req, res, next) => {
 });
 
 const updateLoan = asyncHandler(async (req, res, next) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(req.params.id) ||
+    req.params.id === "undefined"
+  ) {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
   let loan = await Loan.findById(req.params.id);
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
@@ -312,6 +324,12 @@ const updateLoan = asyncHandler(async (req, res, next) => {
 });
 
 const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(req.params.id) ||
+    req.params.id === "undefined"
+  ) {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
   const loan = await Loan.findById(req.params.id);
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
@@ -406,6 +424,10 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
 const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
+  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
+    return next(new ErrorHandler("Invalid EMI ID provided", 400));
+  }
+
   console.log("Fetching EMI Details for ID:", id);
   const emiDetails = await EMI.aggregate([
     { $match: { _id: new mongoose.Types.ObjectId(id) } },
@@ -461,6 +483,10 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
 const updatePaymentStatus = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { paymentStatus } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
 
   const loan = await Loan.findByIdAndUpdate(
     id,
