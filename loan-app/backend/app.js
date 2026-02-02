@@ -14,6 +14,9 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy for secure cookies in production
+app.set("trust proxy", 1);
+
 // Allow multiple origins for CORS
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(",")
