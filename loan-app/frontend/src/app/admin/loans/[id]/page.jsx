@@ -73,8 +73,12 @@ const ViewLoanPage = () => {
       }
     };
 
-    if (id) {
+    if (id && id !== "undefined") {
       fetchLoanData();
+    } else if (id === "undefined") {
+      setLoading(false);
+      showToast("Invalid Loan ID provided", "error");
+      router.push("/admin/loans");
     }
   }, [id]);
 

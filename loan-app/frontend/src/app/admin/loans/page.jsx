@@ -278,9 +278,18 @@ const LoansPage = () => {
                               <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <div className="flex justify-center items-center gap-4">
                                   <button
-                                    onClick={() =>
-                                      router.push(`/admin/loans/${loan._id}`)
-                                    }
+                                    onClick={() => {
+                                      const id =
+                                        loan._id || loan.id || loan.status?.id;
+                                      if (id && id !== "undefined") {
+                                        router.push(`/admin/loans/${id}`);
+                                      } else {
+                                        console.error(
+                                          "Loan ID is undefined",
+                                          loan,
+                                        );
+                                      }
+                                    }}
                                     className="text-[#2463EB] hover:scale-110 transition-transform"
                                   >
                                     <svg
@@ -305,11 +314,22 @@ const LoansPage = () => {
                                   </button>
                                   {isSuperAdmin && (
                                     <button
-                                      onClick={() =>
-                                        router.push(
-                                          `/admin/loans/edit/${loan._id}`,
-                                        )
-                                      }
+                                      onClick={() => {
+                                        const id =
+                                          loan._id ||
+                                          loan.id ||
+                                          loan.status?.id;
+                                        if (id && id !== "undefined") {
+                                          router.push(
+                                            `/admin/loans/edit/${id}`,
+                                          );
+                                        } else {
+                                          console.error(
+                                            "Loan ID is undefined",
+                                            loan,
+                                          );
+                                        }
+                                      }}
                                       className="text-[#2463EB] hover:scale-110 transition-transform"
                                     >
                                       <svg
@@ -426,9 +446,18 @@ const LoansPage = () => {
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <div className="flex justify-center items-center gap-3">
                                   <button
-                                    onClick={() =>
-                                      router.push(`/admin/loans/${loan._id}`)
-                                    }
+                                    onClick={() => {
+                                      const id =
+                                        loan._id || loan.id || loan.status?.id;
+                                      if (id && id !== "undefined") {
+                                        router.push(`/admin/loans/${id}`);
+                                      } else {
+                                        console.error(
+                                          "Loan ID is undefined",
+                                          loan,
+                                        );
+                                      }
+                                    }}
                                     className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-primary border border-slate-100 transition-all"
                                   >
                                     <svg
@@ -453,11 +482,22 @@ const LoansPage = () => {
                                   </button>
                                   {isSuperAdmin && (
                                     <button
-                                      onClick={() =>
-                                        router.push(
-                                          `/admin/loans/edit/${loan._id}`,
-                                        )
-                                      }
+                                      onClick={() => {
+                                        const id =
+                                          loan._id ||
+                                          loan.id ||
+                                          loan.status?.id;
+                                        if (id && id !== "undefined") {
+                                          router.push(
+                                            `/admin/loans/edit/${id}`,
+                                          );
+                                        } else {
+                                          console.error(
+                                            "Loan ID is undefined",
+                                            loan,
+                                          );
+                                        }
+                                      }}
                                       className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-primary border border-slate-100 transition-all"
                                     >
                                       <svg

@@ -12,6 +12,14 @@ const formatLoanResponse = (loanDoc) => {
   const loan = loanDoc.toObject ? loanDoc.toObject() : loanDoc;
 
   return {
+    _id: loan._id,
+    id: loan._id,
+    loanNumber: loan.loanNumber,
+    customerName: loan.customerName,
+    mobileNumbers: loan.mobileNumbers || [],
+    vehicleNumber: loan.vehicleNumber,
+    model: loan.model,
+    isSeized: loan.isSeized || false,
     customerDetails: {
       customerName: loan.customerName,
       address: loan.address,
