@@ -638,7 +638,9 @@ const LoansPage = () => {
                         >
                           <option value="">ALL</option>
                           <option value="Active">ACTIVE</option>
-                          <option value="Seized">SEIZED</option>
+                          <option value="Rented">RENTED</option>
+                          <option value="Closed">CLOSED</option>
+                          <option value="Sold">SOLD</option>
                         </select>
                       </div>
                     </div>

@@ -5,6 +5,7 @@ import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import { getSeizedPending } from "../../../services/loan.service";
+import Pagination from "../../../components/Pagination";
 
 const PendingPaymentsPage = () => {
   const router = useRouter();
@@ -19,16 +20,43 @@ const PendingPaymentsPage = () => {
     vehicleNumber: "",
   });
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [limit] = useState(10);
+
   useEffect(() => {
-    fetchSeizedPending();
-  }, []);
+    fetchSeizedPending({ page: currentPage, limit });
+  }, [currentPage]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        setCurrentPage(1);
+        fetchSeizedPending({ loanNumber: searchQuery, page: 1, limit });
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const fetchSeizedPending = async (params = {}) => {
     try {
       setLoading(true);
-      const res = await getSeizedPending({ ...params, status: "Pending" });
+      const res = await getSeizedPending({
+        ...params,
+        status: params.status || "Pending",
+        limit,
+      });
       if (res.data) {
-        setData(res.data);
+        if (res.data.payments) {
+          setData(res.data.payments);
+          setTotalPages(res.data.pagination.totalPages);
+          setTotalRecords(res.data.pagination.total);
+        } else {
+          setData(res.data);
+        }
       }
       setError("");
     } catch (err) {
@@ -38,14 +66,20 @@ const PendingPaymentsPage = () => {
     }
   };
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   const handleSearch = (e) => {
     if (e) e.preventDefault();
-    fetchSeizedPending({ loanNumber: searchQuery });
+    setCurrentPage(1);
+    fetchSeizedPending({ loanNumber: searchQuery, page: 1, limit });
   };
 
   const handleAdvancedSearch = (e) => {
     if (e) e.preventDefault();
-    fetchSeizedPending(filters);
+    setCurrentPage(1);
+    fetchSeizedPending({ ...filters, page: 1, limit });
     setIsFilterOpen(false);
   };
 
@@ -62,7 +96,8 @@ const PendingPaymentsPage = () => {
     };
     setFilters(emptyFilters);
     setSearchQuery("");
-    fetchSeizedPending({});
+    setCurrentPage(1);
+    fetchSeizedPending({ page: 1, limit });
     setIsFilterOpen(false);
   };
 
@@ -141,6 +176,9 @@ const PendingPaymentsPage = () => {
                           Applicant Name
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                          Month
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Pending Amount
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
@@ -155,7 +193,7 @@ const PendingPaymentsPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="5"
+                            colSpan="6"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             Loading records...
@@ -164,7 +202,7 @@ const PendingPaymentsPage = () => {
                       ) : data.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="5"
+                            colSpan="6"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             No records found
@@ -187,18 +225,20 @@ const PendingPaymentsPage = () => {
                               </span>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
+                              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                {new Date(item.dueDate).toLocaleDateString(
+                                  "en-US",
+                                  { month: "short", year: "numeric" },
+                                )}
+                              </span>
+                            </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap">
                               <div className="flex flex-col items-center">
                                 <span className="text-sm font-black text-red-600 tracking-tight">
                                   ₹
                                   {(
                                     item.emiAmount - item.amountPaid
                                   ).toLocaleString()}
-                                </span>
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                                  {new Date(item.dueDate).toLocaleDateString(
-                                    "en-US",
-                                    { month: "short", year: "numeric" },
-                                  )}
                                 </span>
                               </div>
                             </td>
@@ -233,6 +273,14 @@ const PendingPaymentsPage = () => {
                   </table>
                 </div>
               </div>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                totalRecords={totalRecords}
+                limit={limit}
+              />
             </div>
           </main>
         </div>
