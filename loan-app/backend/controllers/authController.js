@@ -8,13 +8,21 @@ const generateTokens = (user) => {
   const accessToken = jwt.sign(
     { id: user._id, email: user.email, role: user.role, name: user.name },
     process.env.JWT_SECRET,
+<<<<<<< Updated upstream
     { expiresIn: "10m" },
+=======
+    { expiresIn: "15m" },
+>>>>>>> Stashed changes
   );
 
   const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+<<<<<<< Updated upstream
     { expiresIn: "15d" },
+=======
+    { expiresIn: "10d" },
+>>>>>>> Stashed changes
   );
 
   return { accessToken, refreshToken };
@@ -52,8 +60,13 @@ const login = asyncHandler(async (req, res, next) => {
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+<<<<<<< Updated upstream
     sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
     maxAge: 15 * 24 * 60 * 60 * 1000, // 15 days
+=======
+    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+    maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
+>>>>>>> Stashed changes
   });
 
   return sendResponse(res, 200, "success", "Login successful", null, {
@@ -92,8 +105,13 @@ const refreshToken = asyncHandler(async (req, res, next) => {
   res.cookie("refreshToken", tokens.refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+<<<<<<< Updated upstream
     sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
     maxAge: 15 * 24 * 60 * 60 * 1000, // 15 days
+=======
+    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+    maxAge: 10 * 24 * 60 * 60 * 1000,
+>>>>>>> Stashed changes
   });
 
   return sendResponse(res, 200, "success", "Token refreshed", null, {
