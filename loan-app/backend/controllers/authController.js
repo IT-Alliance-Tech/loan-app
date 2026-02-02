@@ -8,13 +8,13 @@ const generateTokens = (user) => {
   const accessToken = jwt.sign(
     { id: user._id, email: user.email, role: user.role, name: user.name },
     process.env.JWT_SECRET,
-    { expiresIn: "15m" },
+    { expiresIn: process.env.JWT_EXPIRE || "30m" },
   );
 
   const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
-    { expiresIn: "10d" },
+    { expiresIn: process.env.JWT_REFRESH_EXPIRE || "7d" },
   );
 
   return { accessToken, refreshToken };
@@ -79,13 +79,36 @@ const refreshToken = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Invalid refresh token", 403));
   }
 
-  const user = await User.findById(decoded.id).select("+refreshToken");
+  const user = await User.findById(decoded.id).select(
+    "+refreshToken +previousRefreshToken +previousRefreshTokenExpiresAt",
+  );
 
-  if (!user || user.refreshToken !== token) {
-    return next(new ErrorHandler("Invalid refresh token", 403));
+  if (!user) {
+    return next(new ErrorHandler("User not found", 403));
+  }
+
+  let isGracePeriod = false;
+  if (user.refreshToken !== token) {
+    if (
+      user.previousRefreshToken === token &&
+      user.previousRefreshTokenExpiresAt &&
+      user.previousRefreshTokenExpiresAt > Date.now()
+    ) {
+      isGracePeriod = true;
+      console.log("Grace period refresh token used for user:", user.email);
+    } else {
+      console.warn("Invalid refresh token attempt for user:", user.email);
+      return next(new ErrorHandler("Invalid refresh token", 403));
+    }
   }
 
   const tokens = generateTokens(user);
+
+  if (!isGracePeriod) {
+    user.previousRefreshToken = token;
+    user.previousRefreshTokenExpiresAt = new Date(Date.now() + 30000);
+  }
+
   user.refreshToken = tokens.refreshToken;
   await user.save();
 
