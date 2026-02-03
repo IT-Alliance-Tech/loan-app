@@ -44,7 +44,7 @@ const LoanPendingViewPage = () => {
         setLoan(res.data);
         setNewStatus(res.data.remarks || "");
         setEditData({
-          amountPaid: res.data.amountPaid || "",
+          amountPaid: "", // Initialized to empty for incremental payment
           paymentMode: res.data.paymentMode || "",
           paymentDate: res.data.paymentDate
             ? new Date(res.data.paymentDate).toISOString().split("T")[0]
@@ -78,7 +78,15 @@ const LoanPendingViewPage = () => {
     e.preventDefault();
     setUpdating(true);
     try {
-      await updateEMI(id, editData);
+      // Send addedAmount for incremental update
+      const payload = {
+        ...editData,
+        addedAmount: parseFloat(editData.amountPaid) || 0,
+      };
+      // Remove amountPaid from payload to avoid confusion/overwriting with the small incremental value as absolute
+      delete payload.amountPaid;
+
+      await updateEMI(id, payload);
       showToast("EMI updated successfully", "success");
       setShowModal(false);
       router.push("/admin/pending-payments");
@@ -94,14 +102,16 @@ const LoanPendingViewPage = () => {
     setEditData((prev) => {
       const newData = { ...prev, [name]: value };
 
-      // Auto-calculate status if amountPaid changes
+      // UI Preview only: Auto-calculate status if amountPaid changes
       if (name === "amountPaid") {
-        const paid = parseFloat(value) || 0;
+        const currentPaid = parseFloat(loan?.amountPaid) || 0;
+        const newPayment = parseFloat(value) || 0;
+        const totalPaid = currentPaid + newPayment;
         const total = parseFloat(loan?.emiAmount) || 0;
 
-        if (paid >= total) {
+        if (totalPaid >= total) {
           newData.status = "Paid";
-        } else if (paid > 0) {
+        } else if (totalPaid > 0) {
           newData.status = "Partially Paid";
         } else {
           newData.status = "Pending";
@@ -368,7 +378,7 @@ const LoanPendingViewPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Amount Paid
+                          Amount to Pay
                         </label>
                         <input
                           type="number"
@@ -376,7 +386,7 @@ const LoanPendingViewPage = () => {
                           value={editData.amountPaid}
                           onChange={handleModalChange}
                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
-                          placeholder="0.00"
+                          placeholder="Enter Amount"
                           required
                         />
                       </div>
@@ -387,7 +397,12 @@ const LoanPendingViewPage = () => {
                         </label>
                         <input
                           type="text"
-                          value={`₹${Math.max(0, (loan?.emiAmount || 0) - (editData.amountPaid || 0)).toFixed(2)}`}
+                          value={`₹${Math.max(
+                            0,
+                            (loan?.emiAmount || 0) -
+                              (loan?.amountPaid || 0) -
+                              (parseFloat(editData.amountPaid) || 0),
+                          ).toFixed(2)}`}
                           disabled
                           className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 cursor-not-allowed"
                         />
