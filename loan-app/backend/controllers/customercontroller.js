@@ -184,8 +184,15 @@ const updateCustomer = asyncHandler(async (req, res, next) => {
 
 const updateEMI = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const { amountPaid, paymentMode, paymentDate, overdue, status, remarks } =
-    req.body;
+  const {
+    amountPaid,
+    addedAmount,
+    paymentMode,
+    paymentDate,
+    overdue,
+    status,
+    remarks,
+  } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
     return next(new ErrorHandler("Invalid EMI ID provided", 400));
@@ -196,15 +203,36 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("EMI record not found", 404));
   }
 
+  let newAmountPaid = emi.amountPaid || 0;
+  let newStatus = status || emi.status;
+
+  // Handle incremental update if addedAmount is provided
+  if (addedAmount !== undefined && addedAmount !== null) {
+    newAmountPaid = (parseFloat(emi.amountPaid) || 0) + parseFloat(addedAmount);
+  } else if (amountPaid !== undefined) {
+    // Fallback to absolute update if amountPaid is explicitly provided
+    newAmountPaid = parseFloat(amountPaid);
+  }
+
+  // Auto-calculate status based on total amount paid
+  const totalEmiAmount = parseFloat(emi.emiAmount);
+  if (newAmountPaid >= totalEmiAmount) {
+    newStatus = "Paid";
+  } else if (newAmountPaid > 0) {
+    newStatus = "Partially Paid";
+  } else {
+    newStatus = "Pending";
+  }
+
   emi = await EMI.findByIdAndUpdate(
     id,
     {
-      amountPaid,
-      paymentMode,
-      paymentDate,
-      overdue,
-      status,
-      remarks,
+      amountPaid: newAmountPaid,
+      paymentMode: paymentMode || emi.paymentMode,
+      paymentDate: paymentDate || emi.paymentDate,
+      overdue: overdue !== undefined ? overdue : emi.overdue,
+      status: newStatus,
+      remarks: remarks || emi.remarks,
     },
     { new: true, runValidators: true },
   );
