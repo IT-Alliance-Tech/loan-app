@@ -137,23 +137,31 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   {formatDate(emi.paymentDate)}
                 </td>
                 <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
-                  {emi.paymentMode || "-"}
+                  {emi.status === "Pending" &&
+                  new Date() < new Date(emi.dueDate)
+                    ? "-"
+                    : emi.paymentMode || "-"}
                 </td>
                 <td className="px-6 py-4 text-xs font-medium text-red-600 text-center">
                   ₹{emi.overdue || 0}
                 </td>
                 <td className="px-6 py-4 text-center">
-                  <span
-                    className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                      emi.status === "Paid"
-                        ? "bg-green-100 text-green-700"
-                        : emi.status === "Partially Paid"
-                          ? "bg-orange-100 text-orange-700"
-                          : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {emi.status}
-                  </span>
+                  {emi.status === "Pending" &&
+                  new Date() < new Date(emi.dueDate) ? (
+                    <span className="text-xs font-bold text-slate-400">-</span>
+                  ) : (
+                    <span
+                      className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                        emi.status === "Paid"
+                          ? "bg-green-100 text-green-700"
+                          : emi.status === "Partially Paid"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {emi.status}
+                    </span>
+                  )}
                 </td>
                 <td
                   className="px-6 py-4 text-xs font-medium text-slate-500 text-center max-w-[150px] truncate"

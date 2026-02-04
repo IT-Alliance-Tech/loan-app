@@ -378,7 +378,6 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
 const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  console.log("Fetching EMI Details for ID:", id);
   const emiDetails = await EMI.aggregate([
     { $match: { _id: new mongoose.Types.ObjectId(id) } },
     {
