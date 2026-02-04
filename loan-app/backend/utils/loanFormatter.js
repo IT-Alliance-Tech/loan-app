@@ -1,14 +1,6 @@
-/**
- * Formats a raw Mongoose loan document into a structured, organized JSON response.
- * Groups related fields into logical objects.
- *
- * @param {Object} loanDoc - The Mongoose document or plain object
- * @returns {Object} Structured loan response
- */
 const formatLoanResponse = (loanDoc) => {
   if (!loanDoc) return null;
 
-  // Convert to plain object if it's a Mongoose document
   const loan = loanDoc.toObject ? loanDoc.toObject() : loanDoc;
 
   return {

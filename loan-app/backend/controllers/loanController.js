@@ -347,7 +347,7 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
     formatLoanResponse(loan),
   );
 });
-
+// export all values
 const getPendingPayments = asyncHandler(async (req, res, next) => {
   const { customerName, loanNumber, vehicleNumber, status } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
@@ -528,7 +528,7 @@ const updatePaymentStatus = asyncHandler(async (req, res, next) => {
   );
 });
 
-// export
+// export all values
 module.exports = {
   createLoan,
   getAllLoans,
