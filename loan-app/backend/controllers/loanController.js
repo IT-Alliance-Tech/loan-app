@@ -447,8 +447,6 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
   if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
     return next(new ErrorHandler("Invalid EMI ID provided", 400));
   }
-
-  console.log("Fetching EMI Details for ID:", id);
   const emiDetails = await EMI.aggregate([
     { $match: { _id: new mongoose.Types.ObjectId(id) } },
     {
