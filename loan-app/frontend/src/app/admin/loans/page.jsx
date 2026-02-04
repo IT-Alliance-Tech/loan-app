@@ -255,31 +255,29 @@ const LoansPage = () => {
                             >
                               <td className="px-4 py-6 whitespace-nowrap">
                                 <span className="font-bold text-slate-900 tracking-tight text-base">
-                                  {loan.loanNumber}
+                                  {loan.loanTerms?.loanNumber}
                                 </span>
                               </td>
                               <td className="px-4 py-6">
                                 <div className="flex flex-col">
                                   <span className="font-bold text-slate-700 text-base leading-tight">
-                                    {loan.customerDetails.customerName}
+                                    {loan.customerDetails?.customerName}
                                   </span>
                                   <span className="text-[11px] font-medium text-slate-400 mt-1 tracking-tight">
-                                    {loan.customerDetails.mobileNumbers?.[0] ||
+                                    {loan.customerDetails?.mobileNumbers?.[0] ||
                                       "No number"}
                                   </span>
                                 </div>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap text-[#2463EB] font-black text-base">
                                 ₹
-                                {
-                                  loan.loanTerms.monthlyEMI
-                                    ?.toLocaleString()
-                                    .split(".")[0]
-                                }
+                                {loan.loanTerms?.monthlyEMI
+                                  ?.toLocaleString()
+                                  ?.split(".")[0] || "0"}
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 text-[10px] font-bold border border-slate-100">
-                                  {loan.loanTerms.tenureMonths}M
+                                  {loan.loanTerms?.tenureMonths}M
                                 </span>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap">
@@ -375,7 +373,6 @@ const LoansPage = () => {
                     </p>
                   </div>
                 </div>
->>>>>>> origin/develop
               </div>
 
               {/* DESKTOP VIEW (Table Optimized for large screens) */}
@@ -434,21 +431,21 @@ const LoansPage = () => {
                               className={`${loan.isSeized ? "bg-red-50/50" : "hover:bg-slate-50"} transition-colors`}
                             >
                               <td className="px-6 py-4 whitespace-nowrap font-black text-slate-900 uppercase text-xs tracking-tight">
-                                {loan.loanTerms.loanNumber}
+                                {loan.loanTerms?.loanNumber}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap font-extrabold text-slate-800 text-xs uppercase">
-                                {loan.customerDetails.customerName}
+                                {loan.customerDetails?.customerName}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-slate-500 font-bold text-xs tracking-widest">
-                                {loan.customerDetails.mobileNumbers?.[0] ||
+                                {loan.customerDetails?.mobileNumbers?.[0] ||
                                   "No number"}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center font-black text-primary text-xs">
-                                ₹{loan.loanTerms.monthlyEMI?.toLocaleString()}
+                                ₹{loan.loanTerms?.monthlyEMI?.toLocaleString()}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-black">
-                                  {loan.loanTerms.tenureMonths}M
+                                  {loan.loanTerms?.tenureMonths}M
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
