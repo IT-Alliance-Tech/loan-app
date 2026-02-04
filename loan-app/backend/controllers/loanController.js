@@ -281,7 +281,7 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
     loan,
   );
 });
-// export
+// export all values
 module.exports = {
   createLoan,
   getAllLoans,
