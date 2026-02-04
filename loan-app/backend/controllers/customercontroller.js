@@ -1,6 +1,8 @@
+const mongoose = require("mongoose");
 const Loan = require("../models/Loan");
 const EMI = require("../models/EMI");
 const ErrorHandler = require("../utils/ErrorHandler");
+const { formatLoanResponse } = require("../utils/loanFormatter");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 
@@ -21,7 +23,7 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
   const {
     loanNumber,
     customerName,
-    mobileNumber,
+    mobileNumbers,
     alternateMobile,
     address,
     principalAmount,
@@ -35,9 +37,7 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     aadharNumber,
     processingFee,
     emiStartDate,
-    additionalMobileNumbers,
     guarantorName,
-    guarantorMobileNumber,
     guarantorMobileNumbers,
     status,
   } = req.body;
@@ -45,7 +45,8 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
   if (
     !loanNumber ||
     !customerName ||
-    !mobileNumber ||
+    !mobileNumbers ||
+    mobileNumbers.length === 0 ||
     !address ||
     !principalAmount ||
     !annualInterestRate ||
@@ -74,7 +75,7 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
   const loan = await Loan.create({
     loanNumber,
     customerName,
-    mobileNumber,
+    mobileNumbers,
     alternateMobile,
     address,
     ownRent,
@@ -89,7 +90,6 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     loanStartDate,
     emiStartDate: emiStartDate || loanStartDate,
     remarks,
-    additionalMobileNumbers,
     guarantorName,
     guarantorMobileNumbers,
     status,
@@ -122,7 +122,10 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     "success",
     "Customer, Loan and EMIs created successfully",
     null,
-    { loan, emis },
+    {
+      loan: formatLoanResponse(loan),
+      emis,
+    },
   );
 });
 
@@ -147,12 +150,18 @@ const getCustomerByLoanNumber = asyncHandler(async (req, res, next) => {
   const emis = await EMI.find({ loanId: customer._id }).sort({ emiNumber: 1 });
 
   sendResponse(res, 200, "success", "Customer found", null, {
-    customer,
+    customer: formatLoanResponse(customer),
     emis,
   });
 });
 
 const updateCustomer = asyncHandler(async (req, res, next) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(req.params.id) ||
+    req.params.id === "undefined"
+  ) {
+    return next(new ErrorHandler("Invalid Customer ID provided", 400));
+  }
   let loan = await Loan.findById(req.params.id);
   if (!loan) {
     return next(new ErrorHandler("Loan record not found", 404));
@@ -169,7 +178,7 @@ const updateCustomer = asyncHandler(async (req, res, next) => {
     "success",
     "Customer updated successfully",
     null,
-    loan,
+    formatLoanResponse(loan),
   );
 });
 
@@ -184,6 +193,10 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     status,
     remarks,
   } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
+    return next(new ErrorHandler("Invalid EMI ID provided", 400));
+  }
 
   let emi = await EMI.findById(id);
   if (!emi) {
@@ -247,7 +260,11 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
 });
 
 const getEMIsByLoanId = asyncHandler(async (req, res, next) => {
-  const emis = await EMI.find({ loanId: req.params.loanId }).sort({
+  const { loanId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(loanId) || loanId === "undefined") {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
+  const emis = await EMI.find({ loanId }).sort({
     emiNumber: 1,
   });
   sendResponse(res, 200, "success", "EMIs fetched successfully", null, emis);

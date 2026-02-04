@@ -34,8 +34,16 @@ const LoansPage = () => {
   const [limit] = useState(10);
 
   useEffect(() => {
-    fetchLoans({ page: currentPage, limit });
-  }, [currentPage]);
+    const timer = setTimeout(() => {
+      const params = { page: currentPage, limit };
+      if (searchQuery.trim()) {
+        params.loanNumber = searchQuery;
+      }
+      fetchLoans({ ...filters, ...params });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, currentPage]);
 
   const fetchLoans = async (filterParams = {}) => {
     try {
@@ -56,18 +64,17 @@ const LoansPage = () => {
     }
   };
 
-  const handleSearch = async (e) => {
+  const handleSearch = (e) => {
     if (e) e.preventDefault();
-    const params = { page: 1 };
-    if (searchQuery.trim()) params.loanNumber = searchQuery;
-    setCurrentPage(1);
-    fetchLoans(params);
+    handleAdvancedSearch();
   };
 
   const handleAdvancedSearch = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    const params = { ...filters, page: 1 };
+    if (searchQuery.trim()) params.loanNumber = searchQuery;
     setCurrentPage(1);
-    fetchLoans({ ...filters, page: 1 });
+    fetchLoans(params);
     setIsFilterOpen(false);
   };
 
@@ -89,6 +96,7 @@ const LoansPage = () => {
       status: "",
     };
     setFilters(emptyFilters);
+    setSearchQuery("");
     setCurrentPage(1);
     fetchLoans({ page: 1 });
     setIsFilterOpen(false);
@@ -150,9 +158,8 @@ const LoansPage = () => {
                 </div>
               </div>
 
-              {/* Search & Filter Row */}
-              <div className="flex items-center gap-3 mb-8 px-1">
-                <div className="flex-1 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center h-14 overflow-hidden">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center h-[46px]">
                   <form
                     onSubmit={handleSearch}
                     className="flex-1 flex items-center px-4"
@@ -160,8 +167,8 @@ const LoansPage = () => {
                     <div className="text-slate-300 text-lg">🔍</div>
                     <input
                       type="text"
-                      placeholder="Search Loan #"
-                      className="w-full py-3 px-3 text-sm font-medium text-slate-700 focus:outline-none placeholder:text-slate-300"
+                      placeholder="Search by Loan Number (e.g. LN-001)"
+                      className="w-full px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none placeholder:text-slate-300 placeholder:font-black uppercase bg-transparent"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -169,10 +176,11 @@ const LoansPage = () => {
                 </div>
                 <button
                   onClick={() => setIsFilterOpen(true)}
-                  className="w-14 h-14 bg-white border border-slate-100 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-50 transition-all shadow-sm"
+                  className="flex-none w-[46px] h-[46px] bg-white border border-slate-200 text-slate-400 rounded-xl flex items-center justify-center hover:bg-slate-50 transition-all shadow-sm"
+                  title="Advanced Filter"
                 >
                   <svg
-                    className="w-6 h-6"
+                    className="w-5 h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -180,10 +188,16 @@ const LoansPage = () => {
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth="2"
+                      strokeWidth="2.5"
                       d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
                     />
                   </svg>
+                </button>
+                <button
+                  onClick={resetFilters}
+                  className="flex-none px-6 h-[46px] bg-red-50 border border-red-100 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 shadow-sm"
+                >
+                  Clear
                 </button>
               </div>
 
@@ -241,45 +255,53 @@ const LoansPage = () => {
                             >
                               <td className="px-4 py-6 whitespace-nowrap">
                                 <span className="font-bold text-slate-900 tracking-tight text-base">
-                                  {loan.loanNumber}
+                                  {loan.loanTerms?.loanNumber}
                                 </span>
                               </td>
                               <td className="px-4 py-6">
                                 <div className="flex flex-col">
                                   <span className="font-bold text-slate-700 text-base leading-tight">
-                                    {loan.customerName}
+                                    {loan.customerDetails?.customerName}
                                   </span>
                                   <span className="text-[11px] font-medium text-slate-400 mt-1 tracking-tight">
-                                    {loan.mobileNumber}
+                                    {loan.customerDetails?.mobileNumbers?.[0] ||
+                                      "No number"}
                                   </span>
                                 </div>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap text-[#2463EB] font-black text-base">
                                 ₹
-                                {
-                                  loan.monthlyEMI
-                                    ?.toLocaleString()
-                                    .split(".")[0]
-                                }
+                                {loan.loanTerms?.monthlyEMI
+                                  ?.toLocaleString()
+                                  ?.split(".")[0] || "0"}
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 text-[10px] font-bold border border-slate-100">
-                                  {loan.tenureMonths}M
+                                  {loan.loanTerms?.tenureMonths}M
                                 </span>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <span
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${loan.isSeized ? "bg-red-50 text-red-500 border-red-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"}`}
                                 >
-                                  {loan.isSeized ? "Seized" : "Active"}
+                                  {loan.status.isSeized ? "Seized" : "Active"}
                                 </span>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <div className="flex justify-center items-center gap-4">
                                   <button
-                                    onClick={() =>
-                                      router.push(`/admin/loans/${loan._id}`)
-                                    }
+                                    onClick={() => {
+                                      const id =
+                                        loan._id || loan.id || loan.status?.id;
+                                      if (id && id !== "undefined") {
+                                        router.push(`/admin/loans/${id}`);
+                                      } else {
+                                        console.error(
+                                          "Loan ID is undefined",
+                                          loan,
+                                        );
+                                      }
+                                    }}
                                     className="text-[#2463EB] hover:scale-110 transition-transform"
                                   >
                                     <svg
@@ -304,11 +326,22 @@ const LoansPage = () => {
                                   </button>
                                   {isSuperAdmin && (
                                     <button
-                                      onClick={() =>
-                                        router.push(
-                                          `/admin/loans/edit/${loan._id}`,
-                                        )
-                                      }
+                                      onClick={() => {
+                                        const id =
+                                          loan._id ||
+                                          loan.id ||
+                                          loan.status?.id;
+                                        if (id && id !== "undefined") {
+                                          router.push(
+                                            `/admin/loans/edit/${id}`,
+                                          );
+                                        } else {
+                                          console.error(
+                                            "Loan ID is undefined",
+                                            loan,
+                                          );
+                                        }
+                                      }}
                                       className="text-[#2463EB] hover:scale-110 transition-transform"
                                     >
                                       <svg
@@ -398,35 +431,45 @@ const LoansPage = () => {
                               className={`${loan.isSeized ? "bg-red-50/50" : "hover:bg-slate-50"} transition-colors`}
                             >
                               <td className="px-6 py-4 whitespace-nowrap font-black text-slate-900 uppercase text-xs tracking-tight">
-                                {loan.loanNumber}
+                                {loan.loanTerms?.loanNumber}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap font-extrabold text-slate-800 text-xs uppercase">
-                                {loan.customerName}
+                                {loan.customerDetails?.customerName}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-slate-500 font-bold text-xs tracking-widest">
-                                {loan.mobileNumber}
+                                {loan.customerDetails?.mobileNumbers?.[0] ||
+                                  "No number"}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center font-black text-primary text-xs">
-                                ₹{loan.monthlyEMI?.toLocaleString()}
+                                ₹{loan.loanTerms?.monthlyEMI?.toLocaleString()}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-black">
-                                  {loan.tenureMonths}M
+                                  {loan.loanTerms?.tenureMonths}M
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <span
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${loan.isSeized ? "bg-red-100 text-red-600 border-red-200" : "bg-green-100 text-green-600 border-green-200"}`}
                                 >
-                                  {loan.isSeized ? "Seized" : "Active"}
+                                  {loan.status.isSeized ? "Seized" : "Active"}
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <div className="flex justify-center items-center gap-3">
                                   <button
-                                    onClick={() =>
-                                      router.push(`/admin/loans/${loan._id}`)
-                                    }
+                                    onClick={() => {
+                                      const id =
+                                        loan._id || loan.id || loan.status?.id;
+                                      if (id && id !== "undefined") {
+                                        router.push(`/admin/loans/${id}`);
+                                      } else {
+                                        console.error(
+                                          "Loan ID is undefined",
+                                          loan,
+                                        );
+                                      }
+                                    }}
                                     className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-primary border border-slate-100 transition-all"
                                   >
                                     <svg
@@ -451,11 +494,22 @@ const LoansPage = () => {
                                   </button>
                                   {isSuperAdmin && (
                                     <button
-                                      onClick={() =>
-                                        router.push(
-                                          `/admin/loans/edit/${loan._id}`,
-                                        )
-                                      }
+                                      onClick={() => {
+                                        const id =
+                                          loan._id ||
+                                          loan.id ||
+                                          loan.status?.id;
+                                        if (id && id !== "undefined") {
+                                          router.push(
+                                            `/admin/loans/edit/${id}`,
+                                          );
+                                        } else {
+                                          console.error(
+                                            "Loan ID is undefined",
+                                            loan,
+                                          );
+                                        }
+                                      }}
                                       className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-primary border border-slate-100 transition-all"
                                     >
                                       <svg
@@ -596,7 +650,9 @@ const LoansPage = () => {
                         >
                           <option value="">ALL</option>
                           <option value="Active">ACTIVE</option>
-                          <option value="Seized">SEIZED</option>
+                          <option value="Rented">RENTED</option>
+                          <option value="Closed">CLOSED</option>
+                          <option value="Sold">SOLD</option>
                         </select>
                       </div>
                     </div>
