@@ -13,6 +13,7 @@ import {
   toggleSeized,
 } from "../../../../../services/loan.service";
 import { getEMIsByLoanId } from "../../../../../services/customer";
+import { flattenLoan } from "../../../../../utils/loanUtils";
 
 const EditLoanPage = () => {
   const router = useRouter();
@@ -30,27 +31,39 @@ const EditLoanPage = () => {
         getEMIsByLoanId(id),
       ]);
 
-      const data = loanRes.data;
+      const data = loanRes.data; // Already structured from backend
       const emiData = emiRes.data || [];
 
       // Format dates for input[type="date"]
       const formattedData = {
         ...data,
-        dateLoanDisbursed: data.dateLoanDisbursed
-          ? new Date(data.dateLoanDisbursed).toISOString().split("T")[0]
-          : "",
-        emiStartDate: data.emiStartDate
-          ? new Date(data.emiStartDate).toISOString().split("T")[0]
-          : "",
-        emiEndDate: data.emiEndDate
-          ? new Date(data.emiEndDate).toISOString().split("T")[0]
-          : "",
-        fcDate: data.fcDate
-          ? new Date(data.fcDate).toISOString().split("T")[0]
-          : "",
-        insuranceDate: data.insuranceDate
-          ? new Date(data.insuranceDate).toISOString().split("T")[0]
-          : "",
+        loanTerms: {
+          ...data.loanTerms,
+          dateLoanDisbursed: data.loanTerms?.dateLoanDisbursed
+            ? new Date(data.loanTerms.dateLoanDisbursed)
+                .toISOString()
+                .split("T")[0]
+            : "",
+          emiStartDate: data.loanTerms?.emiStartDate
+            ? new Date(data.loanTerms.emiStartDate).toISOString().split("T")[0]
+            : "",
+          emiEndDate: data.loanTerms?.emiEndDate
+            ? new Date(data.loanTerms.emiEndDate).toISOString().split("T")[0]
+            : "",
+        },
+        vehicleInformation: {
+          ...data.vehicleInformation,
+          fcDate: data.vehicleInformation?.fcDate
+            ? new Date(data.vehicleInformation.fcDate)
+                .toISOString()
+                .split("T")[0]
+            : "",
+          insuranceDate: data.vehicleInformation?.insuranceDate
+            ? new Date(data.vehicleInformation.insuranceDate)
+                .toISOString()
+                .split("T")[0]
+            : "",
+        },
       };
 
       setLoan(formattedData);
@@ -89,7 +102,7 @@ const EditLoanPage = () => {
         loan.isSeized
           ? "Loan unseized successfully"
           : "Loan seized successfully",
-        "success"
+        "success",
       );
       await fetchLoanData();
     } catch (err) {
@@ -151,33 +164,34 @@ const EditLoanPage = () => {
                     onSubmit={handleSubmit}
                     onCancel={() => router.push("/admin/loans")}
                     submitting={submitting}
-                    renderExtraActions={() => (
-                      <button
-                        type="button"
-                        onClick={handleToggleSeized}
-                        disabled={submitting}
-                        className={`${
-                          loan.isSeized
-                            ? "bg-green-600 hover:bg-green-700"
-                            : "bg-red-600 hover:bg-red-700"
-                        } text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2`}
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                          />
-                        </svg>
-                        {loan.isSeized ? "Unseize Loan" : "Seize Loan"}
-                      </button>
-                    )}
+                    renderExtraActions={() =>
+                      // <button
+                      //   type="button"
+                      //   onClick={handleToggleSeized}
+                      //   disabled={submitting}
+                      //   className={`${
+                      //     loan.isSeized
+                      //       ? "bg-green-600 hover:bg-green-700"
+                      //       : "bg-red-600 hover:bg-red-700"
+                      //   } text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2`}
+                      // >
+                      //   <svg
+                      //     className="w-4 h-4"
+                      //     fill="none"
+                      //     stroke="currentColor"
+                      //     viewBox="0 0 24 24"
+                      //   >
+                      //     <path
+                      //       strokeLinecap="round"
+                      //       strokeLinejoin="round"
+                      //       strokeWidth="2"
+                      //       d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      //     />
+                      //   </svg>
+                      //   {loan.isSeized ? "Unseize Loan" : "Seize Loan"}
+                      // </button>
+                      null
+                    }
                   />
 
                   <div className="mt-12">

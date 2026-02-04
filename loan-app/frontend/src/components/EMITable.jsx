@@ -55,7 +55,24 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setEditData((prev) => ({ ...prev, [name]: value }));
+    setEditData((prev) => {
+      const newData = { ...prev, [name]: value };
+
+      if (name === "amountPaid") {
+        const paid = parseFloat(value) || 0;
+        const total = parseFloat(editingEmi?.emiAmount) || 0;
+
+        if (paid >= total) {
+          newData.status = "Paid";
+        } else if (paid > 0) {
+          newData.status = "Partially Paid";
+        } else {
+          newData.status = "Pending";
+        }
+      }
+
+      return newData;
+    });
   };
 
   return (
@@ -86,7 +103,10 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                 Overdue
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
-                Status
+                Payment
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+                Remarks
               </th>
               {isEditMode && (
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
@@ -117,23 +137,37 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   {formatDate(emi.paymentDate)}
                 </td>
                 <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
-                  {emi.paymentMode || "-"}
+                  {emi.status === "Pending" &&
+                  new Date() < new Date(emi.dueDate)
+                    ? "-"
+                    : emi.paymentMode || "-"}
                 </td>
                 <td className="px-6 py-4 text-xs font-medium text-red-600 text-center">
                   ₹{emi.overdue || 0}
                 </td>
                 <td className="px-6 py-4 text-center">
-                  <span
-                    className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                      emi.status === "Paid"
-                        ? "bg-green-100 text-green-700"
-                        : emi.status === "Overdue"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {emi.status}
-                  </span>
+                  {emi.status === "Pending" &&
+                  new Date() < new Date(emi.dueDate) ? (
+                    <span className="text-xs font-bold text-slate-400">-</span>
+                  ) : (
+                    <span
+                      className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                        emi.status === "Paid"
+                          ? "bg-green-100 text-green-700"
+                          : emi.status === "Partially Paid"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {emi.status}
+                    </span>
+                  )}
+                </td>
+                <td
+                  className="px-6 py-4 text-xs font-medium text-slate-500 text-center max-w-[150px] truncate"
+                  title={emi.remarks}
+                >
+                  {emi.remarks || "-"}
                 </td>
                 {isEditMode && (
                   <td className="px-6 py-4">
@@ -194,6 +228,18 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
 
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                    Remaining Amount
+                  </label>
+                  <input
+                    type="text"
+                    value={`₹${Math.max(0, (editingEmi?.emiAmount || 0) - (editData.amountPaid || 0)).toFixed(2)}`}
+                    disabled
+                    className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
                     Payment Date
                   </label>
                   <input
@@ -228,23 +274,22 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
 
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                    Status
+                    Payment Status
                   </label>
-                  <select
-                    name="status"
-                    value={editData.status}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer"
-                    required
+                  <div
+                    className={`w-full px-4 py-3 border rounded-xl text-sm font-black uppercase tracking-wider ${
+                      editData.status === "Paid"
+                        ? "bg-green-50 border-green-200 text-green-600"
+                        : editData.status === "Partially Paid"
+                          ? "bg-orange-50 border-orange-200 text-orange-600"
+                          : "bg-red-50 border-red-200 text-red-600"
+                    }`}
                   >
-                    <option value="Pending">Pending</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Partially Paid">Partially Paid</option>
-                    <option value="Overdue">Overdue</option>
-                  </select>
+                    {editData.status}
+                  </div>
                 </div>
 
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
                     Overdue Amount
                   </label>

@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 const {
   createLoan,
@@ -6,22 +6,52 @@ const {
   getLoanByLoanNumber,
   getLoanById,
   updateLoan,
-  toggleSeizedStatus
-} = require('../controllers/loanController');
-const { isAuthenticated, authorizeRoles } = require('../middlewares/auth');
+  toggleSeizedStatus,
+  calculateEMIApi,
+  getPendingPayments,
+  getPendingEmiDetails,
+  updatePaymentStatus,
+} = require("../controllers/loanController");
+const {
+  getRtoWorks,
+  createRtoWork,
+} = require("../controllers/rtoWorkController");
+const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
 
 router.use(isAuthenticated);
 
-router.route('/')
+router.get("/rto-works", getRtoWorks);
+router.post("/rto-works", createRtoWork);
+
+router
+  .route("/")
   .get(getAllLoans)
-  .post(authorizeRoles('SUPER_ADMIN'), createLoan);
+  .post(authorizeRoles("SUPER_ADMIN"), createLoan);
 
-router.get('/search/:loanNumber', getLoanByLoanNumber);
+router.post("/calculate-emi", calculateEMIApi);
+router.get(
+  "/pending-payments",
+  authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
+  getPendingPayments,
+);
+router.get(
+  "/pending-details/:id",
+  authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
+  getPendingEmiDetails,
+);
+router.patch(
+  "/:id/payment-status",
+  authorizeRoles("SUPER_ADMIN"),
+  updatePaymentStatus,
+);
 
-router.route('/:id')
+router.get("/search/:loanNumber", getLoanByLoanNumber);
+
+router
+  .route("/:id")
   .get(getLoanById)
-  .put(authorizeRoles('SUPER_ADMIN'), updateLoan);
+  .put(authorizeRoles("SUPER_ADMIN"), updateLoan);
 
-router.patch('/:id/seized', authorizeRoles('SUPER_ADMIN'), toggleSeizedStatus);
+router.patch("/:id/seized", authorizeRoles("SUPER_ADMIN"), toggleSeizedStatus);
 
 module.exports = router;

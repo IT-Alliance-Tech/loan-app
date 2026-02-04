@@ -33,10 +33,14 @@ export const updateEMI = async (id, data) => {
   });
 };
 
-export const getAllEMIs = async () => {
-  return await apiHandler("/api/customers/emi/all", {
-    method: "GET",
-  });
+export const getAllEMIs = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return await apiHandler(
+    `/api/customers/emis/all${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+    },
+  );
 };
 
 export const getEMIsByLoanId = async (loanId) => {

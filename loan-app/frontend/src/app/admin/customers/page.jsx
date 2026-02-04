@@ -7,6 +7,7 @@ import { useToast } from "../../../context/ToastContext";
 import { getUserFromToken } from "../../../utils/auth";
 import { getCustomers, createCustomer } from "../../../services/customer";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
+import { calculateEMI as fetchEMI } from "../../../services/loan.service";
 
 const CustomersPage = () => {
   const user = getUserFromToken();
@@ -22,14 +23,21 @@ const CustomersPage = () => {
   const [formData, setFormData] = useState({
     loanNumber: "",
     customerName: "",
-    mobileNumber: "",
-    alternateMobile: "",
+    mobileNumbers: [""],
+    alternateMobile: "", // Internal backup, but primary is in mobileNumbers[0]
     address: "",
     principalAmount: "",
     annualInterestRate: "",
     tenureMonths: "",
+    processingFeeRate: "",
+    processingFee: "",
     loanStartDate: new Date().toISOString().split("T")[0],
+    emiStartDate: "",
+    emiEndDate: "",
     remarks: "",
+    guarantorName: "",
+    guarantorMobileNumbers: [""],
+    status: "",
   });
 
   const fetchCustomers = async () => {
@@ -49,32 +57,112 @@ const CustomersPage = () => {
     fetchCustomers();
   }, []);
 
-  const calculateEMI = (principal, roi, tenure) => {
-    const P = parseFloat(principal);
-    const R = parseFloat(roi) / 12 / 100;
-    const N = parseFloat(tenure);
+  useEffect(() => {
+    const P = parseFloat(formData.principalAmount);
+    const R = parseFloat(formData.annualInterestRate);
+    const N = parseFloat(formData.tenureMonths);
 
-    if (!P || !R || !N) return 0;
-
-    const emi = (P * R * Math.pow(1 + R, N)) / (Math.pow(1 + R, N) - 1);
-    return emi.toFixed(2);
-  };
-
-  const currentEMI = useMemo(() => {
-    return calculateEMI(
-      formData.principalAmount,
-      formData.annualInterestRate,
-      formData.tenureMonths
-    );
+    if (P && R && N) {
+      const getEMI = async () => {
+        try {
+          const res = await fetchEMI({
+            principalAmount: P,
+            annualInterestRate: R,
+            tenureMonths: N,
+          });
+          if (res.data && res.data.emi) {
+            const totalInt = P * (R / 100) * N;
+            setFormData((prev) => ({
+              ...prev,
+              monthlyEMI: res.data.emi,
+              totalInterestAmount: totalInt.toFixed(2),
+            }));
+          }
+        } catch (err) {
+          console.error("Failed to fetch EMI", err);
+        }
+      };
+      getEMI();
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        monthlyEMI: 0,
+        totalInterestAmount: 0,
+      }));
+    }
   }, [
     formData.principalAmount,
     formData.annualInterestRate,
     formData.tenureMonths,
   ]);
 
+  const currentEMI = formData.monthlyEMI || 0;
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    let newFormData = { ...formData, [name]: value };
+
+    const principal =
+      parseFloat(
+        name === "principalAmount" ? value : formData.principalAmount,
+      ) || 0;
+
+    if (name === "processingFeeRate") {
+      const rate = parseFloat(value) || 0;
+      const fee = ((principal * rate) / 100).toFixed(2);
+      newFormData.processingFee = fee;
+    } else if (name === "processingFee") {
+      const fee = parseFloat(value) || 0;
+      const rate = principal > 0 ? ((fee / principal) * 100).toFixed(2) : 0;
+      newFormData.processingFeeRate = rate;
+    } else if (name === "principalAmount") {
+      const rate = parseFloat(formData.processingFeeRate) || 0;
+      const fee = ((principal * rate) / 100).toFixed(2);
+      newFormData.processingFee = fee;
+    }
+
+    // Automate Dates
+    const lDate = name === "loanStartDate" ? value : formData.loanStartDate;
+    const tenure =
+      parseInt(name === "tenureMonths" ? value : formData.tenureMonths) || 0;
+
+    if (lDate) {
+      const d = new Date(lDate);
+      const start = new Date(d);
+      start.setMonth(start.getMonth() + 1);
+      newFormData.emiStartDate = start.toISOString().split("T")[0];
+
+      if (tenure) {
+        const end = new Date(d);
+        end.setMonth(end.getMonth() + tenure);
+        newFormData.emiEndDate = end.toISOString().split("T")[0];
+      }
+    }
+
+    setFormData(newFormData);
+  };
+
+  const addAdditionalMobile = (field) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: [...prev[field], ""],
+    }));
+  };
+
+  const removeAdditionalMobile = (field, index) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: prev[field].filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleArrayInputChange = (field, index, value) => {
+    const val = value.replace(/[^0-9]/g, "");
+    setFormData((prev) => {
+      const newArr = [...prev[field]];
+      newArr[index] = val;
+      return { ...prev, [field]: newArr };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -91,14 +179,19 @@ const CustomersPage = () => {
       setFormData({
         loanNumber: "",
         customerName: "",
-        mobileNumber: "",
+        mobileNumbers: [""],
         alternateMobile: "",
         address: "",
         principalAmount: "",
         annualInterestRate: "",
         tenureMonths: "",
         loanStartDate: new Date().toISOString().split("T")[0],
+        emiStartDate: "",
+        emiEndDate: "",
         remarks: "",
+        guarantorName: "",
+        guarantorMobileNumbers: [""],
+        status: "",
       });
       fetchCustomers();
     } catch (err) {
@@ -111,7 +204,7 @@ const CustomersPage = () => {
   const filteredCustomers = customers.filter(
     (c) =>
       c.loanNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.customerName.toLowerCase().includes(searchQuery.toLowerCase())
+      c.customerName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -120,7 +213,7 @@ const CustomersPage = () => {
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <Navbar />
-          <main className="py-8 px-4 sm:px-8 max-w-6xl mx-auto">
+          <main className="py-8 px-4 sm:px-8 w-full">
             <div className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
@@ -152,14 +245,6 @@ const CustomersPage = () => {
                   </svg>
                   Export
                 </button>
-                {isSuperAdmin && (
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
-                  >
-                    <span className="text-lg leading-none">+</span> Add Customer
-                  </button>
-                )}
               </div>
             </div>
 
@@ -176,8 +261,97 @@ const CustomersPage = () => {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+              {/* MOBILE VIEW (Table Optimized for small screens) */}
+              <div className="md:hidden">
+                <div className="overflow-x-auto scrollbar-none">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                      <tr className="bg-slate-50/50 border-b border-slate-200 uppercase">
+                        <th className="w-[80px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
+                          LOAN NO
+                        </th>
+                        <th className="px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
+                          CUSTOMER NAME
+                        </th>
+                        <th className="w-[100px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
+                          CONTACT
+                        </th>
+                        <th className="w-[100px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider text-right">
+                          MONTHLY EMI
+                        </th>
+                        <th className="w-[80px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider text-center">
+                          STATUS
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {loading ? (
+                        <tr>
+                          <td
+                            colSpan="5"
+                            className="px-4 py-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                          >
+                            Synchronizing Registry...
+                          </td>
+                        </tr>
+                      ) : filteredCustomers.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan="5"
+                            className="px-4 py-12 text-center text-slate-300 font-bold uppercase text-[10px] tracking-widest"
+                          >
+                            No records
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredCustomers.map((cust) => (
+                          <tr
+                            key={cust._id}
+                            className="active:bg-slate-50 transition-colors"
+                          >
+                            <td className="px-4 py-5">
+                              <span className="font-black text-primary uppercase text-[10px] tracking-tighter bg-blue-50 px-2 py-1 rounded-md whitespace-nowrap">
+                                {cust.loanNumber}
+                              </span>
+                            </td>
+                            <td className="px-4 py-5">
+                              <span className="font-black text-slate-900 uppercase text-xs tracking-tighter block truncate">
+                                {cust.customerName}
+                              </span>
+                            </td>
+                            <td className="px-4 py-5 font-bold text-slate-500 text-[10px] whitespace-nowrap">
+                              {cust.mobileNumbers?.[0] || "No number"}
+                            </td>
+                            <td className="px-4 py-5 text-right font-black text-slate-900 text-[11px] whitespace-nowrap">
+                              ₹{cust.monthlyEMI?.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-5 text-center">
+                              {cust.isSeized ? (
+                                <span className="px-2 py-0.5 bg-red-50 text-red-500 text-[8px] font-black rounded uppercase">
+                                  Seized
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-500 text-[8px] font-black rounded uppercase">
+                                  Active
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="py-3 bg-slate-50/50 border-t border-slate-100 text-center">
+                  <p className="text-[9px] font-bold text-slate-400 italic">
+                    Swipe horizontally to see more details
+                  </p>
+                </div>
+              </div>
+
+              {/* DESKTOP VIEW */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-200">
@@ -235,7 +409,7 @@ const CustomersPage = () => {
                             {cust.customerName}
                           </td>
                           <td className="px-6 py-4 font-bold text-slate-500 text-xs">
-                            {cust.mobileNumber}
+                            {cust.mobileNumbers?.[0] || "No number"}
                           </td>
                           <td className="px-6 py-4 text-right">
                             <span className="font-black text-slate-900 text-xs">
@@ -330,6 +504,30 @@ const CustomersPage = () => {
                         onChange={handleInputChange}
                       />
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        EMI Start Date
+                      </label>
+                      <input
+                        type="date"
+                        name="emiStartDate"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.emiStartDate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        EMI End Date
+                      </label>
+                      <input
+                        type="date"
+                        name="emiEndDate"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.emiEndDate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -357,31 +555,127 @@ const CustomersPage = () => {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-4 col-span-2 pt-2 border-t border-slate-100 mt-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                        <span>Customer Contact Numbers</span>
+                        <button
+                          type="button"
+                          onClick={() => addAdditionalMobile("mobileNumbers")}
+                          className="text-primary hover:text-primary/70 transition-colors"
+                        >
+                          + Add Number
+                        </button>
+                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        {formData.mobileNumbers.map((num, idx) => (
+                          <div
+                            key={idx}
+                            className="flex gap-2 animate-in zoom-in duration-200"
+                          >
+                            <input
+                              type="text"
+                              maxLength={10}
+                              className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-primary transition-all"
+                              placeholder={
+                                idx === 0
+                                  ? "Primary Mobile"
+                                  : `Alt Number ${idx}`
+                              }
+                              value={num}
+                              onChange={(e) =>
+                                handleArrayInputChange(
+                                  "mobileNumbers",
+                                  idx,
+                                  e.target.value,
+                                )
+                              }
+                            />
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeAdditionalMobile("mobileNumbers", idx)
+                                }
+                                className="text-red-400 hover:text-red-500 transition-colors"
+                              >
+                                &times;
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 col-span-2 pt-4 border-t border-slate-100">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Primary Mobile
+                        Guarantor Name
                       </label>
                       <input
                         type="text"
-                        name="mobileNumber"
-                        required
+                        name="guarantorName"
                         className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
-                        value={formData.mobileNumber}
+                        value={formData.guarantorName}
                         onChange={handleInputChange}
+                        placeholder="Enter Guarantor Legal Name"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Alternate Contact
+
+                    <div className="space-y-4 col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                        <span>Guarantor Contact Numbers</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addAdditionalMobile("guarantorMobileNumbers")
+                          }
+                          className="text-primary hover:text-primary/70 transition-colors"
+                        >
+                          + Add Number
+                        </button>
                       </label>
-                      <input
-                        type="text"
-                        name="alternateMobile"
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
-                        value={formData.alternateMobile}
-                        onChange={handleInputChange}
-                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        {formData.guarantorMobileNumbers.map((num, idx) => (
+                          <div
+                            key={idx}
+                            className="flex gap-2 animate-in zoom-in duration-200"
+                          >
+                            <input
+                              type="text"
+                              maxLength={10}
+                              className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-primary transition-all"
+                              placeholder={
+                                idx === 0
+                                  ? "Primary Guarantor No."
+                                  : `Alt Number ${idx}`
+                              }
+                              value={num}
+                              onChange={(e) =>
+                                handleArrayInputChange(
+                                  "guarantorMobileNumbers",
+                                  idx,
+                                  e.target.value,
+                                )
+                              }
+                            />
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeAdditionalMobile(
+                                    "guarantorMobileNumbers",
+                                    idx,
+                                  )
+                                }
+                                className="text-red-400 hover:text-red-500 transition-colors"
+                              >
+                                &times;
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
+
                     <div className="space-y-1 col-span-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                         Current Address
@@ -449,6 +743,30 @@ const CustomersPage = () => {
                         onChange={handleInputChange}
                       />
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Proc. Fee Rate (%)
+                      </label>
+                      <input
+                        type="number"
+                        name="processingFeeRate"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.processingFeeRate}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Processing Fee (₹)
+                      </label>
+                      <input
+                        type="number"
+                        name="processingFee"
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                        value={formData.processingFee}
+                        onChange={handleInputChange}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -463,12 +781,30 @@ const CustomersPage = () => {
                   </div>
                   <div className="text-right">
                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">
-                      Status Code
+                      Total Interest Amount
                     </span>
-                    <p className="text-[10px] font-black text-slate-900 uppercase">
-                      Awaiting Registry
+                    <p className="text-[14px] font-black text-slate-900 uppercase">
+                      ₹
+                      {parseFloat(
+                        formData.totalInterestAmount || 0,
+                      ).toLocaleString()}
                     </p>
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Status of Customer <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="status"
+                    required
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    placeholder="Enter current status"
+                  />
                 </div>
 
                 <div className="space-y-1">

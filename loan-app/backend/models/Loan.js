@@ -27,10 +27,29 @@ const loanSchema = new mongoose.Schema(
       enum: ["Own", "Rent"],
       trim: true,
     },
-    mobileNumber: {
+    mobileNumbers: {
+      type: [String],
+      required: [true, "At least one customer mobile number is required"],
+      validate: {
+        validator: function (v) {
+          return v && v.length > 0;
+        },
+        message: "At least one customer mobile number is required",
+      },
+    },
+    guarantorName: {
       type: String,
-      required: [true, "Mobile number is required"],
       trim: true,
+    },
+    guarantorMobileNumbers: {
+      type: [String],
+      required: [true, "At least one guarantor mobile number is required"],
+      validate: {
+        validator: function (v) {
+          return v && v.length > 0;
+        },
+        message: "At least one guarantor mobile number is required",
+      },
     },
     panNumber: {
       type: String,
@@ -46,6 +65,7 @@ const loanSchema = new mongoose.Schema(
     },
     processingFeeRate: {
       type: Number,
+      default: 0,
     },
     processingFee: {
       type: Number,
@@ -85,6 +105,10 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    engineNumber: {
+      type: String,
+      trim: true,
+    },
     model: {
       type: String,
       trim: true,
@@ -109,11 +133,6 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    hpEntry: {
-      type: String,
-      default: "Not done",
-      trim: true,
-    },
     fcDate: {
       type: Date,
     },
@@ -121,8 +140,8 @@ const loanSchema = new mongoose.Schema(
       type: Date,
     },
     rtoWorkPending: {
-      type: String,
-      trim: true,
+      type: [String],
+      default: [],
     },
     isSeized: {
       type: Boolean,
@@ -132,13 +151,23 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    status: {
+      type: String,
+      required: [true, "Status is required"],
+      trim: true,
+    },
+    paymentStatus: {
+      type: String,
+      default: "Pending",
+      trim: true,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Loan", loanSchema);

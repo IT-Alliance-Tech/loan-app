@@ -1,105 +1,119 @@
+const mongoose = require("mongoose");
 const Loan = require("../models/Loan");
 const EMI = require("../models/EMI");
 const ErrorHandler = require("../utils/ErrorHandler");
+const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
+const { formatLoanResponse } = require("../utils/loanFormatter");
 
 const calculateEMI = (principal, roi, tenureMonths) => {
-  const r = roi / 12 / 100;
-  const n = tenureMonths;
-  if (r === 0) return parseFloat((principal / n).toFixed(2));
-  const emi = (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+  const p = parseFloat(principal);
+  const r = parseFloat(roi);
+  const n = parseInt(tenureMonths);
+  if (!p || !n) return 0;
+
+  // Flat Interest Calculation: EMI = (Principal / Tenure) + (Principal * Rate / 100)
+  const monthlyInterest = p * (r / 100);
+  const monthlyPrincipal = p / n;
+  const emi = monthlyPrincipal + monthlyInterest;
+
   return parseFloat(emi.toFixed(2));
 };
 
+const calculateEMIApi = asyncHandler(async (req, res, next) => {
+  const { principalAmount, annualInterestRate, tenureMonths } = req.body;
+
+  if (!principalAmount || !annualInterestRate || !tenureMonths) {
+    return next(
+      new ErrorHandler("Please provide principal, rate and tenure", 400),
+    );
+  }
+
+  const emi = calculateEMI(principalAmount, annualInterestRate, tenureMonths);
+
+  sendResponse(res, 200, "success", "EMI calculated successfully", null, {
+    emi,
+  });
+});
+
 const createLoan = asyncHandler(async (req, res, next) => {
   const {
-    siNo,
-    loanNumber,
-    customerName,
-    address,
-    ownRent,
-    mobileNumber,
-    panNumber,
-    aadharNumber,
-    principalAmount,
-    processingFeeRate,
-    processingFee,
-    tenureType,
-    tenureMonths,
-    annualInterestRate,
-    dateLoanDisbursed,
-    emiStartDate,
-    emiEndDate,
-    totalInterestAmount,
-    vehicleNumber,
-    chassisNumber,
-    model,
-    typeOfVehicle,
-    ywBoard,
-    docChecklist,
-    dealerName,
-    dealerNumber,
-    hpEntry,
-    fcDate,
-    insuranceDate,
-    rtoWorkPending,
+    customerDetails,
+    loanTerms,
+    vehicleInformation,
+    status: statusObj,
   } = req.body;
 
   if (
-    !loanNumber ||
-    !customerName ||
-    !mobileNumber ||
-    !principalAmount ||
-    !annualInterestRate ||
-    !tenureMonths
+    !loanTerms?.loanNumber ||
+    !customerDetails?.customerName ||
+    !customerDetails?.mobileNumbers ||
+    customerDetails.mobileNumbers.length === 0 ||
+    !loanTerms?.principalAmount ||
+    !loanTerms?.annualInterestRate ||
+    !loanTerms?.tenureMonths
   ) {
     return next(new ErrorHandler("Please provide all required fields", 400));
   }
 
-  const existingLoan = await Loan.findOne({ loanNumber });
+  const existingLoan = await Loan.findOne({
+    loanNumber: loanTerms.loanNumber,
+  });
   if (existingLoan) {
     return next(new ErrorHandler("Loan number already exists", 400));
   }
 
   const monthlyEMI = calculateEMI(
-    principalAmount,
-    annualInterestRate,
-    tenureMonths,
+    loanTerms.principalAmount,
+    loanTerms.annualInterestRate,
+    loanTerms.tenureMonths,
   );
 
+  const calculatedTotalInterest =
+    parseFloat(loanTerms.principalAmount) *
+    (parseFloat(loanTerms.annualInterestRate) / 100) *
+    parseInt(loanTerms.tenureMonths);
+
   const loan = await Loan.create({
-    siNo,
-    loanNumber,
-    customerName,
-    address,
-    ownRent,
-    mobileNumber,
-    panNumber,
-    aadharNumber,
-    principalAmount,
-    processingFeeRate,
-    processingFee,
-    tenureType,
-    tenureMonths,
-    annualInterestRate,
-    dateLoanDisbursed,
-    emiStartDate,
-    emiEndDate,
+    // customerDetails
+    customerName: customerDetails.customerName,
+    address: customerDetails.address,
+    ownRent: customerDetails.ownRent,
+    mobileNumbers: customerDetails.mobileNumbers,
+    panNumber: customerDetails.panNumber,
+    aadharNumber: customerDetails.aadharNumber,
+    guarantorName: customerDetails.guarantorName,
+    guarantorMobileNumbers: customerDetails.guarantorMobileNumbers,
+
+    // loanTerms
+    loanNumber: loanTerms.loanNumber,
+    principalAmount: loanTerms.principalAmount,
+    processingFeeRate: loanTerms.processingFeeRate,
+    processingFee: loanTerms.processingFee,
+    tenureMonths: loanTerms.tenureMonths,
+    annualInterestRate: loanTerms.annualInterestRate,
+    dateLoanDisbursed: loanTerms.dateLoanDisbursed,
+    emiStartDate: loanTerms.emiStartDate,
+    emiEndDate: loanTerms.emiEndDate,
     monthlyEMI,
-    totalInterestAmount,
-    vehicleNumber,
-    chassisNumber,
-    model,
-    typeOfVehicle,
-    ywBoard,
-    docChecklist,
-    dealerName,
-    dealerNumber,
-    hpEntry,
-    fcDate,
-    insuranceDate,
-    rtoWorkPending,
+    totalInterestAmount: calculatedTotalInterest,
+
+    // vehicleInformation
+    vehicleNumber: vehicleInformation?.vehicleNumber,
+    chassisNumber: vehicleInformation?.chassisNumber,
+    engineNumber: vehicleInformation?.engineNumber,
+    model: vehicleInformation?.model,
+    typeOfVehicle: vehicleInformation?.typeOfVehicle,
+    ywBoard: vehicleInformation?.ywBoard,
+    dealerName: vehicleInformation?.dealerName,
+    dealerNumber: vehicleInformation?.dealerNumber,
+    fcDate: vehicleInformation?.fcDate,
+    insuranceDate: vehicleInformation?.insuranceDate,
+    rtoWorkPending: vehicleInformation?.rtoWorkPending,
+
+    // status
+    status: statusObj?.status,
     createdBy: req.user._id,
   });
 
@@ -109,18 +123,16 @@ const createLoan = asyncHandler(async (req, res, next) => {
     loan.emiStartDate || loan.dateLoanDisbursed || new Date(),
   );
 
-  for (let i = 1; i <= tenureMonths; i++) {
+  for (let i = 1; i <= loanTerms.tenureMonths; i++) {
     emis.push({
       loanId: loan._id,
       loanNumber: loan.loanNumber,
       customerName: loan.customerName,
       emiNumber: i,
-      dueDate: new Date(currentEmiDate),
+      dueDate: addMonths(new Date(currentEmiDate), i - 1),
       emiAmount: monthlyEMI,
       status: "Pending",
     });
-    // Increment month
-    currentEmiDate.setMonth(currentEmiDate.getMonth() + 1);
   }
 
   await EMI.insertMany(emis);
@@ -131,28 +143,45 @@ const createLoan = asyncHandler(async (req, res, next) => {
     "success",
     "Loan created and EMIs generated successfully",
     null,
-    loan,
+    formatLoanResponse(loan),
   );
 });
 
 const getAllLoans = asyncHandler(async (req, res, next) => {
   const { loanNumber, customerName, mobileNumber, tenureMonths, status } =
     req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
   const query = {};
 
   if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
   if (customerName)
     query.customerName = { $regex: customerName, $options: "i" };
   if (mobileNumber)
-    query.mobileNumber = { $regex: mobileNumber, $options: "i" };
+    query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
   if (tenureMonths) query.tenureMonths = tenureMonths;
   if (status) {
     if (status === "Seized") query.isSeized = true;
     if (status === "Active") query.isSeized = false;
   }
 
-  const loans = await Loan.find(query).sort({ createdAt: -1 });
-  sendResponse(res, 200, "success", "Loans fetched successfully", null, loans);
+  const total = await Loan.countDocuments(query);
+  const loans = await Loan.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  sendResponse(res, 200, "success", "Loans fetched successfully", null, {
+    loans: loans.map((loan) => formatLoanResponse(loan)),
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
 });
 
 const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
@@ -160,51 +189,147 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
-  sendResponse(res, 200, "success", "Loan found", null, loan);
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Loan found",
+    null,
+    formatLoanResponse(loan),
+  );
 });
 
 const getLoanById = asyncHandler(async (req, res, next) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(req.params.id) ||
+    req.params.id === "undefined"
+  ) {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
   const loan = await Loan.findById(req.params.id);
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
-  sendResponse(res, 200, "success", "Loan found", null, loan);
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Loan found",
+    null,
+    formatLoanResponse(loan),
+  );
 });
 
 const updateLoan = asyncHandler(async (req, res, next) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(req.params.id) ||
+    req.params.id === "undefined"
+  ) {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
   let loan = await Loan.findById(req.params.id);
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
 
-  const updatedPrincipal =
-    req.body.principalAmount !== undefined
-      ? req.body.principalAmount
+  const {
+    customerDetails,
+    loanTerms,
+    vehicleInformation,
+    status: statusObj,
+  } = req.body;
+
+  const currentPrincipal =
+    loanTerms?.principalAmount !== undefined
+      ? loanTerms.principalAmount
       : loan.principalAmount;
-  const updatedRoi =
-    req.body.annualInterestRate !== undefined
-      ? req.body.annualInterestRate
+  const currentRoi =
+    loanTerms?.annualInterestRate !== undefined
+      ? loanTerms.annualInterestRate
       : loan.annualInterestRate;
-  const updatedTenure =
-    req.body.tenureMonths !== undefined
-      ? req.body.tenureMonths
+  const currentTenure =
+    loanTerms?.tenureMonths !== undefined
+      ? loanTerms.tenureMonths
       : loan.tenureMonths;
 
-  const monthlyEMI = calculateEMI(updatedPrincipal, updatedRoi, updatedTenure);
+  const monthlyEMI = calculateEMI(currentPrincipal, currentRoi, currentTenure);
+  const calculatedTotalInterest =
+    parseFloat(currentPrincipal) *
+    (parseFloat(currentRoi) / 100) *
+    parseInt(currentTenure);
 
-  loan = await Loan.findByIdAndUpdate(
-    req.params.id,
-    {
-      ...req.body,
-      monthlyEMI,
-    },
-    { new: true, runValidators: true },
+  const updateData = {
+    // Flatten customerDetails
+    ...(customerDetails && {
+      customerName: customerDetails.customerName,
+      address: customerDetails.address,
+      ownRent: customerDetails.ownRent,
+      mobileNumbers: customerDetails.mobileNumbers,
+      panNumber: customerDetails.panNumber,
+      aadharNumber: customerDetails.aadharNumber,
+      guarantorName: customerDetails.guarantorName,
+      guarantorMobileNumbers: customerDetails.guarantorMobileNumbers,
+    }),
+    // Flatten loanTerms
+    ...(loanTerms && {
+      loanNumber: loanTerms.loanNumber,
+      principalAmount: loanTerms.principalAmount,
+      processingFeeRate: loanTerms.processingFeeRate,
+      processingFee: loanTerms.processingFee,
+      tenureMonths: loanTerms.tenureMonths,
+      annualInterestRate: loanTerms.annualInterestRate,
+      dateLoanDisbursed: loanTerms.dateLoanDisbursed,
+      emiStartDate: loanTerms.emiStartDate,
+      emiEndDate: loanTerms.emiEndDate,
+    }),
+    // Flatten vehicleInformation
+    ...(vehicleInformation && {
+      vehicleNumber: vehicleInformation.vehicleNumber,
+      chassisNumber: vehicleInformation.chassisNumber,
+      engineNumber: vehicleInformation.engineNumber,
+      model: vehicleInformation.model,
+      typeOfVehicle: vehicleInformation.typeOfVehicle,
+      ywBoard: vehicleInformation.ywBoard,
+      dealerName: vehicleInformation.dealerName,
+      dealerNumber: vehicleInformation.dealerNumber,
+      fcDate: vehicleInformation.fcDate,
+      insuranceDate: vehicleInformation.insuranceDate,
+      rtoWorkPending: vehicleInformation.rtoWorkPending,
+    }),
+    // Flatten status
+    ...(statusObj && {
+      status: statusObj.status,
+      paymentStatus: statusObj.paymentStatus,
+      isSeized: statusObj.isSeized,
+      docChecklist: statusObj.docChecklist,
+      remarks: statusObj.remarks,
+    }),
+    monthlyEMI,
+    totalInterestAmount: calculatedTotalInterest,
+  };
+
+  loan = await Loan.findByIdAndUpdate(req.params.id, updateData, {
+    new: true,
+    runValidators: true,
+  });
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Loan updated successfully",
+    null,
+    formatLoanResponse(loan),
   );
-
-  sendResponse(res, 200, "success", "Loan updated successfully", null, loan);
 });
 
 const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(req.params.id) ||
+    req.params.id === "undefined"
+  ) {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
   const loan = await Loan.findById(req.params.id);
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
@@ -219,10 +344,191 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
     "success",
     `Loan ${loan.isSeized ? "seized" : "unseized"} successfully`,
     null,
-    loan,
+    formatLoanResponse(loan),
+  );
+});
+// export all values
+const getPendingPayments = asyncHandler(async (req, res, next) => {
+  const { customerName, loanNumber, vehicleNumber, status } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  let query = {};
+
+  if (customerName) {
+    query.customerName = { $regex: customerName, $options: "i" };
+  }
+  if (loanNumber) {
+    query.loanNumber = { $regex: loanNumber, $options: "i" };
+  }
+  if (vehicleNumber) {
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  }
+
+  const result = await Loan.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $addFields: {
+        pendingEmis: {
+          $filter: {
+            input: "$emis",
+            as: "emi",
+            cond: {
+              $and: [
+                status
+                  ? { $eq: ["$$emi.status", status] }
+                  : { $ne: ["$$emi.status", "Paid"] },
+                { $lte: ["$$emi.dueDate", new Date()] },
+              ],
+            },
+          },
+        },
+      },
+    },
+    { $unwind: "$pendingEmis" },
+    {
+      $project: {
+        _id: "$pendingEmis._id",
+        loanId: "$_id",
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumbers: 1,
+        vehicleNumber: 1,
+        model: 1,
+        emiAmount: "$pendingEmis.emiAmount",
+        amountPaid: "$pendingEmis.amountPaid",
+        dueDate: "$pendingEmis.dueDate",
+        remarks: { $ifNull: ["$pendingEmis.remarks", "$paymentStatus", ""] },
+        emiNumber: "$pendingEmis.emiNumber",
+      },
+    },
+    { $sort: { dueDate: 1 } },
+    {
+      $facet: {
+        payments: [{ $skip: skip }, { $limit: limit }],
+        totalCount: [{ $count: "count" }],
+      },
+    },
+  ]);
+
+  const payments = result[0].payments;
+  const total = result[0].totalCount[0]?.count || 0;
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Pending payments fetched successfully",
+    null,
+    {
+      payments,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
   );
 });
 
+const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
+    return next(new ErrorHandler("Invalid EMI ID provided", 400));
+  }
+
+  console.log("Fetching EMI Details for ID:", id);
+  const emiDetails = await EMI.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(id) } },
+    {
+      $lookup: {
+        from: "loans",
+        localField: "loanId",
+        foreignField: "_id",
+        as: "loan",
+      },
+    },
+    { $unwind: "$loan" },
+    {
+      $project: {
+        _id: 1,
+        loanId: "$loan._id",
+        loanNumber: "$loan.loanNumber",
+        customerName: "$loan.customerName",
+        mobileNumbers: "$loan.mobileNumbers",
+        address: "$loan.address",
+        guarantorName: "$loan.guarantorName",
+        guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
+        vehicleNumber: "$loan.vehicleNumber",
+        model: "$loan.model",
+        engineNumber: "$loan.engineNumber",
+        chassisNumber: "$loan.chassisNumber",
+        principalAmount: "$loan.principalAmount",
+        monthlyEMI: "$loan.monthlyEMI",
+        emiAmount: "$emiAmount",
+        amountPaid: "$amountPaid",
+        status: "$status",
+        dueDate: "$dueDate",
+        remarks: { $ifNull: ["$remarks", "$loan.paymentStatus", ""] },
+        emiNumber: 1,
+      },
+    },
+  ]);
+
+  if (!emiDetails || emiDetails.length === 0) {
+    return next(new ErrorHandler(`EMI details not found for ID: ${id}`, 404));
+  }
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "EMI details fetched successfully",
+    null,
+    emiDetails[0],
+  );
+});
+
+const updatePaymentStatus = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { paymentStatus } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
+
+  const loan = await Loan.findByIdAndUpdate(
+    id,
+    { paymentStatus },
+    { new: true, runValidators: true },
+  );
+
+  if (!loan) {
+    return next(new ErrorResponse("Loan not found", 404));
+  }
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Payment status updated successfully",
+    null,
+    formatLoanResponse(loan),
+  );
+});
+
+// export all values
 module.exports = {
   createLoan,
   getAllLoans,
@@ -230,4 +536,8 @@ module.exports = {
   getLoanById,
   updateLoan,
   toggleSeizedStatus,
+  calculateEMIApi,
+  getPendingPayments,
+  getPendingEmiDetails,
+  updatePaymentStatus,
 };
