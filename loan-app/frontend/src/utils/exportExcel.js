@@ -48,44 +48,50 @@ export const exportLoansToExcel = async (
     const rowNumber = index + 2; // +1 for 1-based, +1 for header
     const row = worksheet.addRow({
       siNo: index + 1,
-      loanNumber: loan.loanNumber,
-      customerName: loan.customerName,
-      address: loan.address,
-      ownRent: loan.ownRent,
-      mobileNumber: loan.mobileNumber,
-      panNumber: loan.panNumber,
-      aadharNumber: loan.aadharNumber,
-      principalAmount: loan.principalAmount || 0,
-      processingFeeRate: loan.processingFeeRate || 0,
-      processingFee: loan.processingFee || 0,
-      tenureType: loan.tenureType,
-      tenureMonths: loan.tenureMonths || 0,
-      annualInterestRate: loan.annualInterestRate || 0,
-      dateLoanDisbursed: loan.dateLoanDisbursed
-        ? new Date(loan.dateLoanDisbursed).toLocaleDateString()
+      loanNumber: loan.loanTerms.loanNumber,
+      customerName: loan.customerDetails.customerName,
+      address: loan.customerDetails.address,
+      ownRent: loan.customerDetails.ownRent,
+      mobileNumber: Array.isArray(loan.customerDetails.mobileNumbers)
+        ? loan.customerDetails.mobileNumbers.join(", ")
+        : loan.customerDetails.mobileNumber,
+      panNumber: loan.customerDetails.panNumber,
+      aadharNumber: loan.customerDetails.aadharNumber,
+      principalAmount: loan.loanTerms.principalAmount || 0,
+      processingFeeRate: loan.loanTerms.processingFeeRate || 0,
+      processingFee: loan.loanTerms.processingFee || 0,
+      tenureType: loan.loanTerms.tenureType,
+      tenureMonths: loan.loanTerms.tenureMonths || 0,
+      annualInterestRate: loan.loanTerms.annualInterestRate || 0,
+      dateLoanDisbursed: loan.loanTerms.dateLoanDisbursed
+        ? new Date(loan.loanTerms.dateLoanDisbursed).toLocaleDateString()
         : "",
-      emiStartDate: loan.emiStartDate
-        ? new Date(loan.emiStartDate).toLocaleDateString()
+      emiStartDate: loan.loanTerms.emiStartDate
+        ? new Date(loan.loanTerms.emiStartDate).toLocaleDateString()
         : "",
-      emiEndDate: loan.emiEndDate
-        ? new Date(loan.emiEndDate).toLocaleDateString()
+      emiEndDate: loan.loanTerms.emiEndDate
+        ? new Date(loan.loanTerms.emiEndDate).toLocaleDateString()
         : "",
-      monthlyEMI: loan.monthlyEMI || 0,
-      totalInterestAmount: loan.totalInterestAmount || 0,
-      vehicleNumber: loan.vehicleNumber,
-      chassisNumber: loan.chassisNumber,
-      model: loan.model,
-      typeOfVehicle: loan.typeOfVehicle,
-      ywBoard: loan.ywBoard,
-      docChecklist: loan.docChecklist,
-      dealerName: loan.dealerName,
-      dealerNumber: loan.dealerNumber,
-      fcDate: loan.fcDate ? new Date(loan.fcDate).toLocaleDateString() : "",
-      insuranceDate: loan.insuranceDate
-        ? new Date(loan.insuranceDate).toLocaleDateString()
+      monthlyEMI: loan.loanTerms.monthlyEMI || 0,
+      totalInterestAmount: loan.loanTerms.totalInterestAmount || 0,
+      vehicleNumber: loan.vehicleInformation.vehicleNumber,
+      chassisNumber: loan.vehicleInformation.chassisNumber,
+      model: loan.vehicleInformation.model,
+      typeOfVehicle: loan.vehicleInformation.typeOfVehicle,
+      ywBoard: loan.vehicleInformation.ywBoard,
+      docChecklist: loan.status.docChecklist,
+      dealerName: loan.vehicleInformation.dealerName,
+      dealerNumber: loan.vehicleInformation.dealerNumber,
+      fcDate: loan.vehicleInformation.fcDate
+        ? new Date(loan.vehicleInformation.fcDate).toLocaleDateString()
         : "",
-      rtoWorkPending: loan.rtoWorkPending,
-      isSeized: loan.isSeized ? "Seized" : "Active",
+      insuranceDate: loan.vehicleInformation.insuranceDate
+        ? new Date(loan.vehicleInformation.insuranceDate).toLocaleDateString()
+        : "",
+      rtoWorkPending: Array.isArray(loan.vehicleInformation.rtoWorkPending)
+        ? loan.vehicleInformation.rtoWorkPending.join(", ")
+        : loan.vehicleInformation.rtoWorkPending,
+      isSeized: loan.status.isSeized ? "Seized" : "Active",
     });
 
     // Add Dynamic Formulas

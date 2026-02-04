@@ -8,13 +8,13 @@ const generateTokens = (user) => {
   const accessToken = jwt.sign(
     { id: user._id, email: user.email, role: user.role, name: user.name },
     process.env.JWT_SECRET,
-    { expiresIn: "15m" },
+    { expiresIn: process.env.JWT_EXPIRE || "30m" },
   );
 
   const refreshToken = jwt.sign(
     { id: user._id },
     process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
-    { expiresIn: "7d" },
+    { expiresIn: process.env.JWT_REFRESH_EXPIRE || "7d" },
   );
 
   return { accessToken, refreshToken };
@@ -52,8 +52,8 @@ const login = asyncHandler(async (req, res, next) => {
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+    maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
   });
 
   return sendResponse(res, 200, "success", "Login successful", null, {
@@ -79,21 +79,44 @@ const refreshToken = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Invalid refresh token", 403));
   }
 
-  const user = await User.findById(decoded.id).select("+refreshToken");
+  const user = await User.findById(decoded.id).select(
+    "+refreshToken +previousRefreshToken +previousRefreshTokenExpiresAt",
+  );
 
-  if (!user || user.refreshToken !== token) {
-    return next(new ErrorHandler("Invalid refresh token", 403));
+  if (!user) {
+    return next(new ErrorHandler("User not found", 403));
+  }
+
+  let isGracePeriod = false;
+  if (user.refreshToken !== token) {
+    if (
+      user.previousRefreshToken === token &&
+      user.previousRefreshTokenExpiresAt &&
+      user.previousRefreshTokenExpiresAt > Date.now()
+    ) {
+      isGracePeriod = true;
+      console.log("Grace period refresh token used for user:", user.email);
+    } else {
+      console.warn("Invalid refresh token attempt for user:", user.email);
+      return next(new ErrorHandler("Invalid refresh token", 403));
+    }
   }
 
   const tokens = generateTokens(user);
+
+  if (!isGracePeriod) {
+    user.previousRefreshToken = token;
+    user.previousRefreshTokenExpiresAt = new Date(Date.now() + 30000);
+  }
+
   user.refreshToken = tokens.refreshToken;
   await user.save();
 
   res.cookie("refreshToken", tokens.refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+    maxAge: 10 * 24 * 60 * 60 * 1000,
   });
 
   return sendResponse(res, 200, "success", "Token refreshed", null, {

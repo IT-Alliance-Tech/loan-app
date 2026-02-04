@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const path = require("path");
+const { addMonths } = require("date-fns");
 
 // Load env variables
 dotenv.config({ path: path.join(__dirname, "../.env") });
@@ -59,11 +60,10 @@ const run = async () => {
           loanNumber: loan.loanNumber,
           customerName: loan.customerName,
           emiNumber: i,
-          dueDate: new Date(currentEmiDate),
+          dueDate: addMonths(new Date(currentEmiDate), i - 1),
           emiAmount: monthlyEMI,
           status: "Pending",
         });
-        currentEmiDate.setMonth(currentEmiDate.getMonth() + 1);
       }
 
       await EMI.insertMany(emis);

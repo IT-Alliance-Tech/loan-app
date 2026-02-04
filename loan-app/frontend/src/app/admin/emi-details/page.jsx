@@ -278,9 +278,16 @@ const EMIDetailsPage = () => {
                             <tr
                               key={group.loanId || group.loanNumber}
                               className="active:bg-slate-50 transition-colors"
-                              onClick={() =>
-                                (window.location.href = `/admin/loans/edit/${group.loanId}`)
-                              }
+                              onClick={() => {
+                                if (
+                                  group.loanId &&
+                                  group.loanId !== "undefined"
+                                ) {
+                                  window.location.href = `/admin/loans/edit/${group.loanId}`;
+                                } else {
+                                  console.error("Loan ID is undefined", group);
+                                }
+                              }}
                             >
                               <td className="px-4 py-5">
                                 <span className="bg-blue-50 text-sky-600 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-tighter whitespace-nowrap">
@@ -366,9 +373,16 @@ const EMIDetailsPage = () => {
                           <tr
                             key={group.loanId || group.loanNumber}
                             className="hover:bg-slate-50/50 transition-colors cursor-pointer"
-                            onClick={() =>
-                              (window.location.href = `/admin/loans/edit/${group.loanId}`)
-                            }
+                            onClick={() => {
+                              if (
+                                group.loanId &&
+                                group.loanId !== "undefined"
+                              ) {
+                                window.location.href = `/admin/loans/edit/${group.loanId}`;
+                              } else {
+                                console.error("Loan ID is undefined", group);
+                              }
+                            }}
                           >
                             <td className="px-6 py-4">
                               <span className="bg-blue-50 text-sky-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter">
