@@ -251,7 +251,7 @@ const PartialPaymentsPage = () => {
                               <button
                                 onClick={() =>
                                   router.push(
-                                    `/admin/pending-payments/view/${item._id}`,
+                                    `/admin/pending-payments/view/${item._id}?from=partial`,
                                   )
                                 }
                                 className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-100"

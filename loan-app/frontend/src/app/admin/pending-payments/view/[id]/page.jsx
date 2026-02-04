@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import AuthGuard from "../../../../../components/AuthGuard";
 import Navbar from "../../../../../components/Navbar";
 import Sidebar from "../../../../../components/Sidebar";
@@ -16,6 +16,8 @@ import { useToast } from "../../../../../context/ToastContext";
 const LoanPendingViewPage = () => {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromPage = searchParams.get("from");
   const [loan, setLoan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -66,7 +68,11 @@ const LoanPendingViewPage = () => {
       setUpdating(true);
       await updateEMI(id, { remarks: newStatus });
       showToast("Status response updated", "success");
-      router.push("/admin/pending-payments");
+      const redirectPath =
+        fromPage === "partial"
+          ? "/admin/partial-payments"
+          : "/admin/pending-payments";
+      router.push(redirectPath);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -89,7 +95,11 @@ const LoanPendingViewPage = () => {
       await updateEMI(id, payload);
       showToast("EMI updated successfully", "success");
       setShowModal(false);
-      router.push("/admin/pending-payments");
+      const redirectPath =
+        fromPage === "partial"
+          ? "/admin/partial-payments"
+          : "/admin/pending-payments";
+      router.push(redirectPath);
     } catch (error) {
       showToast(error.message || "Failed to update EMI", "error");
     } finally {
