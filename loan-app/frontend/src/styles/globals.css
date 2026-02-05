@@ -22,7 +22,9 @@ body {
 button,
 a,
 select,
-input,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
 [role="button"],
 .clickable {
   cursor: pointer !important;
