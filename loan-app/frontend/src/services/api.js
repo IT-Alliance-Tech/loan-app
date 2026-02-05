@@ -119,7 +119,10 @@ const attemptRefresh = async () => {
 const logoutUser = () => {
   removeToken();
   if (typeof window !== "undefined") {
-    window.location.href = "/login";
+    // Avoid redirect loop if already on login page
+    if (window.location.pathname !== "/admin/login") {
+      window.location.href = "/admin/login";
+    }
   }
 };
 
