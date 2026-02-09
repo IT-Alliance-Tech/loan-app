@@ -313,11 +313,72 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     runValidators: true,
   });
 
+  // Synchronize EMIs if relevant terms changed
+  if (loanTerms || customerDetails || (statusObj && statusObj.status)) {
+    const emis = await EMI.find({ loanId: loan._id }).sort({ emiNumber: 1 });
+    const oldTenure = emis.length;
+    const newTenure = parseInt(currentTenure);
+    const newEmiStartDate = loanTerms?.emiStartDate
+      ? new Date(loanTerms.emiStartDate)
+      : new Date(loan.emiStartDate);
+
+    // 1. Update existing EMIs
+    const updatePromises = emis.map((emi, index) => {
+      const emiNum = index + 1;
+      const updates = {};
+
+      // Update denormalized info
+      if (customerDetails?.customerName)
+        updates.customerName = customerDetails.customerName;
+      if (loanTerms?.loanNumber) updates.loanNumber = loanTerms.loanNumber;
+
+      // Update EMI amount for pending/partially paid EMIs
+      if (emi.status !== "Paid") {
+        updates.emiAmount = monthlyEMI;
+      }
+
+      // Update due dates based on new emiStartDate
+      updates.dueDate = addMonths(new Date(newEmiStartDate), emiNum - 1);
+
+      return EMI.findByIdAndUpdate(emi._id, updates);
+    });
+
+    await Promise.all(updatePromises);
+
+    // 2. Handle Tenure Increase
+    if (newTenure > oldTenure) {
+      const extraEmis = [];
+      for (let i = oldTenure + 1; i <= newTenure; i++) {
+        extraEmis.push({
+          loanId: loan._id,
+          loanNumber: loan.loanNumber,
+          customerName: loan.customerName,
+          emiNumber: i,
+          dueDate: addMonths(new Date(newEmiStartDate), i - 1),
+          emiAmount: monthlyEMI,
+          status: "Pending",
+        });
+      }
+      if (extraEmis.length > 0) {
+        await EMI.insertMany(extraEmis);
+      }
+    }
+    // 3. Handle Tenure Decrease
+    else if (newTenure < oldTenure) {
+      // Remove extra EMIs only if they are Pending
+      await EMI.deleteMany({
+        loanId: loan._id,
+        emiNumber: { $gt: newTenure },
+        status: "Pending",
+      });
+    }
+  }
+
   sendResponse(
     res,
     200,
     "success",
-    "Loan updated successfully",
+    "Loan updated and EMIs synchronized successfully",
     null,
     formatLoanResponse(loan),
   );
