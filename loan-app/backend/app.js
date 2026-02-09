@@ -20,7 +20,11 @@ app.set("trust proxy", 1);
 // Allow multiple origins for CORS
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(",")
-  : ["http://localhost:3000", "https://loan-application.italliancetech.com"];
+  : [
+      "http://localhost:3000",
+      "https://loan-application.italliancetech.com",
+      "https://loanapp-dev.vercel.app",
+    ];
 
 app.use(
   cors({
