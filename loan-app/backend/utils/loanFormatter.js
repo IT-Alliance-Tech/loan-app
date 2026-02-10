@@ -56,6 +56,7 @@ const formatLoanResponse = (loanDoc) => {
       isSeized: loan.isSeized || false,
       docChecklist: loan.docChecklist,
       remarks: loan.remarks,
+      clientResponse: loan.clientResponse,
       id: loan._id,
       createdBy: loan.createdBy,
       createdAt: loan.createdAt,

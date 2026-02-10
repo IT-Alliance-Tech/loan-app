@@ -114,6 +114,10 @@ const createLoan = asyncHandler(async (req, res, next) => {
 
     // status
     status: statusObj?.status,
+    paymentStatus: statusObj?.paymentStatus || "Pending",
+    docChecklist: statusObj?.docChecklist,
+    remarks: statusObj?.remarks,
+    clientResponse: statusObj?.clientResponse,
     createdBy: req.user._id,
   });
 
@@ -303,6 +307,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       isSeized: statusObj.isSeized,
       docChecklist: statusObj.docChecklist,
       remarks: statusObj.remarks,
+      clientResponse: statusObj.clientResponse,
     }),
     monthlyEMI,
     totalInterestAmount: calculatedTotalInterest,
@@ -313,11 +318,39 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     runValidators: true,
   });
 
+  // Regenerate EMIs if relevant fields changed
+  if (
+    loanTerms?.emiStartDate ||
+    loanTerms?.tenureMonths ||
+    loanTerms?.principalAmount ||
+    loanTerms?.annualInterestRate
+  ) {
+    // Delete existing EMIs
+    await EMI.deleteMany({ loanId: loan._id });
+
+    // Generate new EMIs
+    const emis = [];
+    let currentEmiDate = new Date(loan.emiStartDate || new Date());
+
+    for (let i = 1; i <= loan.tenureMonths; i++) {
+      emis.push({
+        loanId: loan._id,
+        loanNumber: loan.loanNumber,
+        customerName: loan.customerName,
+        emiNumber: i,
+        dueDate: addMonths(new Date(currentEmiDate), i - 1),
+        emiAmount: loan.monthlyEMI,
+        status: "Pending",
+      });
+    }
+    await EMI.insertMany(emis);
+  }
+
   sendResponse(
     res,
     200,
     "success",
-    "Loan updated successfully",
+    "Loan updated and EMI schedule recalculated successfully",
     null,
     formatLoanResponse(loan),
   );
@@ -405,6 +438,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         loanId: "$_id",
         loanNumber: 1,
         customerName: 1,
+        status: 1,
         mobileNumbers: 1,
         vehicleNumber: 1,
         model: 1,
@@ -412,6 +446,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         amountPaid: "$pendingEmis.amountPaid",
         dueDate: "$pendingEmis.dueDate",
         remarks: { $ifNull: ["$pendingEmis.remarks", "$paymentStatus", ""] },
+        clientResponse: 1,
         emiNumber: "$pendingEmis.emiNumber",
       },
     },

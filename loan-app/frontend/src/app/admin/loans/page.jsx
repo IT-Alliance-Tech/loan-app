@@ -224,6 +224,9 @@ const LoansPage = () => {
                             STATUS
                           </th>
                           <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
+                            CLIENT RESPONSE
+                          </th>
+                          <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             ACTIONS
                           </th>
                         </tr>
@@ -285,6 +288,14 @@ const LoansPage = () => {
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${loan.isSeized ? "bg-red-50 text-red-500 border-red-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"}`}
                                 >
                                   {loan.status.isSeized ? "Seized" : "Active"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-6 text-center whitespace-nowrap">
+                                <span
+                                  title={loan.status.clientResponse}
+                                  className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate max-w-[100px] mx-auto"
+                                >
+                                  {loan.status.clientResponse || "—"}
                                 </span>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap">
@@ -401,6 +412,9 @@ const LoansPage = () => {
                             Status
                           </th>
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                            Client Response
+                          </th>
+                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                             Actions
                           </th>
                         </tr>
@@ -453,6 +467,14 @@ const LoansPage = () => {
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${loan.isSeized ? "bg-red-100 text-red-600 border-red-200" : "bg-green-100 text-green-600 border-green-200"}`}
                                 >
                                   {loan.status.isSeized ? "Seized" : "Active"}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <span
+                                  title={loan.status.clientResponse}
+                                  className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate max-w-[150px] mx-auto"
+                                >
+                                  {loan.status.clientResponse || "—"}
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
