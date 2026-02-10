@@ -230,7 +230,11 @@ const PartialPaymentsPage = () => {
                               <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                                 {new Date(item.dueDate).toLocaleDateString(
                                   "en-US",
-                                  { month: "short", year: "numeric" },
+                                  {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  },
                                 )}
                               </span>
                             </td>
