@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
-import { getSeizedPending } from "../../../services/loan.service";
+import { getSeizedPending, updateLoan } from "../../../services/loan.service";
 import Pagination from "../../../components/Pagination";
+import { useToast } from "../../../context/ToastContext";
 
 const PendingPaymentsPage = () => {
   const router = useRouter();
@@ -26,6 +27,12 @@ const PendingPaymentsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
+  const { showToast } = useToast();
+
+  // Client Response Edit State
+  const [editingItem, setEditingItem] = useState(null);
+  const [tempResponse, setTempResponse] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchSeizedPending({ page: currentPage, limit });
@@ -101,6 +108,30 @@ const PendingPaymentsPage = () => {
     setCurrentPage(1);
     fetchSeizedPending({ page: 1, limit });
     setIsFilterOpen(false);
+  };
+
+  const handleUpdateResponse = async (e) => {
+    if (e) e.preventDefault();
+    if (!editingItem) return;
+
+    try {
+      setIsSubmitting(true);
+      await updateLoan(editingItem.loanId, {
+        status: {
+          status: editingItem.status, // Preserve existing status
+          clientResponse: tempResponse,
+        },
+      });
+
+      showToast("Client response updated successfully", "success");
+      setEditingItem(null);
+      // Refresh data to show updated response
+      fetchSeizedPending({ page: currentPage, limit });
+    } catch (err) {
+      showToast(err.message || "Failed to update response", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -187,6 +218,9 @@ const PendingPaymentsPage = () => {
                           Remarks
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                          Client Response
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Action
                         </th>
                       </tr>
@@ -252,6 +286,37 @@ const PendingPaymentsPage = () => {
                               <span className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate">
                                 {item.remarks || "No remarks"}
                               </span>
+                            </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap">
+                              <div
+                                onClick={() => {
+                                  setEditingItem(item);
+                                  setTempResponse(item.clientResponse || "");
+                                }}
+                                className="cursor-pointer group/response relative"
+                              >
+                                <span
+                                  title={item.clientResponse}
+                                  className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate max-w-[150px] mx-auto hover:border-primary/30 transition-all"
+                                >
+                                  {item.clientResponse || "Add Response..."}
+                                </span>
+                                <div className="absolute -right-2 -top-2 opacity-0 group-hover/response:opacity-100 transition-opacity bg-primary text-white p-1 rounded-full shadow-lg scale-75">
+                                  <svg
+                                    className="w-3 h-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="3"
+                                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                    />
+                                  </svg>
+                                </div>
+                              </div>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <button
@@ -384,6 +449,73 @@ const PendingPaymentsPage = () => {
                   Reset
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Client Response Modal */}
+        {editingItem && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+              onClick={() => !isSubmitting && setEditingItem(null)}
+            ></div>
+            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl animate-scale-up overflow-hidden border border-slate-100">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
+                    Update Response
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    {editingItem.loanNumber} • {editingItem.customerName}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEditingItem(null)}
+                  disabled={isSubmitting}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-slate-600 disabled:opacity-50"
+                >
+                  ✕
+                </button>
+              </div>
+              <form onSubmit={handleUpdateResponse} className="p-6">
+                <div className="mb-6">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                    Client Response Message
+                  </label>
+                  <textarea
+                    autoFocus
+                    value={tempResponse}
+                    onChange={(e) => setTempResponse(e.target.value)}
+                    placeholder="Enter the client's response or status update..."
+                    className="w-full h-32 px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary transition-all resize-none placeholder:text-slate-300"
+                  ></textarea>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingItem(null)}
+                    disabled={isSubmitting}
+                    className="flex-1 px-6 py-4 rounded-2xl font-black text-[12px] uppercase text-slate-400 border border-slate-100 hover:bg-slate-50 transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-[2] bg-primary text-white py-4 rounded-2xl font-black text-[12px] uppercase shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Response"
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

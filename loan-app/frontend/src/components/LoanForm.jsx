@@ -164,6 +164,7 @@ const LoanForm = ({
         isSeized: initialData?.status?.isSeized || false,
         docChecklist: initialData?.status?.docChecklist || "",
         remarks: initialData?.status?.remarks || "",
+        clientResponse: initialData?.status?.clientResponse || "",
       },
     },
     validationSchema,
@@ -1408,14 +1409,36 @@ const LoanForm = ({
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-6">
-            <div>{renderExtraActions && renderExtraActions()}</div>
-            <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end pt-8 border-t border-slate-100 mt-8 gap-6 sm:gap-4">
+            <div className="flex-1 w-full sm:max-w-sm">
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-xl animate-in fade-in slide-in-from-left-4 duration-500">
+                <h3 className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">
+                  Status Update (Client Response)
+                </h3>
+                <div className="space-y-3">
+                  <textarea
+                    name="status.clientResponse"
+                    value={formik.values.status.clientResponse || ""}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    readOnly={isViewOnly}
+                    placeholder={
+                      isViewOnly ? "No response recorded" : "Response..."
+                    }
+                    className={`w-full bg-slate-800/30 border border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-slate-600 transition-all min-h-[60px] resize-none ${isViewOnly ? "opacity-80" : ""}`}
+                  ></textarea>
+                </div>
+              </div>
+              {renderExtraActions && (
+                <div className="mt-4">{renderExtraActions()}</div>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               {isViewOnly ? (
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all"
+                  className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all"
                 >
                   Back to List
                 </button>
@@ -1424,7 +1447,7 @@ const LoanForm = ({
                   <button
                     type="button"
                     onClick={onCancel}
-                    className="px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:bg-slate-200 transition-colors"
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:bg-slate-200 transition-colors order-2 sm:order-1"
                   >
                     Cancel
                   </button>
@@ -1433,7 +1456,7 @@ const LoanForm = ({
                     disabled={
                       submitting || (formik.submitCount > 0 && !formik.isValid)
                     }
-                    className="bg-primary text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all"
+                    className="w-full sm:w-auto bg-primary text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all order-1 sm:order-2"
                   >
                     {submitting
                       ? "Processing..."

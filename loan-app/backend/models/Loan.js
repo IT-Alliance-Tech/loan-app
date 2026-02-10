@@ -151,6 +151,10 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    clientResponse: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: String,
       required: [true, "Status is required"],

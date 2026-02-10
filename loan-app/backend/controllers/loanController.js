@@ -114,6 +114,10 @@ const createLoan = asyncHandler(async (req, res, next) => {
 
     // status
     status: statusObj?.status,
+    paymentStatus: statusObj?.paymentStatus || "Pending",
+    docChecklist: statusObj?.docChecklist,
+    remarks: statusObj?.remarks,
+    clientResponse: statusObj?.clientResponse,
     createdBy: req.user._id,
   });
 
@@ -303,6 +307,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       isSeized: statusObj.isSeized,
       docChecklist: statusObj.docChecklist,
       remarks: statusObj.remarks,
+      clientResponse: statusObj.clientResponse,
     }),
     monthlyEMI,
     totalInterestAmount: calculatedTotalInterest,
@@ -466,6 +471,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         loanId: "$_id",
         loanNumber: 1,
         customerName: 1,
+        status: 1,
         mobileNumbers: 1,
         vehicleNumber: 1,
         model: 1,
@@ -473,6 +479,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         amountPaid: "$pendingEmis.amountPaid",
         dueDate: "$pendingEmis.dueDate",
         remarks: { $ifNull: ["$pendingEmis.remarks", "$paymentStatus", ""] },
+        clientResponse: 1,
         emiNumber: "$pendingEmis.emiNumber",
       },
     },
