@@ -349,7 +349,8 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
 });
 // export all values
 const getPendingPayments = asyncHandler(async (req, res, next) => {
-  const { customerName, loanNumber, vehicleNumber, status } = req.query;
+  const { customerName, loanNumber, vehicleNumber, mobileNumber, status } =
+    req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
@@ -364,6 +365,9 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
   }
   if (vehicleNumber) {
     query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  }
+  if (mobileNumber) {
+    query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
   }
 
   const result = await Loan.aggregate([

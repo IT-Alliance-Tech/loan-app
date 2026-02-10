@@ -18,6 +18,7 @@ const PendingPaymentsPage = () => {
     loanNumber: "",
     customerName: "",
     vehicleNumber: "",
+    mobileNumber: "",
   });
 
   // Pagination State
@@ -93,6 +94,7 @@ const PendingPaymentsPage = () => {
       loanNumber: "",
       customerName: "",
       vehicleNumber: "",
+      mobileNumber: "",
     };
     setFilters(emptyFilters);
     setSearchQuery("");
@@ -344,6 +346,18 @@ const PendingPaymentsPage = () => {
                       type="text"
                       name="vehicleNumber"
                       value={filters.vehicleNumber}
+                      onChange={handleFilterChange}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                      Mobile Number
+                    </label>
+                    <input
+                      type="text"
+                      name="mobileNumber"
+                      value={filters.mobileNumber}
                       onChange={handleFilterChange}
                       className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
                     />
