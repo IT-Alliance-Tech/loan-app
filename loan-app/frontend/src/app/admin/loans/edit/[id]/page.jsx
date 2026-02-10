@@ -85,8 +85,8 @@ const EditLoanPage = () => {
     setSubmitting(true);
     try {
       await updateLoan(id, formData);
-      showToast("Loan profile updated successfully", "success");
-      router.push("/admin/loans");
+      showToast("Loan profile updated and EMIs synchronized", "success");
+      await fetchLoanData();
     } catch (err) {
       showToast(err.message || "Failed to update loan", "error");
     } finally {
