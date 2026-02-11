@@ -246,7 +246,42 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
   const skip = (page - 1) * limit;
 
   const total = await EMI.countDocuments();
-  const emis = await EMI.find().sort({ updatedAt: -1 }).skip(skip).limit(limit);
+
+  const emis = await EMI.aggregate([
+    { $sort: { updatedAt: -1 } },
+    { $skip: skip },
+    { $limit: limit },
+    {
+      $lookup: {
+        from: "loans",
+        localField: "loanId",
+        foreignField: "_id",
+        as: "loan",
+      },
+    },
+    { $unwind: "$loan" },
+    {
+      $project: {
+        _id: 1,
+        loanId: 1,
+        loanNumber: 1,
+        customerName: 1,
+        emiNumber: 1,
+        dueDate: 1,
+        emiAmount: 1,
+        amountPaid: 1,
+        paymentDate: 1,
+        paymentMode: 1,
+        overdue: 1,
+        status: 1,
+        remarks: 1,
+        updatedAt: 1,
+        mobileNumbers: "$loan.mobileNumbers",
+        guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
+        guarantorName: "$loan.guarantorName",
+      },
+    },
+  ]);
 
   sendResponse(res, 200, "success", "EMI details fetched successfully", null, {
     emis,
