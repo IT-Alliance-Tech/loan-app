@@ -163,8 +163,12 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
   if (customerName)
     query.customerName = { $regex: customerName, $options: "i" };
-  if (mobileNumber)
-    query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
+  if (mobileNumber) {
+    query.$or = [
+      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+    ];
+  }
   if (tenureMonths) query.tenureMonths = tenureMonths;
   if (status) {
     if (status === "Seized") query.isSeized = true;
@@ -433,7 +437,10 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
   }
   if (mobileNumber) {
-    query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
+    query.$or = [
+      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+    ];
   }
 
   const result = await Loan.aggregate([
@@ -471,8 +478,10 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         loanId: "$_id",
         loanNumber: 1,
         customerName: 1,
+        guarantorName: 1,
         status: 1,
         mobileNumbers: 1,
+        guarantorMobileNumbers: 1,
         vehicleNumber: 1,
         model: 1,
         emiAmount: "$pendingEmis.emiAmount",
