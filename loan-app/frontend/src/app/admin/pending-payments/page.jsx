@@ -21,6 +21,7 @@ const PendingPaymentsPage = () => {
     vehicleNumber: "",
     mobileNumber: "",
   });
+  const [selectedContact, setSelectedContact] = useState(null); // Contact Details Modal
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -206,7 +207,10 @@ const PendingPaymentsPage = () => {
                           Loan ID
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                          Applicant Name
+                          Applicant
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          Guarantor
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Month
@@ -259,6 +263,33 @@ const PendingPaymentsPage = () => {
                               <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
                                 {item.customerName}
                               </span>
+                              <div className="flex flex-col gap-0.5 mt-1">
+                                {(item.mobileNumbers || []).map((num, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="text-[9px] font-bold text-slate-400"
+                                  >
+                                    {num}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 whitespace-nowrap">
+                              <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
+                                {item.guarantorName || "—"}
+                              </span>
+                              <div className="flex flex-col gap-0.5 mt-1">
+                                {(item.guarantorMobileNumbers || []).map(
+                                  (num, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-[9px] font-bold text-slate-400"
+                                    >
+                                      {num}
+                                    </span>
+                                  ),
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
