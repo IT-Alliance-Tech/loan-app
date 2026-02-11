@@ -35,6 +35,8 @@ const LoanPendingViewPage = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [pendingEmis, setPendingEmis] = useState([]);
+  const [selectedEmi, setSelectedEmi] = useState(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -45,19 +47,11 @@ const LoanPendingViewPage = () => {
     try {
       setLoading(true);
       const res = await getPendingEmiDetails(id);
-      if (res.data) {
-        setLoan(res.data);
-        setNewStatus(res.data.clientResponse || "");
-        setEditData({
-          amountPaid: "", // Initialized to empty for incremental payment
-          paymentMode: res.data.paymentMode || "",
-          paymentDate: res.data.paymentDate
-            ? new Date(res.data.paymentDate).toISOString().split("T")[0]
-            : new Date().toISOString().split("T")[0],
-          overdue: res.data.overdue || 0,
-          status: res.data.status || "Pending",
-          remarks: res.data.remarks || "",
-        });
+      if (res.data && Array.isArray(res.data)) {
+        setPendingEmis(res.data);
+        const current = res.data.find((e) => e._id === id) || res.data[0];
+        setLoan(current);
+        setNewStatus(current.clientResponse || "");
       }
     } catch (err) {
       setError(err.message);
@@ -96,7 +90,7 @@ const LoanPendingViewPage = () => {
       // Remove amountPaid from payload to avoid confusion/overwriting with the small incremental value as absolute
       delete payload.amountPaid;
 
-      await updateEMI(id, payload);
+      await updateEMI(selectedEmi._id, payload);
       showToast("EMI updated successfully", "success");
       setShowModal(false);
       const redirectPath =
@@ -118,10 +112,10 @@ const LoanPendingViewPage = () => {
 
       // UI Preview only: Auto-calculate status if amountPaid changes
       if (name === "amountPaid") {
-        const currentPaid = parseFloat(loan?.amountPaid) || 0;
+        const currentPaid = parseFloat(selectedEmi?.amountPaid) || 0;
         const newPayment = parseFloat(value) || 0;
         const totalPaid = currentPaid + newPayment;
-        const total = parseFloat(loan?.emiAmount) || 0;
+        const total = parseFloat(selectedEmi?.emiAmount) || 0;
 
         if (totalPaid >= total) {
           newData.status = "Paid";
@@ -178,7 +172,18 @@ const LoanPendingViewPage = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowModal(true)}
+                  onClick={() => {
+                    setSelectedEmi(pendingEmis[0]);
+                    setEditData({
+                      amountPaid: "",
+                      paymentMode: pendingEmis[0].paymentMode || "",
+                      paymentDate: new Date().toISOString().split("T")[0],
+                      overdue: pendingEmis[0].overdue || 0,
+                      status: pendingEmis[0].status || "Pending",
+                      remarks: pendingEmis[0].remarks || "",
+                    });
+                    setShowModal(true);
+                  }}
                   className="px-6 py-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center gap-2"
                 >
                   <span className="text-sm">₹</span> Pay EMI
@@ -228,9 +233,6 @@ const LoanPendingViewPage = () => {
                             </button>
                           ))}
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-3 leading-relaxed">
-                          {loan.address}
-                        </p>
                       </div>
                       <div>
                         <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-2">
@@ -312,7 +314,7 @@ const LoanPendingViewPage = () => {
                   {/* Payment Update Section */}
                   <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200">
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">
-                      Status Update (Client Response)
+                      Client Response
                     </h3>
                     <div className="space-y-4">
                       <textarea
@@ -347,48 +349,88 @@ const LoanPendingViewPage = () => {
                           ₹{loan.principalAmount?.toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
-                        <div className="flex justify-between items-start">
-                          <span className="text-[10px] font-bold text-red-500 uppercase">
-                            Monthly EMI
-                          </span>
-                          <div className="text-right">
-                            <span className="text-xs font-black text-red-600 font-mono block">
-                              ₹{loan.emiAmount?.toLocaleString()}
-                            </span>
-                            <span className="text-[9px] font-bold text-red-400 uppercase tracking-tighter">
-                              {loan.dueDate &&
-                                format(new Date(loan.dueDate), "dd MMM yyyy")}
-                            </span>
-                          </div>
-                        </div>
+                      <div className="space-y-4 max-h-[520px] overflow-y-auto pr-2 custom-scrollbar">
+                        {pendingEmis.map((emi, idx) => (
+                          <div
+                            key={emi._id}
+                            className={`${idx === 0 ? "bg-red-50" : "bg-slate-50"} border ${idx === 0 ? "border-red-100" : "border-slate-100"} rounded-2xl p-4 mb-4 last:mb-0`}
+                          >
+                            <div className="flex justify-between items-center mb-3">
+                              <span
+                                className={`text-[10px] font-black ${idx === 0 ? "text-red-500" : "text-slate-400"} uppercase tracking-wider`}
+                              >
+                                EMI {emi.emiNumber || idx + 1} ACTION
+                              </span>
+                            </div>
 
-                        {(loan.amountPaid > 0 ||
-                          loan.status === "Partially Paid") && (
-                          <div className="pt-3 border-t border-red-200/50 space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
-                                Amount Paid
-                              </span>
-                              <span className="text-[11px] font-black text-green-600 font-mono">
-                                ₹{loan.amountPaid?.toLocaleString()}
-                              </span>
+                            <div className="grid grid-cols-3 gap-2">
+                              {/* Box 1: EMI Amount */}
+                              <div className="bg-white border border-red-50/50 rounded-xl py-1.5 px-2.5 text-center shadow-sm">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                                  Amount
+                                </span>
+                                <span className="text-[11px] font-black text-red-600 font-mono">
+                                  ₹{emi.emiAmount?.toLocaleString()}
+                                </span>
+                              </div>
+
+                              {/* Box 2: EMI Month */}
+                              <div className="bg-white border border-red-50/50 rounded-xl py-1.5 px-2.5 text-center shadow-sm">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                                  Month
+                                </span>
+                                <span className="text-[10px] font-black text-slate-700 uppercase">
+                                  {emi.dueDate &&
+                                    format(new Date(emi.dueDate), "MMM yy")}
+                                </span>
+                              </div>
+
+                              {/* Box 3: Pay Button */}
+                              <button
+                                onClick={() => {
+                                  setSelectedEmi(emi);
+                                  setEditData({
+                                    amountPaid: "",
+                                    paymentMode: emi.paymentMode || "",
+                                    paymentDate: new Date()
+                                      .toISOString()
+                                      .split("T")[0],
+                                    overdue: emi.overdue || 0,
+                                    status: emi.status || "Pending",
+                                    remarks: emi.remarks || "",
+                                  });
+                                  setShowModal(true);
+                                }}
+                                className="bg-red-600 hover:bg-red-700 text-white rounded-xl py-1.5 px-2.5 flex flex-col items-center justify-center transition-all shadow-md active:scale-95 group"
+                              >
+                                <span className="text-[8px] font-black text-white/70 uppercase tracking-widest block mb-0.5">
+                                  Action
+                                </span>
+                                <span className="text-[10px] font-black uppercase flex items-center gap-1">
+                                  <span className="text-xs">₹</span> PAY
+                                </span>
+                              </button>
                             </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[9px] font-bold text-red-500 uppercase tracking-tight">
-                                Balance Due
-                              </span>
-                              <span className="text-[11px] font-black text-red-700 font-mono">
-                                ₹
-                                {Math.max(
-                                  0,
-                                  (loan.emiAmount || 0) -
-                                    (loan.amountPaid || 0),
-                                ).toLocaleString()}
-                              </span>
-                            </div>
+
+                            {emi.amountPaid > 0 && (
+                              <div className="mt-4 pt-3 border-t border-red-50 space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
+                                    Paid: ₹{emi.amountPaid?.toLocaleString()}
+                                  </span>
+                                  <span className="text-[9px] font-black text-red-600 uppercase">
+                                    Bal: ₹
+                                    {Math.max(
+                                      0,
+                                      (emi.emiAmount || 0) -
+                                        (emi.amountPaid || 0),
+                                    ).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -403,13 +445,16 @@ const LoanPendingViewPage = () => {
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <div>
                       <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                        UPDATE EMI #
+                        UPDATE EMI #{selectedEmi?.emiNumber}
                       </h3>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                         DUE DATE:{" "}
-                        {loan?.dueDate &&
-                          format(new Date(loan.dueDate), "dd-MM-yyyy")}{" "}
-                        | AMOUNT: ₹{loan?.emiAmount}
+                        {selectedEmi?.dueDate &&
+                          format(
+                            new Date(selectedEmi.dueDate),
+                            "dd-MM-yyyy",
+                          )}{" "}
+                        | AMOUNT: ₹{selectedEmi?.emiAmount}
                       </p>
                     </div>
                     <button
@@ -445,8 +490,8 @@ const LoanPendingViewPage = () => {
                           type="text"
                           value={`₹${Math.max(
                             0,
-                            (loan?.emiAmount || 0) -
-                              (loan?.amountPaid || 0) -
+                            (selectedEmi?.emiAmount || 0) -
+                              (selectedEmi?.amountPaid || 0) -
                               (parseFloat(editData.amountPaid) || 0),
                           ).toFixed(2)}`}
                           disabled
