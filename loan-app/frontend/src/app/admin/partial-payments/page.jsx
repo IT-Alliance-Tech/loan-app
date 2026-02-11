@@ -6,6 +6,7 @@ import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import { getSeizedPending } from "../../../services/loan.service";
 import Pagination from "../../../components/Pagination";
+import Link from "next/link";
 
 const PartialPaymentsPage = () => {
   const router = useRouter();
@@ -14,13 +15,13 @@ const PartialPaymentsPage = () => {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
   const [filters, setFilters] = useState({
     loanNumber: "",
     customerName: "",
     vehicleNumber: "",
     mobileNumber: "",
   });
+  const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -179,16 +180,19 @@ const PartialPaymentsPage = () => {
                           Applicant Name
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                          Contact
+                          Applicant Mobile
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          Guarantor Name
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          Guarantor Mobile
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                          Month
+                          Months
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Remaining Amount
-                        </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                          Remarks
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Action
@@ -199,7 +203,7 @@ const PartialPaymentsPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="7"
+                            colSpan="8"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             Loading records...
@@ -208,7 +212,7 @@ const PartialPaymentsPage = () => {
                       ) : data.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="7"
+                            colSpan="8"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             No records found
@@ -217,13 +221,16 @@ const PartialPaymentsPage = () => {
                       ) : (
                         data.map((item) => (
                           <tr
-                            key={item._id}
+                            key={item.loanId}
                             className="hover:bg-slate-50 transition-colors group"
                           >
                             <td className="px-6 py-5 whitespace-nowrap">
-                              <span className="text-[11px] font-black text-primary uppercase tracking-wider">
+                              <Link
+                                href={`/admin/pending-payments/view/${item.earliestEmiId}?from=partial`}
+                                className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
+                              >
                                 {item.loanNumber}
-                              </span>
+                              </Link>
                             </td>
                             <td className="px-6 py-5 whitespace-nowrap">
                               <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
@@ -231,7 +238,7 @@ const PartialPaymentsPage = () => {
                               </span>
                             </td>
                             <td className="px-6 py-5 whitespace-nowrap">
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-0.5 mt-1">
                                 {(item.mobileNumbers || []).map((num, idx) => (
                                   <button
                                     key={idx}
@@ -246,45 +253,61 @@ const PartialPaymentsPage = () => {
                                         y: rect.bottom,
                                       });
                                     }}
-                                    className="text-[10px] font-bold text-primary hover:underline text-left"
+                                    className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
                                   >
                                     {num}
                                   </button>
                                 ))}
                               </div>
                             </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap">
-                              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                                {new Date(item.dueDate).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    day: "2-digit",
-                                    month: "short",
-                                    year: "numeric",
-                                  },
+                            <td className="px-6 py-5 whitespace-nowrap">
+                              <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
+                                {item.guarantorName || "—"}
+                              </span>
+                            </td>
+                            <td className="px-6 py-5 whitespace-nowrap">
+                              <div className="flex flex-col gap-0.5 mt-1">
+                                {(item.guarantorMobileNumbers || []).map(
+                                  (num, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={(e) => {
+                                        const rect =
+                                          e.currentTarget.getBoundingClientRect();
+                                        setActiveContactMenu({
+                                          number: num,
+                                          name: item.guarantorName,
+                                          type: "Guarantor",
+                                          x: rect.left,
+                                          y: rect.bottom,
+                                        });
+                                      }}
+                                      className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
+                                    >
+                                      {num}
+                                    </button>
+                                  ),
                                 )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap">
+                              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-md">
+                                {item.unpaidMonths}{" "}
+                                {item.unpaidMonths === 1 ? "Month" : "Months"}
                               </span>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <div className="flex flex-col items-center">
                                 <span className="text-sm font-black text-orange-600 tracking-tight">
-                                  ₹
-                                  {(
-                                    item.emiAmount - item.amountPaid
-                                  ).toLocaleString()}
+                                  ₹{item.totalDueAmount.toLocaleString()}
                                 </span>
                               </div>
-                            </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap max-w-[200px]">
-                              <span className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate">
-                                {item.remarks || "No remarks"}
-                              </span>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <button
                                 onClick={() =>
                                   router.push(
-                                    `/admin/pending-payments/view/${item._id}?from=partial`,
+                                    `/admin/pending-payments/view/${item.earliestEmiId}?from=partial`,
                                   )
                                 }
                                 className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-100"
@@ -407,6 +430,7 @@ const PartialPaymentsPage = () => {
             </div>
           </div>
         )}
+
         {/* Contact Action Menu Popover */}
         {activeContactMenu && (
           <div
@@ -426,7 +450,7 @@ const PartialPaymentsPage = () => {
                   {activeContactMenu.type}
                 </p>
                 <p className="text-xs font-bold text-slate-900 truncate">
-                  {activeContactMenu.name}
+                  {activeContactMenu.name || "N/A"}
                 </p>
                 <p className="text-[10px] font-medium text-slate-500">
                   {activeContactMenu.number}
