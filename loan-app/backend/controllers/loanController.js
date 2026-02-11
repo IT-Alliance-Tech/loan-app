@@ -245,6 +245,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     loanTerms,
     vehicleInformation,
     status: statusObj,
+    clientResponse: topLevelClientResponse,
   } = req.body;
 
   const currentPrincipal =
@@ -311,8 +312,10 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       isSeized: statusObj.isSeized,
       docChecklist: statusObj.docChecklist,
       remarks: statusObj.remarks,
-      clientResponse: statusObj.clientResponse,
+      clientResponse: statusObj.clientResponse || topLevelClientResponse,
     }),
+    ...(topLevelClientResponse !== undefined &&
+      !statusObj && { clientResponse: topLevelClientResponse }),
     monthlyEMI,
     totalInterestAmount: calculatedTotalInterest,
   };
@@ -455,7 +458,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     },
     {
       $addFields: {
-        pendingEmis: {
+        pendingEmisList: {
           $filter: {
             input: "$emis",
             as: "emi",
@@ -471,10 +474,13 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         },
       },
     },
-    { $unwind: "$pendingEmis" },
+    {
+      $match: {
+        $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] },
+      },
+    },
     {
       $project: {
-        _id: "$pendingEmis._id",
         loanId: "$_id",
         loanNumber: 1,
         customerName: 1,
@@ -484,15 +490,47 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         guarantorMobileNumbers: 1,
         vehicleNumber: 1,
         model: 1,
-        emiAmount: "$pendingEmis.emiAmount",
-        amountPaid: "$pendingEmis.amountPaid",
-        dueDate: "$pendingEmis.dueDate",
-        remarks: { $ifNull: ["$pendingEmis.remarks", "$paymentStatus", ""] },
+        unpaidMonths: { $size: "$pendingEmisList" },
+        totalDueAmount: {
+          $reduce: {
+            input: "$pendingEmisList",
+            initialValue: 0,
+            in: {
+              $add: [
+                "$$value",
+                { $subtract: ["$$this.emiAmount", "$$this.amountPaid"] },
+              ],
+            },
+          },
+        },
+        earliestDueDate: { $min: "$pendingEmisList.dueDate" },
+        earliestEmiId: {
+          $arrayElemAt: [
+            {
+              $map: {
+                input: {
+                  $filter: {
+                    input: "$pendingEmisList",
+                    as: "e",
+                    cond: {
+                      $eq: [
+                        "$$e.dueDate",
+                        { $min: "$pendingEmisList.dueDate" },
+                      ],
+                    },
+                  },
+                },
+                in: "$$this._id",
+              },
+            },
+            0,
+          ],
+        },
         clientResponse: 1,
-        emiNumber: "$pendingEmis.emiNumber",
+        paymentStatus: 1,
       },
     },
-    { $sort: { dueDate: 1 } },
+    { $sort: { earliestDueDate: 1 } },
     {
       $facet: {
         payments: [{ $skip: skip }, { $limit: limit }],
@@ -559,7 +597,8 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
         amountPaid: "$amountPaid",
         status: "$status",
         dueDate: "$dueDate",
-        remarks: { $ifNull: ["$remarks", "$loan.paymentStatus", ""] },
+        remarks: "$remarks",
+        clientResponse: "$loan.clientResponse",
         emiNumber: 1,
       },
     },
