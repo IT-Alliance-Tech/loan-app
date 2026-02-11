@@ -7,6 +7,7 @@ import Sidebar from "../../../../../components/Sidebar";
 import {
   getLoanById,
   getPendingEmiDetails,
+  updateLoan,
   updatePaymentStatus,
 } from "../../../../../services/loan.service";
 import { updateEMI } from "../../../../../services/customer";
@@ -46,7 +47,7 @@ const LoanPendingViewPage = () => {
       const res = await getPendingEmiDetails(id);
       if (res.data) {
         setLoan(res.data);
-        setNewStatus(res.data.remarks || "");
+        setNewStatus(res.data.clientResponse || "");
         setEditData({
           amountPaid: "", // Initialized to empty for incremental payment
           paymentMode: res.data.paymentMode || "",
@@ -68,8 +69,9 @@ const LoanPendingViewPage = () => {
   const handleUpdateStatus = async () => {
     try {
       setUpdating(true);
-      await updateEMI(id, { remarks: newStatus });
-      showToast("Status response updated", "success");
+      // Update the Loan's clientResponse globally
+      await updateLoan(loan.loanId, { clientResponse: newStatus });
+      showToast("Client response updated globally", "success");
       const redirectPath =
         fromPage === "partial"
           ? "/admin/partial-payments"
@@ -324,7 +326,7 @@ const LoanPendingViewPage = () => {
                         disabled={updating}
                         className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-500/20"
                       >
-                        {updating ? "Updating..." : "Update Status Response"}
+                        {updating ? "Updating..." : "Update Client Response"}
                       </button>
                     </div>
                   </div>
