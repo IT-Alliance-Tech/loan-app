@@ -26,6 +26,7 @@ const LoansPage = () => {
     tenureMonths: "",
     status: "",
   });
+  const [selectedContact, setSelectedContact] = useState(null); // For contact details modal
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -266,10 +267,34 @@ const LoansPage = () => {
                                   <span className="font-bold text-slate-700 text-base leading-tight">
                                     {loan.customerDetails?.customerName}
                                   </span>
-                                  <span className="text-[11px] font-medium text-slate-400 mt-1 tracking-tight">
-                                    {loan.customerDetails?.mobileNumbers?.[0] ||
-                                      "No number"}
-                                  </span>
+                                  <div className="flex flex-col gap-0.5 mt-1">
+                                    {(
+                                      loan.customerDetails?.mobileNumbers || []
+                                    ).map((num, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="text-[10px] font-bold text-slate-400 tracking-tight"
+                                      >
+                                        {num}
+                                      </span>
+                                    ))}
+                                    <div className="mt-1 flex flex-col pt-1 border-t border-slate-100">
+                                      <span className="text-[8px] font-black text-primary uppercase">
+                                        G: {loan.customerDetails?.guarantorName}
+                                      </span>
+                                      {(
+                                        loan.customerDetails
+                                          ?.guarantorMobileNumbers || []
+                                      ).map((num, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="text-[9px] font-bold text-slate-400 opacity-70"
+                                        >
+                                          {num}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
                                 </div>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap text-[#2463EB] font-black text-base">
@@ -402,6 +427,12 @@ const LoansPage = () => {
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                             Mobile
                           </th>
+                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                            Guarantor
+                          </th>
+                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                            Guar. Mobile
+                          </th>
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                             EMI
                           </th>
@@ -450,9 +481,37 @@ const LoansPage = () => {
                               <td className="px-6 py-4 whitespace-nowrap font-extrabold text-slate-800 text-xs uppercase">
                                 {loan.customerDetails?.customerName}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-slate-500 font-bold text-xs tracking-widest">
-                                {loan.customerDetails?.mobileNumbers?.[0] ||
-                                  "No number"}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex flex-col gap-1 items-start">
+                                  {(
+                                    loan.customerDetails?.mobileNumbers || []
+                                  ).map((num, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-slate-600 font-bold text-xs tracking-widest"
+                                    >
+                                      {num}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap font-extrabold text-slate-800 text-xs uppercase">
+                                {loan.customerDetails?.guarantorName || "—"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex flex-col gap-1 items-start">
+                                  {(
+                                    loan.customerDetails
+                                      ?.guarantorMobileNumbers || []
+                                  ).map((num, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-slate-600 font-bold text-xs tracking-widest"
+                                    >
+                                      {num}
+                                    </span>
+                                  ))}
+                                </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center font-black text-primary text-xs">
                                 ₹{loan.loanTerms?.monthlyEMI?.toLocaleString()}
