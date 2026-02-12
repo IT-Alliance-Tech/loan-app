@@ -368,83 +368,77 @@ const LoanPendingViewPage = () => {
                         {pendingEmis.map((emi, idx) => (
                           <div
                             key={emi._id}
-                            className={`${idx === 0 ? "bg-red-50" : "bg-slate-50"} border ${idx === 0 ? "border-red-100" : "border-slate-100"} rounded-2xl p-4 mb-4 last:mb-0`}
+                            className={`bg-white border rounded-[2rem] p-4 mb-2 last:mb-0 shadow-sm hover:shadow-md transition-shadow ${idx === 0 ? "border-red-100 ring-1 ring-red-50" : "border-slate-100"}`}
                           >
-                            <div className="flex justify-between items-center mb-3">
-                              <span
-                                className={`text-[10px] font-black ${idx === 0 ? "text-red-500" : "text-slate-400"} uppercase tracking-wider`}
-                              >
-                                EMI {emi.emiNumber || idx + 1} ACTION
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-2">
-                              {/* Box 1: EMI Amount */}
-                              <div className="bg-white border border-red-50/50 rounded-xl py-1 px-2.5 text-center shadow-sm">
-                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                                  Amount
+                            {/* Header: Date & Amount */}
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                  Due Date
                                 </span>
-                                <span className="text-[10px] font-black text-red-600 font-mono">
-                                  ₹{emi.emiAmount?.toLocaleString()}
-                                </span>
-                              </div>
-
-                              {/* Box 2: EMI Month */}
-                              <div className="bg-white border border-red-50/50 rounded-xl py-1 px-2.5 text-center shadow-sm">
-                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                                  Month
-                                </span>
-                                <span className="text-[10px] font-black text-slate-700 uppercase">
+                                <p className="text-[11px] font-black text-slate-900 uppercase">
                                   {emi.dueDate &&
-                                    format(new Date(emi.dueDate), "MMM yy")}
-                                </span>
+                                    format(new Date(emi.dueDate), "dd MMM yy")}
+                                </p>
                               </div>
-
-                              {/* Box 3: Pay Button */}
-                              <button
-                                onClick={() => {
-                                  setSelectedEmi(emi);
-                                  setEditData({
-                                    amountPaid: "",
-                                    paymentMode: emi.paymentMode || "",
-                                    paymentDate: new Date()
-                                      .toISOString()
-                                      .split("T")[0],
-                                    overdue: emi.overdue || 0,
-                                    status: emi.status || "Pending",
-                                    remarks: emi.remarks || "",
-                                  });
-                                  setShowModal(true);
-                                  setIsDropdownOpen(false);
-                                }}
-                                className="bg-red-600 hover:bg-red-700 text-white rounded-xl py-1 px-2.5 flex flex-col items-center justify-center transition-all shadow-md active:scale-95 group"
-                              >
-                                <span className="text-[8px] font-black text-white/70 uppercase tracking-widest block mb-0.5">
-                                  Action
+                              <div className="text-right">
+                                <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                  Due Amount
                                 </span>
-                                <span className="text-[10px] font-black uppercase flex items-center gap-1">
-                                  <span className="text-xs">₹</span> PAY
-                                </span>
-                              </button>
+                                <p className="text-[12px] font-black text-red-600 font-mono">
+                                  ₹{emi.emiAmount?.toLocaleString()}
+                                </p>
+                              </div>
                             </div>
 
+                            {/* Mid row: Paid & Balance (Conditional) */}
                             {emi.amountPaid > 0 && (
-                              <div className="mt-4 pt-3 border-t border-red-50 space-y-2">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
-                                    Paid: ₹{emi.amountPaid?.toLocaleString()}
+                              <div className="grid grid-cols-2 gap-2 py-2.5 border-y border-slate-50 mb-3">
+                                <div>
+                                  <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                    Paid
                                   </span>
-                                  <span className="text-[9px] font-black text-red-600 uppercase">
-                                    Bal: ₹
+                                  <p className="text-[10px] font-bold text-emerald-600">
+                                    ₹{emi.amountPaid?.toLocaleString()}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                    Balance
+                                  </span>
+                                  <p className="text-[10px] font-bold text-red-600">
+                                    ₹
                                     {Math.max(
                                       0,
                                       (emi.emiAmount || 0) -
                                         (emi.amountPaid || 0),
                                     ).toLocaleString()}
-                                  </span>
+                                  </p>
                                 </div>
                               </div>
                             )}
+
+                            {/* Action Row: Full Width Button */}
+                            <button
+                              onClick={() => {
+                                setSelectedEmi(emi);
+                                setEditData({
+                                  amountPaid: "",
+                                  paymentMode: emi.paymentMode || "",
+                                  paymentDate: new Date()
+                                    .toISOString()
+                                    .split("T")[0],
+                                  overdue: emi.overdue || 0,
+                                  status: emi.status || "Pending",
+                                  remarks: emi.remarks || "",
+                                });
+                                setShowModal(true);
+                                setIsDropdownOpen(false);
+                              }}
+                              className="w-full bg-primary hover:bg-blue-700 text-white rounded-xl py-2.5 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-100 active:scale-[0.98] flex items-center justify-center gap-2"
+                            >
+                              <span className="text-sm">₹</span> PAY EMI
+                            </button>
                           </div>
                         ))}
                       </div>
