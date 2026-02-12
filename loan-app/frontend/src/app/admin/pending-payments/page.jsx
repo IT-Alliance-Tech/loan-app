@@ -57,7 +57,6 @@ const PendingPaymentsPage = () => {
       setLoading(true);
       const res = await getSeizedPending({
         ...params,
-        status: params.status || "Pending",
         limit,
       });
       if (res.data) {
@@ -120,10 +119,7 @@ const PendingPaymentsPage = () => {
     try {
       setIsSubmitting(true);
       await updateLoan(editingItem.loanId, {
-        status: {
-          status: editingItem.status, // Preserve existing status
-          clientResponse: tempResponse,
-        },
+        clientResponse: tempResponse,
       });
 
       showToast("Client response updated successfully", "success");
@@ -225,6 +221,9 @@ const PendingPaymentsPage = () => {
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Remaining Amount
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                          Client Response
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Action
@@ -333,6 +332,38 @@ const PendingPaymentsPage = () => {
                                 <span className="text-sm font-black text-red-600 tracking-tight">
                                   ₹{item.totalDueAmount.toLocaleString()}
                                 </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-2">
+                                <span
+                                  title={item.clientResponse}
+                                  className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate max-w-[120px]"
+                                >
+                                  {item.clientResponse || "—"}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    setEditingItem(item);
+                                    setTempResponse(item.clientResponse || "");
+                                  }}
+                                  className="text-primary hover:text-blue-700 transition-colors"
+                                  title="Edit Response"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                    />
+                                  </svg>
+                                </button>
                               </div>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
@@ -484,7 +515,7 @@ const PendingPaymentsPage = () => {
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
-                    Update Response
+                    Update Client Response
                   </h3>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                     {editingItem.loanNumber} • {editingItem.customerName}
@@ -501,7 +532,7 @@ const PendingPaymentsPage = () => {
               <form onSubmit={handleUpdateResponse} className="p-6">
                 <div className="mb-6">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                    Client Response Message
+                    Client Response
                   </label>
                   <textarea
                     autoFocus
