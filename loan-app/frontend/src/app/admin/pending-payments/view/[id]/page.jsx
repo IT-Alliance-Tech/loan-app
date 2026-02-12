@@ -37,6 +37,7 @@ const LoanPendingViewPage = () => {
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
   const [pendingEmis, setPendingEmis] = useState([]);
   const [selectedEmi, setSelectedEmi] = useState(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -108,7 +109,20 @@ const LoanPendingViewPage = () => {
   const handleModalChange = (e) => {
     const { name, value } = e.target;
     setEditData((prev) => {
-      const newData = { ...prev, [name]: value };
+      let newData = { ...prev };
+
+      if (name === "paymentMode") {
+        // Multi-select logic: value is the chip clicked
+        const currentModes = prev.paymentMode
+          ? prev.paymentMode.split(", ")
+          : [];
+        const updatedModes = currentModes.includes(value)
+          ? currentModes.filter((m) => m !== value)
+          : [...currentModes, value];
+        newData.paymentMode = updatedModes.join(", ");
+      } else {
+        newData[name] = value;
+      }
 
       // UI Preview only: Auto-calculate status if amountPaid changes
       if (name === "amountPaid") {
@@ -183,6 +197,7 @@ const LoanPendingViewPage = () => {
                       remarks: pendingEmis[0].remarks || "",
                     });
                     setShowModal(true);
+                    setIsDropdownOpen(false);
                   }}
                   className="px-6 py-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center gap-2"
                 >
@@ -365,17 +380,17 @@ const LoanPendingViewPage = () => {
 
                             <div className="grid grid-cols-3 gap-2">
                               {/* Box 1: EMI Amount */}
-                              <div className="bg-white border border-red-50/50 rounded-xl py-1.5 px-2.5 text-center shadow-sm">
+                              <div className="bg-white border border-red-50/50 rounded-xl py-1 px-2.5 text-center shadow-sm">
                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">
                                   Amount
                                 </span>
-                                <span className="text-[11px] font-black text-red-600 font-mono">
+                                <span className="text-[10px] font-black text-red-600 font-mono">
                                   ₹{emi.emiAmount?.toLocaleString()}
                                 </span>
                               </div>
 
                               {/* Box 2: EMI Month */}
-                              <div className="bg-white border border-red-50/50 rounded-xl py-1.5 px-2.5 text-center shadow-sm">
+                              <div className="bg-white border border-red-50/50 rounded-xl py-1 px-2.5 text-center shadow-sm">
                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">
                                   Month
                                 </span>
@@ -400,8 +415,9 @@ const LoanPendingViewPage = () => {
                                     remarks: emi.remarks || "",
                                   });
                                   setShowModal(true);
+                                  setIsDropdownOpen(false);
                                 }}
-                                className="bg-red-600 hover:bg-red-700 text-white rounded-xl py-1.5 px-2.5 flex flex-col items-center justify-center transition-all shadow-md active:scale-95 group"
+                                className="bg-red-600 hover:bg-red-700 text-white rounded-xl py-1 px-2.5 flex flex-col items-center justify-center transition-all shadow-md active:scale-95 group"
                               >
                                 <span className="text-[8px] font-black text-white/70 uppercase tracking-widest block mb-0.5">
                                   Action
@@ -465,6 +481,13 @@ const LoanPendingViewPage = () => {
                     </button>
                   </div>
 
+                  {isDropdownOpen && (
+                    <div
+                      className="fixed inset-0 z-[110]"
+                      onClick={() => setIsDropdownOpen(false)}
+                    />
+                  )}
+
                   <form onSubmit={handleSaveEMI} className="p-8 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
@@ -513,24 +536,64 @@ const LoanPendingViewPage = () => {
                         />
                       </div>
 
-                      <div>
+                      <div className="relative">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
                           Payment Mode
                         </label>
-                        <select
-                          name="paymentMode"
-                          value={editData.paymentMode}
-                          onChange={handleModalChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer"
-                          required
+                        <button
+                          type="button"
+                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 flex items-center justify-between hover:border-slate-300 transition-all"
                         >
-                          <option value="">Select Mode</option>
-                          <option value="Cash">Cash</option>
-                          <option value="Online">Online</option>
-                          <option value="GPay">GPay</option>
-                          <option value="PhonePe">PhonePe</option>
-                          <option value="Cheque">Cheque</option>
-                        </select>
+                          <span className="truncate">
+                            {editData.paymentMode || "Select Mode"}
+                          </span>
+                          <span
+                            className={`transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
+                          >
+                            ▼
+                          </span>
+                        </button>
+
+                        {isDropdownOpen && (
+                          <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[120] p-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                            {[
+                              "Cash",
+                              "Online",
+                              "GPay",
+                              "PhonePe",
+                              "Cheque",
+                            ].map((mode) => {
+                              const isSelected = editData.paymentMode
+                                .split(", ")
+                                .includes(mode);
+                              return (
+                                <button
+                                  key={mode}
+                                  type="button"
+                                  onClick={() =>
+                                    handleModalChange({
+                                      target: {
+                                        name: "paymentMode",
+                                        value: mode,
+                                      },
+                                    })
+                                  }
+                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all mb-1 last:mb-0 ${
+                                    isSelected
+                                      ? "bg-primary/5 text-primary"
+                                      : "text-slate-500 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {mode}
+                                  {isSelected && (
+                                    <span className="text-primary">✓</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
                       <div>
