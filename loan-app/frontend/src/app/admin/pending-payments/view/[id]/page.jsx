@@ -8,6 +8,7 @@ import ContactActionMenu from "../../../../../components/ContactActionMenu";
 import {
   getLoanById,
   getPendingEmiDetails,
+  updateLoan,
   updatePaymentStatus,
 } from "../../../../../services/loan.service";
 import { updateEMI } from "../../../../../services/customer";
@@ -35,6 +36,9 @@ const LoanPendingViewPage = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [pendingEmis, setPendingEmis] = useState([]);
+  const [selectedEmi, setSelectedEmi] = useState(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -45,19 +49,11 @@ const LoanPendingViewPage = () => {
     try {
       setLoading(true);
       const res = await getPendingEmiDetails(id);
-      if (res.data) {
-        setLoan(res.data);
-        setNewStatus(res.data.remarks || "");
-        setEditData({
-          amountPaid: "", // Initialized to empty for incremental payment
-          paymentMode: res.data.paymentMode || "",
-          paymentDate: res.data.paymentDate
-            ? new Date(res.data.paymentDate).toISOString().split("T")[0]
-            : new Date().toISOString().split("T")[0],
-          overdue: res.data.overdue || 0,
-          status: res.data.status || "Pending",
-          remarks: res.data.remarks || "",
-        });
+      if (res.data && Array.isArray(res.data)) {
+        setPendingEmis(res.data);
+        const current = res.data.find((e) => e._id === id) || res.data[0];
+        setLoan(current);
+        setNewStatus(current.clientResponse || "");
       }
     } catch (err) {
       setError(err.message);
@@ -69,8 +65,9 @@ const LoanPendingViewPage = () => {
   const handleUpdateStatus = async () => {
     try {
       setUpdating(true);
-      await updateEMI(id, { remarks: newStatus });
-      showToast("Status response updated", "success");
+      // Update the Loan's clientResponse globally
+      await updateLoan(loan.loanId, { clientResponse: newStatus });
+      showToast("Client response updated globally", "success");
       const redirectPath =
         fromPage === "partial"
           ? "/admin/partial-payments"
@@ -95,7 +92,7 @@ const LoanPendingViewPage = () => {
       // Remove amountPaid from payload to avoid confusion/overwriting with the small incremental value as absolute
       delete payload.amountPaid;
 
-      await updateEMI(id, payload);
+      await updateEMI(selectedEmi._id, payload);
       showToast("EMI updated successfully", "success");
       setShowModal(false);
       const redirectPath =
@@ -113,14 +110,27 @@ const LoanPendingViewPage = () => {
   const handleModalChange = (e) => {
     const { name, value } = e.target;
     setEditData((prev) => {
-      const newData = { ...prev, [name]: value };
+      let newData = { ...prev };
+
+      if (name === "paymentMode") {
+        // Multi-select logic: value is the chip clicked
+        const currentModes = prev.paymentMode
+          ? prev.paymentMode.split(", ")
+          : [];
+        const updatedModes = currentModes.includes(value)
+          ? currentModes.filter((m) => m !== value)
+          : [...currentModes, value];
+        newData.paymentMode = updatedModes.join(", ");
+      } else {
+        newData[name] = value;
+      }
 
       // UI Preview only: Auto-calculate status if amountPaid changes
       if (name === "amountPaid") {
-        const currentPaid = parseFloat(loan?.amountPaid) || 0;
+        const currentPaid = parseFloat(selectedEmi?.amountPaid) || 0;
         const newPayment = parseFloat(value) || 0;
         const totalPaid = currentPaid + newPayment;
-        const total = parseFloat(loan?.emiAmount) || 0;
+        const total = parseFloat(selectedEmi?.emiAmount) || 0;
 
         if (totalPaid >= total) {
           newData.status = "Paid";
@@ -177,7 +187,19 @@ const LoanPendingViewPage = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowModal(true)}
+                  onClick={() => {
+                    setSelectedEmi(pendingEmis[0]);
+                    setEditData({
+                      amountPaid: "",
+                      paymentMode: pendingEmis[0].paymentMode || "",
+                      paymentDate: new Date().toISOString().split("T")[0],
+                      overdue: pendingEmis[0].overdue || 0,
+                      status: pendingEmis[0].status || "Pending",
+                      remarks: pendingEmis[0].remarks || "",
+                    });
+                    setShowModal(true);
+                    setIsDropdownOpen(false);
+                  }}
                   className="px-6 py-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center gap-2"
                 >
                   <span className="text-sm">₹</span> Pay EMI
@@ -227,9 +249,6 @@ const LoanPendingViewPage = () => {
                             </button>
                           ))}
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-3 leading-relaxed">
-                          {loan.address}
-                        </p>
                       </div>
                       <div>
                         <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-2">
@@ -311,7 +330,7 @@ const LoanPendingViewPage = () => {
                   {/* Payment Update Section */}
                   <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200">
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">
-                      Status Update (Client Response)
+                      Client Response
                     </h3>
                     <div className="space-y-4">
                       <textarea
@@ -325,7 +344,7 @@ const LoanPendingViewPage = () => {
                         disabled={updating}
                         className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-500/20"
                       >
-                        {updating ? "Updating..." : "Update Status Response"}
+                        {updating ? "Updating..." : "Update Client Response"}
                       </button>
                     </div>
                   </div>
@@ -346,48 +365,83 @@ const LoanPendingViewPage = () => {
                           ₹{loan.principalAmount?.toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
-                        <div className="flex justify-between items-start">
-                          <span className="text-[10px] font-bold text-red-500 uppercase">
-                            Monthly EMI
-                          </span>
-                          <div className="text-right">
-                            <span className="text-xs font-black text-red-600 font-mono block">
-                              ₹{loan.emiAmount?.toLocaleString()}
-                            </span>
-                            <span className="text-[9px] font-bold text-red-400 uppercase tracking-tighter">
-                              {loan.dueDate &&
-                                format(new Date(loan.dueDate), "dd MMM yyyy")}
-                            </span>
-                          </div>
-                        </div>
+                      <div className="space-y-4 max-h-[520px] overflow-y-auto pr-2 custom-scrollbar">
+                        {pendingEmis.map((emi, idx) => (
+                          <div
+                            key={emi._id}
+                            className={`bg-white border rounded-[2rem] p-4 mb-2 last:mb-0 shadow-sm hover:shadow-md transition-shadow ${idx === 0 ? "border-red-100 ring-1 ring-red-50" : "border-slate-100"}`}
+                          >
+                            {/* Header: Date & Amount */}
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                  Due Date
+                                </span>
+                                <p className="text-[11px] font-black text-slate-900 uppercase">
+                                  {emi.dueDate &&
+                                    format(new Date(emi.dueDate), "dd MMM yy")}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                  Due Amount
+                                </span>
+                                <p className="text-[12px] font-black text-red-600 font-mono">
+                                  ₹{emi.emiAmount?.toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
 
-                        {(loan.amountPaid > 0 ||
-                          loan.status === "Partially Paid") && (
-                          <div className="pt-3 border-t border-red-200/50 space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
-                                Amount Paid
-                              </span>
-                              <span className="text-[11px] font-black text-green-600 font-mono">
-                                ₹{loan.amountPaid?.toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[9px] font-bold text-red-500 uppercase tracking-tight">
-                                Balance Due
-                              </span>
-                              <span className="text-[11px] font-black text-red-700 font-mono">
-                                ₹
-                                {Math.max(
-                                  0,
-                                  (loan.emiAmount || 0) -
-                                    (loan.amountPaid || 0),
-                                ).toLocaleString()}
-                              </span>
-                            </div>
+                            {/* Mid row: Paid & Balance (Conditional) */}
+                            {emi.amountPaid > 0 && (
+                              <div className="grid grid-cols-2 gap-2 py-2.5 border-y border-slate-50 mb-3">
+                                <div>
+                                  <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                    Paid
+                                  </span>
+                                  <p className="text-[10px] font-bold text-emerald-600">
+                                    ₹{emi.amountPaid?.toLocaleString()}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                    Balance
+                                  </span>
+                                  <p className="text-[10px] font-bold text-red-600">
+                                    ₹
+                                    {Math.max(
+                                      0,
+                                      (emi.emiAmount || 0) -
+                                        (emi.amountPaid || 0),
+                                    ).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Action Row: Full Width Button */}
+                            <button
+                              onClick={() => {
+                                setSelectedEmi(emi);
+                                setEditData({
+                                  amountPaid: "",
+                                  paymentMode: emi.paymentMode || "",
+                                  paymentDate: new Date()
+                                    .toISOString()
+                                    .split("T")[0],
+                                  overdue: emi.overdue || 0,
+                                  status: emi.status || "Pending",
+                                  remarks: emi.remarks || "",
+                                });
+                                setShowModal(true);
+                                setIsDropdownOpen(false);
+                              }}
+                              className="w-full bg-primary hover:bg-blue-700 text-white rounded-xl py-2.5 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-100 active:scale-[0.98] flex items-center justify-center gap-2"
+                            >
+                              <span className="text-sm">₹</span> PAY EMI
+                            </button>
                           </div>
-                        )}
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -402,13 +456,16 @@ const LoanPendingViewPage = () => {
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <div>
                       <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                        UPDATE EMI #
+                        UPDATE EMI #{selectedEmi?.emiNumber}
                       </h3>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                         DUE DATE:{" "}
-                        {loan?.dueDate &&
-                          format(new Date(loan.dueDate), "dd-MM-yyyy")}{" "}
-                        | AMOUNT: ₹{loan?.emiAmount}
+                        {selectedEmi?.dueDate &&
+                          format(
+                            new Date(selectedEmi.dueDate),
+                            "dd-MM-yyyy",
+                          )}{" "}
+                        | AMOUNT: ₹{selectedEmi?.emiAmount}
                       </p>
                     </div>
                     <button
@@ -418,6 +475,13 @@ const LoanPendingViewPage = () => {
                       ✕
                     </button>
                   </div>
+
+                  {isDropdownOpen && (
+                    <div
+                      className="fixed inset-0 z-[110]"
+                      onClick={() => setIsDropdownOpen(false)}
+                    />
+                  )}
 
                   <form onSubmit={handleSaveEMI} className="p-8 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -444,8 +508,8 @@ const LoanPendingViewPage = () => {
                           type="text"
                           value={`₹${Math.max(
                             0,
-                            (loan?.emiAmount || 0) -
-                              (loan?.amountPaid || 0) -
+                            (selectedEmi?.emiAmount || 0) -
+                              (selectedEmi?.amountPaid || 0) -
                               (parseFloat(editData.amountPaid) || 0),
                           ).toFixed(2)}`}
                           disabled
@@ -467,24 +531,64 @@ const LoanPendingViewPage = () => {
                         />
                       </div>
 
-                      <div>
+                      <div className="relative">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
                           Payment Mode
                         </label>
-                        <select
-                          name="paymentMode"
-                          value={editData.paymentMode}
-                          onChange={handleModalChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer"
-                          required
+                        <button
+                          type="button"
+                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 flex items-center justify-between hover:border-slate-300 transition-all"
                         >
-                          <option value="">Select Mode</option>
-                          <option value="Cash">Cash</option>
-                          <option value="Online">Online</option>
-                          <option value="GPay">GPay</option>
-                          <option value="PhonePe">PhonePe</option>
-                          <option value="Cheque">Cheque</option>
-                        </select>
+                          <span className="truncate">
+                            {editData.paymentMode || "Select Mode"}
+                          </span>
+                          <span
+                            className={`transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
+                          >
+                            ▼
+                          </span>
+                        </button>
+
+                        {isDropdownOpen && (
+                          <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[120] p-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                            {[
+                              "Cash",
+                              "Online",
+                              "GPay",
+                              "PhonePe",
+                              "Cheque",
+                            ].map((mode) => {
+                              const isSelected = editData.paymentMode
+                                .split(", ")
+                                .includes(mode);
+                              return (
+                                <button
+                                  key={mode}
+                                  type="button"
+                                  onClick={() =>
+                                    handleModalChange({
+                                      target: {
+                                        name: "paymentMode",
+                                        value: mode,
+                                      },
+                                    })
+                                  }
+                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all mb-1 last:mb-0 ${
+                                    isSelected
+                                      ? "bg-primary/5 text-primary"
+                                      : "text-slate-500 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {mode}
+                                  {isSelected && (
+                                    <span className="text-primary">✓</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
                       <div>
