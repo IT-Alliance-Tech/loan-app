@@ -35,7 +35,6 @@ const emiSchema = new mongoose.Schema(
     },
     paymentMode: {
       type: String,
-      enum: ["Cash", "Cheque", "Online", "GPay", "PhonePe", "Other", ""],
       default: "",
     },
     paymentDate: {
@@ -55,7 +54,7 @@ const emiSchema = new mongoose.Schema(
       trim: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("EMI", emiSchema);

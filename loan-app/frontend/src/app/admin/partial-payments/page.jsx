@@ -188,6 +188,9 @@ const PartialPaymentsPage = () => {
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                           Guarantor Mobile
                         </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          Customer Response
+                        </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Months
                         </th>
@@ -203,7 +206,7 @@ const PartialPaymentsPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="8"
+                            colSpan="9"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             Loading records...
@@ -212,7 +215,7 @@ const PartialPaymentsPage = () => {
                       ) : data.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="8"
+                            colSpan="9"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             No records found
@@ -288,6 +291,21 @@ const PartialPaymentsPage = () => {
                                     </button>
                                   ),
                                 )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="font-bold text-slate-600 text-[11px] uppercase tracking-tight max-w-[120px] truncate block"
+                                  title={
+                                    item.clientResponse ||
+                                    item.status?.clientResponse
+                                  }
+                                >
+                                  {item.clientResponse ||
+                                    item.status?.clientResponse ||
+                                    "—"}
+                                </span>
                               </div>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
