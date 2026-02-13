@@ -186,7 +186,7 @@ const LoanPendingViewPage = () => {
                     </p>
                   </div>
                 </div>
-                <button
+                {/* <button
                   onClick={() => {
                     setSelectedEmi(pendingEmis[0]);
                     setEditData({
@@ -203,7 +203,7 @@ const LoanPendingViewPage = () => {
                   className="px-6 py-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center gap-2"
                 >
                   <span className="text-sm">₹</span> Pay EMI
-                </button>
+                </button> */}
               </div>
 
               {error && (
