@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { updateEMI } from "../services/customer";
 import { useToast } from "../context/ToastContext";
+import PaymentModeSelector from "./PaymentModeSelector";
 
 const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
   const [editingEmi, setEditingEmi] = useState(null);
@@ -124,28 +125,36 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                 <td className="px-6 py-4 text-xs font-bold text-slate-900">
                   {emi.emiNumber}
                 </td>
-                <td className="px-6 py-4 text-xs font-medium text-slate-600">
+                <td className="px-6 py-4 text-xs font-medium text-slate-600 whitespace-nowrap">
                   {formatDate(emi.dueDate)}
                 </td>
                 <td className="px-6 py-4 text-xs font-black text-slate-900 text-center">
                   ₹{emi.emiAmount}
                 </td>
-                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
+                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center whitespace-nowrap">
                   ₹{emi.amountPaid || 0}
                 </td>
-                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
+                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center whitespace-nowrap">
                   {formatDate(emi.paymentDate)}
                 </td>
                 <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
                   {emi.status === "Pending" &&
-                  new Date() < new Date(emi.dueDate)
-                    ? "-"
-                    : emi.paymentMode || "-"}
+                  new Date() < new Date(emi.dueDate) ? (
+                    "-"
+                  ) : (
+                    <div className="flex flex-col gap-1 items-center">
+                      {(emi.paymentMode || "-").split(", ").map((mode, idx) => (
+                        <span key={idx} className="block whitespace-nowrap">
+                          {mode}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-xs font-medium text-red-600 text-center">
                   ₹{emi.overdue || 0}
                 </td>
-                <td className="px-6 py-4 text-center">
+                <td className="px-6 py-4 text-center whitespace-nowrap">
                   {emi.status === "Pending" &&
                   new Date() < new Date(emi.dueDate) ? (
                     <span className="text-xs font-bold text-slate-400">-</span>
@@ -253,23 +262,10 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                    Payment Mode
-                  </label>
-                  <select
-                    name="paymentMode"
+                  <PaymentModeSelector
                     value={editData.paymentMode}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer"
-                    required
-                  >
-                    <option value="">Select Mode</option>
-                    <option value="Cash">Cash</option>
-                    <option value="Online">Online</option>
-                    <option value="GPay">GPay</option>
-                    <option value="PhonePe">PhonePe</option>
-                    <option value="Cheque">Cheque</option>
-                  </select>
+                  />
                 </div>
 
                 <div>
