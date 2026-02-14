@@ -110,20 +110,7 @@ const LoanPendingViewPage = () => {
   const handleModalChange = (e) => {
     const { name, value } = e.target;
     setEditData((prev) => {
-      let newData = { ...prev };
-
-      if (name === "paymentMode") {
-        // Multi-select logic: value is the chip clicked
-        const currentModes = prev.paymentMode
-          ? prev.paymentMode.split(", ")
-          : [];
-        const updatedModes = currentModes.includes(value)
-          ? currentModes.filter((m) => m !== value)
-          : [...currentModes, value];
-        newData.paymentMode = updatedModes.join(", ");
-      } else {
-        newData[name] = value;
-      }
+      let newData = { ...prev, [name]: value };
 
       // UI Preview only: Auto-calculate status if amountPaid changes
       if (name === "amountPaid") {
@@ -533,7 +520,9 @@ const LoanPendingViewPage = () => {
 
                       <PaymentModeSelector
                         value={editData.paymentMode}
-                        onChange={handleModalChange}
+                        onChange={(val) =>
+                          setEditData((prev) => ({ ...prev, paymentMode: val }))
+                        }
                       />
 
                       <div>
