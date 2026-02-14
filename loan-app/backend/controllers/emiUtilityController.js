@@ -20,7 +20,6 @@ const calculateEMI = (principal, roi, tenureMonths) => {
 // Generate EMIs for existing loans that don't have EMIs yet
 const generateEMIsForExistingLoans = asyncHandler(async (req, res, next) => {
   try {
-    // Get all loans
     const loans = await Loan.find();
     let generatedCount = 0;
     let skippedCount = 0;

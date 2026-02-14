@@ -31,7 +31,6 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     tenureMonths,
     loanStartDate,
     remarks,
-    // Additional fields
     ownRent,
     panNumber,
     aadharNumber,
@@ -110,7 +109,6 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
       emiAmount: monthlyEMI,
       status: "Pending",
     });
-    // Increment month properly
     currentEmiDate.setMonth(currentEmiDate.getMonth() + 1);
   }
 

@@ -125,28 +125,36 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                 <td className="px-6 py-4 text-xs font-bold text-slate-900">
                   {emi.emiNumber}
                 </td>
-                <td className="px-6 py-4 text-xs font-medium text-slate-600">
+                <td className="px-6 py-4 text-xs font-medium text-slate-600 whitespace-nowrap">
                   {formatDate(emi.dueDate)}
                 </td>
                 <td className="px-6 py-4 text-xs font-black text-slate-900 text-center">
                   ₹{emi.emiAmount}
                 </td>
-                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
+                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center whitespace-nowrap">
                   ₹{emi.amountPaid || 0}
                 </td>
-                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
+                <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center whitespace-nowrap">
                   {formatDate(emi.paymentDate)}
                 </td>
                 <td className="px-6 py-4 text-xs font-medium text-slate-600 text-center">
                   {emi.status === "Pending" &&
-                  new Date() < new Date(emi.dueDate)
-                    ? "-"
-                    : emi.paymentMode || "-"}
+                  new Date() < new Date(emi.dueDate) ? (
+                    "-"
+                  ) : (
+                    <div className="flex flex-col gap-1 items-center">
+                      {(emi.paymentMode || "-").split(", ").map((mode, idx) => (
+                        <span key={idx} className="block whitespace-nowrap">
+                          {mode}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-xs font-medium text-red-600 text-center">
                   ₹{emi.overdue || 0}
                 </td>
-                <td className="px-6 py-4 text-center">
+                <td className="px-6 py-4 text-center whitespace-nowrap">
                   {emi.status === "Pending" &&
                   new Date() < new Date(emi.dueDate) ? (
                     <span className="text-xs font-bold text-slate-400">-</span>

@@ -8,7 +8,7 @@ const generateTokens = (user) => {
   const accessToken = jwt.sign(
     { id: user._id, email: user.email, role: user.role, name: user.name },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE || "30m" },
+    { expiresIn: process.env.JWT_EXPIRE || "24h" },
   );
 
   const refreshToken = jwt.sign(
@@ -53,8 +53,8 @@ const login = asyncHandler(async (req, res, next) => {
   // Set refresh token in secure cookie
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+    secure: true,
+    sameSite: "none",
     maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
   });
 
@@ -122,8 +122,8 @@ const refreshToken = asyncHandler(async (req, res, next) => {
 
   res.cookie("refreshToken", tokens.refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+    secure: true,
+    sameSite: "none",
     maxAge: 10 * 24 * 60 * 60 * 1000,
   });
 
@@ -145,8 +145,8 @@ const logout = asyncHandler(async (req, res, next) => {
 
   res.clearCookie("refreshToken", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    secure: true,
+    sameSite: "none",
   });
 
   return sendResponse(
