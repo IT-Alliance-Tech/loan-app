@@ -261,12 +261,12 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   />
                 </div>
 
-                <div>
-                  <PaymentModeSelector
-                    value={editData.paymentMode}
-                    onChange={handleChange}
-                  />
-                </div>
+                <PaymentModeSelector
+                  value={editData.paymentMode}
+                  onChange={(val) =>
+                    setEditData((prev) => ({ ...prev, paymentMode: val }))
+                  }
+                />
 
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">

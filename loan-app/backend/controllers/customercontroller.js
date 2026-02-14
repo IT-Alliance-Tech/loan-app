@@ -222,11 +222,26 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     newStatus = "Pending";
   }
 
+  // Handle unique payment mode merging
+  let mergedPaymentMode = emi.paymentMode || "";
+  if (paymentMode) {
+    const existingModes = mergedPaymentMode
+      ? mergedPaymentMode.split(",").map((m) => m.trim())
+      : [];
+    const newModes = paymentMode.split(",").map((m) => m.trim());
+
+    // Create a unique set of modes, filtering out empty strings
+    const uniqueModes = [
+      ...new Set([...existingModes, ...newModes].filter((m) => m !== "")),
+    ];
+    mergedPaymentMode = uniqueModes.join(", ");
+  }
+
   emi = await EMI.findByIdAndUpdate(
     id,
     {
       amountPaid: newAmountPaid,
-      paymentMode: paymentMode || emi.paymentMode,
+      paymentMode: mergedPaymentMode,
       paymentDate: paymentDate || emi.paymentDate,
       overdue: overdue !== undefined ? overdue : emi.overdue,
       status: newStatus,
