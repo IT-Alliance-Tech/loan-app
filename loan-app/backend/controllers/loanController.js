@@ -479,7 +479,11 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     },
     {
       $match: {
-        $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] },
+        $and: [
+          { $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] } },
+          // If no status is provided (Pending Page), at least one EMI must be strictly "Pending"
+          status ? {} : { "pendingEmisList.status": "Pending" },
+        ],
       },
     },
     {
