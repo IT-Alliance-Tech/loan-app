@@ -13,6 +13,7 @@ import {
 import { updateEMI } from "../../../../../services/customer";
 import { format } from "date-fns";
 import { useToast } from "../../../../../context/ToastContext";
+import PaymentModeSelector from "../../../../../components/PaymentModeSelector";
 
 const LoanPendingViewPage = () => {
   const { id } = useParams();
@@ -109,20 +110,7 @@ const LoanPendingViewPage = () => {
   const handleModalChange = (e) => {
     const { name, value } = e.target;
     setEditData((prev) => {
-      let newData = { ...prev };
-
-      if (name === "paymentMode") {
-        // Multi-select logic: value is the chip clicked
-        const currentModes = prev.paymentMode
-          ? prev.paymentMode.split(", ")
-          : [];
-        const updatedModes = currentModes.includes(value)
-          ? currentModes.filter((m) => m !== value)
-          : [...currentModes, value];
-        newData.paymentMode = updatedModes.join(", ");
-      } else {
-        newData[name] = value;
-      }
+      let newData = { ...prev, [name]: value };
 
       // UI Preview only: Auto-calculate status if amountPaid changes
       if (name === "amountPaid") {
@@ -530,65 +518,12 @@ const LoanPendingViewPage = () => {
                         />
                       </div>
 
-                      <div className="relative">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Payment Mode
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 flex items-center justify-between hover:border-slate-300 transition-all"
-                        >
-                          <span className="truncate">
-                            {editData.paymentMode || "Select Mode"}
-                          </span>
-                          <span
-                            className={`transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
-                          >
-                            ▼
-                          </span>
-                        </button>
-
-                        {isDropdownOpen && (
-                          <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[120] p-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                            {[
-                              "Cash",
-                              "Online",
-                              "GPay",
-                              "PhonePe",
-                              "Cheque",
-                            ].map((mode) => {
-                              const isSelected = editData.paymentMode
-                                .split(", ")
-                                .includes(mode);
-                              return (
-                                <button
-                                  key={mode}
-                                  type="button"
-                                  onClick={() =>
-                                    handleModalChange({
-                                      target: {
-                                        name: "paymentMode",
-                                        value: mode,
-                                      },
-                                    })
-                                  }
-                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all mb-1 last:mb-0 ${
-                                    isSelected
-                                      ? "bg-primary/5 text-primary"
-                                      : "text-slate-500 hover:bg-slate-50"
-                                  }`}
-                                >
-                                  {mode}
-                                  {isSelected && (
-                                    <span className="text-primary">✓</span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                      <PaymentModeSelector
+                        value={editData.paymentMode}
+                        onChange={(val) =>
+                          setEditData((prev) => ({ ...prev, paymentMode: val }))
+                        }
+                      />
 
                       <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">

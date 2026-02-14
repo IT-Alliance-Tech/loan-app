@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { updateEMI } from "../services/customer";
 import { useToast } from "../context/ToastContext";
+import PaymentModeSelector from "./PaymentModeSelector";
 
 const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
   const [editingEmi, setEditingEmi] = useState(null);
@@ -252,25 +253,12 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                    Payment Mode
-                  </label>
-                  <select
-                    name="paymentMode"
-                    value={editData.paymentMode}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer"
-                    required
-                  >
-                    <option value="">Select Mode</option>
-                    <option value="Cash">Cash</option>
-                    <option value="Online">Online</option>
-                    <option value="GPay">GPay</option>
-                    <option value="PhonePe">PhonePe</option>
-                    <option value="Cheque">Cheque</option>
-                  </select>
-                </div>
+                <PaymentModeSelector
+                  value={editData.paymentMode}
+                  onChange={(val) =>
+                    setEditData((prev) => ({ ...prev, paymentMode: val }))
+                  }
+                />
 
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
