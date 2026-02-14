@@ -5,6 +5,7 @@ import AuthGuard from "../../../../../components/AuthGuard";
 import Navbar from "../../../../../components/Navbar";
 import Sidebar from "../../../../../components/Sidebar";
 import ContactActionMenu from "../../../../../components/ContactActionMenu";
+import PaymentModeSelector from "../../../../../components/PaymentModeSelector";
 import {
   getLoanById,
   getPendingEmiDetails,
@@ -38,7 +39,6 @@ const LoanPendingViewPage = () => {
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
   const [pendingEmis, setPendingEmis] = useState([]);
   const [selectedEmi, setSelectedEmi] = useState(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -531,65 +531,10 @@ const LoanPendingViewPage = () => {
                         />
                       </div>
 
-                      <div className="relative">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Payment Mode
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 flex items-center justify-between hover:border-slate-300 transition-all"
-                        >
-                          <span className="truncate">
-                            {editData.paymentMode || "Select Mode"}
-                          </span>
-                          <span
-                            className={`transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`}
-                          >
-                            ▼
-                          </span>
-                        </button>
-
-                        {isDropdownOpen && (
-                          <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[120] p-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                            {[
-                              "Cash",
-                              "Online",
-                              "GPay",
-                              "PhonePe",
-                              "Cheque",
-                            ].map((mode) => {
-                              const isSelected = editData.paymentMode
-                                .split(", ")
-                                .includes(mode);
-                              return (
-                                <button
-                                  key={mode}
-                                  type="button"
-                                  onClick={() =>
-                                    handleModalChange({
-                                      target: {
-                                        name: "paymentMode",
-                                        value: mode,
-                                      },
-                                    })
-                                  }
-                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all mb-1 last:mb-0 ${
-                                    isSelected
-                                      ? "bg-primary/5 text-primary"
-                                      : "text-slate-500 hover:bg-slate-50"
-                                  }`}
-                                >
-                                  {mode}
-                                  {isSelected && (
-                                    <span className="text-primary">✓</span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                      <PaymentModeSelector
+                        value={editData.paymentMode}
+                        onChange={handleModalChange}
+                      />
 
                       <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
