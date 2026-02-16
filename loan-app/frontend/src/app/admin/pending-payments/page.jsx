@@ -217,6 +217,9 @@ const PendingPaymentsPage = () => {
                           Remaining Amount
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                          Days
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Client Response
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap sticky right-0 bg-slate-50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
@@ -228,7 +231,7 @@ const PendingPaymentsPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="9"
+                            colSpan="10"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             Loading records...
@@ -237,7 +240,7 @@ const PendingPaymentsPage = () => {
                       ) : data.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="9"
+                            colSpan="10"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             No records found
@@ -327,6 +330,29 @@ const PendingPaymentsPage = () => {
                                   ₹{item.totalDueAmount.toLocaleString()}
                                 </span>
                               </div>
+                            </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap">
+                              {(() => {
+                                const days = Math.floor(
+                                  (new Date().setHours(23, 59, 59, 999) -
+                                    new Date(item.earliestDueDate)) /
+                                    (1000 * 60 * 60 * 24),
+                                );
+                                let colorClass = "text-slate-600";
+                                if (days >= 71) colorClass = "text-red-600";
+                                else if (days >= 36)
+                                  colorClass = "text-orange-600";
+                                else if (days >= 1)
+                                  colorClass = "text-yellow-600";
+
+                                return (
+                                  <span
+                                    className={`text-xs font-black tracking-tight ${colorClass}`}
+                                  >
+                                    {days > 0 ? `${days} Days` : "0 Days"}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <div className="flex items-center justify-center gap-2">
