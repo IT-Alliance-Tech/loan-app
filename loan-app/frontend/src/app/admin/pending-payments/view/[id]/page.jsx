@@ -84,13 +84,9 @@ const LoanPendingViewPage = () => {
     e.preventDefault();
     setUpdating(true);
     try {
-      // Send addedAmount for incremental update
       const payload = {
         ...editData,
-        addedAmount: parseFloat(editData.amountPaid) || 0,
       };
-      // Remove amountPaid from payload to avoid confusion/overwriting with the small incremental value as absolute
-      delete payload.amountPaid;
 
       await updateEMI(selectedEmi._id, payload);
       showToast("EMI updated successfully", "success");
@@ -109,27 +105,7 @@ const LoanPendingViewPage = () => {
 
   const handleModalChange = (e) => {
     const { name, value } = e.target;
-    setEditData((prev) => {
-      let newData = { ...prev, [name]: value };
-
-      // UI Preview only: Auto-calculate status if amountPaid changes
-      if (name === "amountPaid") {
-        const currentPaid = parseFloat(selectedEmi?.amountPaid) || 0;
-        const newPayment = parseFloat(value) || 0;
-        const totalPaid = currentPaid + newPayment;
-        const total = parseFloat(selectedEmi?.emiAmount) || 0;
-
-        if (totalPaid >= total) {
-          newData.status = "Paid";
-        } else if (totalPaid > 0) {
-          newData.status = "Partially Paid";
-        } else {
-          newData.status = "Pending";
-        }
-      }
-
-      return newData;
-    });
+    setEditData((prev) => ({ ...prev, [name]: value }));
   };
 
   if (loading)
@@ -516,31 +492,15 @@ const LoanPendingViewPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Amount to Pay
-                        </label>
-                        <input
-                          type="number"
-                          name="amountPaid"
-                          value={editData.amountPaid}
-                          onChange={handleModalChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
-                          placeholder="Enter Amount"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Remaining Amount
+                          Remaining Balance
                         </label>
                         <input
                           type="text"
                           value={`₹${Math.max(
                             0,
                             (selectedEmi?.emiAmount || 0) -
-                              (selectedEmi?.amountPaid || 0) -
-                              (parseFloat(editData.amountPaid) || 0),
-                          ).toFixed(2)}`}
+                              (selectedEmi?.amountPaid || 0),
+                          ).toLocaleString()}`}
                           disabled
                           className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 cursor-not-allowed"
                         />
