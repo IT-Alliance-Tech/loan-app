@@ -469,7 +469,6 @@ const LoanPendingViewPage = () => {
                                     remarks: emi.remarks || "",
                                   });
                                   setShowModal(true);
-                                  setIsDropdownOpen(false);
                                 }}
                                 className="w-full bg-primary hover:bg-blue-700 text-white rounded-xl py-2.5 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-100 active:scale-[0.98] flex items-center justify-center gap-2"
                               >
@@ -511,12 +510,7 @@ const LoanPendingViewPage = () => {
                     </button>
                   </div>
 
-                  {isDropdownOpen && (
-                    <div
-                      className="fixed inset-0 z-[110]"
-                      onClick={() => setIsDropdownOpen(false)}
-                    />
-                  )}
+                  {/* Removed undefined isDropdownOpen backdrop */}
 
                   <form onSubmit={handleSaveEMI} className="p-8 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
