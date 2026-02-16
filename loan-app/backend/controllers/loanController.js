@@ -467,10 +467,13 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
             as: "emi",
             cond: {
               $and: [
+                { $ne: ["$$emi.status", "Paid"] },
+                { $lte: ["$$emi.dueDate", now] },
+                // If status is provided, filter list to only that status.
+                // Otherwise (Pending Page), filter to strictly "Pending".
                 status
                   ? { $eq: ["$$emi.status", status] }
-                  : { $ne: ["$$emi.status", "Paid"] },
-                { $lte: ["$$emi.dueDate", now] },
+                  : { $eq: ["$$emi.status", "Pending"] },
               ],
             },
           },
@@ -479,11 +482,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     },
     {
       $match: {
-        $and: [
-          { $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] } },
-          // If no status is provided (Pending Page), at least one EMI must be strictly "Pending"
-          status ? {} : { "pendingEmisList.status": "Pending" },
-        ],
+        $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] },
       },
     },
     {
