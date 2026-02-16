@@ -5,9 +5,11 @@ import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import ContactActionMenu from "../../../components/ContactActionMenu";
-import { getSeizedPending } from "../../../services/loan.service";
+import { getSeizedPending, toggleSeized } from "../../../services/loan.service";
 import Pagination from "../../../components/Pagination";
+import { useToast } from "../../../context/ToastContext";
 import Link from "next/link";
+import TableActionMenu from "../../../components/TableActionMenu";
 
 const PartialPaymentsPage = () => {
   const router = useRouter();
@@ -29,6 +31,7 @@ const PartialPaymentsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
+  const { showToast } = useToast();
 
   useEffect(() => {
     fetchSeizedPending({ page: currentPage, limit });
@@ -104,6 +107,20 @@ const PartialPaymentsPage = () => {
     setCurrentPage(1);
     fetchSeizedPending({ page: 1, limit });
     setIsFilterOpen(false);
+  };
+
+  const handleSeize = async (loanId) => {
+    if (
+      !window.confirm("Are you sure you want to mark this vehicle as seized?")
+    )
+      return;
+    try {
+      await toggleSeized(loanId);
+      showToast("Vehicle marked as seized", "success");
+      fetchSeizedPending({ page: currentPage, limit });
+    } catch (err) {
+      showToast(err.message || "Failed to seize vehicle", "error");
+    }
   };
 
   return (
@@ -198,7 +215,7 @@ const PartialPaymentsPage = () => {
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Remaining Amount
                         </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap sticky right-0 bg-slate-50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                           Action
                         </th>
                       </tr>
@@ -322,17 +339,22 @@ const PartialPaymentsPage = () => {
                                 </span>
                               </div>
                             </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap">
-                              <button
-                                onClick={() =>
-                                  router.push(
-                                    `/admin/pending-payments/view/${item.earliestEmiId}?from=partial`,
-                                  )
-                                }
-                                className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-100"
-                              >
-                                View
-                              </button>
+                            <td className="px-6 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                              <TableActionMenu
+                                actions={[
+                                  {
+                                    label: "View",
+                                    onClick: () =>
+                                      router.push(
+                                        `/admin/pending-payments/view/${item.earliestEmiId}?from=partial`,
+                                      ),
+                                  },
+                                  {
+                                    label: "Seize Vehicle",
+                                    onClick: () => handleSeize(item.loanId),
+                                  },
+                                ]}
+                              />
                             </td>
                           </tr>
                         ))
