@@ -27,6 +27,7 @@ const PendingPaymentsPage = () => {
     customerName: "",
     vehicleNumber: "",
     mobileNumber: "",
+    nextFollowUpDate: "",
   });
   const [selectedContact, setSelectedContact] = useState(null); // Contact Details Modal
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
@@ -105,6 +106,7 @@ const PendingPaymentsPage = () => {
       customerName: "",
       vehicleNumber: "",
       mobileNumber: "",
+      nextFollowUpDate: "",
     };
     setFilters(emptyFilters);
     setSearchQuery("");
@@ -489,6 +491,18 @@ const PendingPaymentsPage = () => {
                       value={filters.mobileNumber}
                       onChange={handleFilterChange}
                       className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                      Follow-up Date
+                    </label>
+                    <input
+                      type="date"
+                      name="nextFollowUpDate"
+                      value={filters.nextFollowUpDate}
+                      onChange={handleFilterChange}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
                     />
                   </div>
                 </form>
