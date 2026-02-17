@@ -64,6 +64,12 @@ const EditLoanPage = () => {
                 .split("T")[0]
             : "",
         },
+        status: {
+          ...data.status,
+          nextFollowUpDate: data.status?.nextFollowUpDate
+            ? new Date(data.status.nextFollowUpDate).toISOString().split("T")[0]
+            : "",
+        },
       };
 
       setLoan(formattedData);

@@ -118,6 +118,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     docChecklist: statusObj?.docChecklist,
     remarks: statusObj?.remarks,
     clientResponse: statusObj?.clientResponse,
+    nextFollowUpDate: statusObj?.nextFollowUpDate,
     createdBy: req.user._id,
   });
 
@@ -313,6 +314,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       docChecklist: statusObj.docChecklist,
       remarks: statusObj.remarks,
       clientResponse: statusObj.clientResponse || topLevelClientResponse,
+      nextFollowUpDate: statusObj.nextFollowUpDate,
     }),
     ...(topLevelClientResponse !== undefined &&
       !statusObj && { clientResponse: topLevelClientResponse }),

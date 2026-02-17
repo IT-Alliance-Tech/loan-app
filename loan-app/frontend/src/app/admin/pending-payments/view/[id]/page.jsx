@@ -25,6 +25,7 @@ const LoanPendingViewPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newStatus, setNewStatus] = useState("");
+  const [newFollowUpDate, setNewFollowUpDate] = useState("");
   const [updating, setUpdating] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editData, setEditData] = useState({
@@ -54,6 +55,11 @@ const LoanPendingViewPage = () => {
         const current = res.data.find((e) => e._id === id) || res.data[0];
         setLoan(current);
         setNewStatus(current.clientResponse || "");
+        setNewFollowUpDate(
+          current.nextFollowUpDate
+            ? new Date(current.nextFollowUpDate).toISOString().split("T")[0]
+            : "",
+        );
       }
     } catch (err) {
       setError(err.message);
@@ -66,7 +72,10 @@ const LoanPendingViewPage = () => {
     try {
       setUpdating(true);
       // Update the Loan's clientResponse globally
-      await updateLoan(loan.loanId, { clientResponse: newStatus });
+      await updateLoan(loan.loanId, {
+        clientResponse: newStatus,
+        nextFollowUpDate: newFollowUpDate,
+      });
       showToast("Client response updated globally", "success");
       const redirectPath =
         fromPage === "partial"
@@ -277,23 +286,39 @@ const LoanPendingViewPage = () => {
                   {/* Payment Update Section */}
                   <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200">
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">
-                      Client Response
+                      Status Update (Client Response)
                     </h3>
-                    <div className="space-y-4">
-                      <textarea
-                        value={newStatus}
-                        onChange={(e) => setNewStatus(e.target.value)}
-                        placeholder="Enter the response or current status of the collection..."
-                        className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-5 text-white text-sm font-medium focus:outline-none focus:border-primary transition-all min-h-[120px] placeholder:text-slate-600"
-                      />
-                      <button
-                        onClick={handleUpdateStatus}
-                        disabled={updating}
-                        className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-500/20"
-                      >
-                        {updating ? "Updating..." : "Update Client Response"}
-                      </button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">
+                          Message
+                        </label>
+                        <textarea
+                          value={newStatus}
+                          onChange={(e) => setNewStatus(e.target.value)}
+                          placeholder="Enter response..."
+                          className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white text-sm font-medium focus:outline-none focus:border-primary transition-all min-h-[100px] placeholder:text-slate-600 resize-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">
+                          Follow-up Date
+                        </label>
+                        <input
+                          type="date"
+                          value={newFollowUpDate}
+                          onChange={(e) => setNewFollowUpDate(e.target.value)}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white text-sm font-medium focus:outline-none focus:border-primary transition-all"
+                        />
+                      </div>
                     </div>
+                    <button
+                      onClick={handleUpdateStatus}
+                      disabled={updating}
+                      className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-500/20"
+                    >
+                      {updating ? "Updating..." : "Update Client Response"}
+                    </button>
                   </div>
                 </div>
 
