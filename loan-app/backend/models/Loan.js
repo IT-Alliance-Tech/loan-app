@@ -155,6 +155,9 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    nextFollowUpDate: {
+      type: Date,
+    },
     status: {
       type: String,
       required: [true, "Status is required"],

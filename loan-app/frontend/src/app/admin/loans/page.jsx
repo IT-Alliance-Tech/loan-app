@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "../../../components/AuthGuard";
@@ -260,9 +261,12 @@ const LoansPage = () => {
                               className="active:bg-slate-50 transition-colors"
                             >
                               <td className="px-4 py-6 whitespace-nowrap">
-                                <span className="font-bold text-slate-900 tracking-tight text-base">
+                                <Link
+                                  href={`/admin/loans/edit/${loan._id || loan.id || loan.status?.id}`}
+                                  className="font-bold text-slate-900 tracking-tight text-base hover:text-primary hover:underline transition-all"
+                                >
                                   {loan.loanTerms?.loanNumber}
-                                </span>
+                                </Link>
                               </td>
                               <td className="px-4 py-6">
                                 <div className="flex flex-col">
@@ -501,8 +505,13 @@ const LoansPage = () => {
                               key={loan._id}
                               className={`${loan.isSeized ? "bg-red-50/50" : "hover:bg-slate-50"} transition-colors`}
                             >
-                              <td className="px-6 py-4 whitespace-nowrap font-black text-slate-900 uppercase text-xs tracking-tight">
-                                {loan.loanTerms?.loanNumber}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <Link
+                                  href={`/admin/loans/edit/${loan._id || loan.id || loan.status?.id}`}
+                                  className="font-black text-slate-900 uppercase text-xs tracking-tight hover:text-primary hover:underline transition-all"
+                                >
+                                  {loan.loanTerms?.loanNumber}
+                                </Link>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap font-extrabold text-slate-800 text-xs uppercase">
                                 {loan.customerDetails?.customerName}

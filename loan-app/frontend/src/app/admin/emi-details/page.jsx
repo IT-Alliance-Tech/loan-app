@@ -11,6 +11,12 @@ const EMIDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    loanNumber: "",
+    customerName: "",
+    status: "",
+  });
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
 
   // Pagination State
@@ -20,8 +26,16 @@ const EMIDetailsPage = () => {
   const [limit] = useState(10);
 
   useEffect(() => {
-    fetchEMIs({ page: currentPage, limit });
-  }, [currentPage]);
+    const timer = setTimeout(() => {
+      const params = { page: currentPage, limit };
+      if (searchQuery.trim()) {
+        params.loanNumber = searchQuery;
+      }
+      fetchEMIs({ ...filters, ...params });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, currentPage]);
 
   const fetchEMIs = async (params = {}) => {
     try {
@@ -43,6 +57,38 @@ const EMIDetailsPage = () => {
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
+  };
+
+  const handleSearch = (e) => {
+    if (e) e.preventDefault();
+    handleAdvancedSearch();
+  };
+
+  const handleAdvancedSearch = (e) => {
+    if (e) e.preventDefault();
+    const params = { ...filters, page: 1 };
+    if (searchQuery.trim()) params.loanNumber = searchQuery;
+    setCurrentPage(1);
+    fetchEMIs(params);
+    setIsFilterOpen(false);
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const resetFilters = () => {
+    const emptyFilters = {
+      loanNumber: "",
+      customerName: "",
+      status: "",
+    };
+    setFilters(emptyFilters);
+    setSearchQuery("");
+    setCurrentPage(1);
+    fetchEMIs({ page: 1 });
+    setIsFilterOpen(false);
   };
 
   const formatDate = (dateString) => {
@@ -194,23 +240,51 @@ const EMIDetailsPage = () => {
                     Customer-wise payment tracking and account history
                   </p>
                 </div>
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                  <div className="relative flex-1 md:w-72">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                      🔍
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Search Customer or Loan..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-tighter focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                    />
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center h-[46px]">
+                    <form
+                      onSubmit={handleSearch}
+                      className="flex-1 flex items-center px-4"
+                    >
+                      <div className="text-slate-300 text-lg">🔍</div>
+                      <input
+                        type="text"
+                        placeholder="Search by Loan Number (e.g. LN-001)"
+                        className="w-full px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none placeholder:text-slate-300 placeholder:font-black uppercase bg-transparent"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </form>
                   </div>
+                  <button
+                    onClick={() => setIsFilterOpen(true)}
+                    className="flex-none w-[46px] h-[46px] bg-white border border-slate-200 text-slate-400 rounded-xl flex items-center justify-center hover:bg-slate-50 transition-all shadow-sm"
+                    title="Advanced Filter"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2.5"
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={resetFilters}
+                    className="flex-none px-6 h-[46px] bg-red-50 border border-red-100 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    Clear
+                  </button>
                   <button
                     onClick={exportToExcel}
                     disabled={customerWiseEMIs.length === 0}
-                    className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
+                    className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white px-6 h-[46px] rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
                   >
                     <svg
                       className="w-4 h-4"
@@ -511,6 +585,105 @@ const EMIDetailsPage = () => {
             </div>
           </main>
         </div>
+        {/* Advanced Filter Drawer */}
+        {isFilterOpen && (
+          <div className="fixed inset-0 z-[100] flex justify-end">
+            <div
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+              onClick={() => setIsFilterOpen(false)}
+            ></div>
+            <div className="relative w-full max-w-md bg-white h-full shadow-2xl animate-slide-in-right border-l border-slate-100 flex flex-col">
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                    Advanced Filter
+                  </h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    Refine your search results
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsFilterOpen(false)}
+                  className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all border border-slate-100"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8">
+                <form
+                  id="filterForm"
+                  onSubmit={handleAdvancedSearch}
+                  className="space-y-8"
+                >
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
+                        Loan Number
+                      </label>
+                      <input
+                        type="text"
+                        name="loanNumber"
+                        value={filters.loanNumber}
+                        onChange={handleFilterChange}
+                        placeholder="E.G. LN-001"
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-300 uppercase"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
+                        Customer Name
+                      </label>
+                      <input
+                        type="text"
+                        name="customerName"
+                        value={filters.customerName}
+                        onChange={handleFilterChange}
+                        placeholder="ENTER NAME"
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-300 uppercase"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
+                        Status
+                      </label>
+                      <select
+                        name="status"
+                        value={filters.status}
+                        onChange={handleFilterChange}
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="">ALL</option>
+                        <option value="Paid">PAID</option>
+                        <option value="Pending">PENDING</option>
+                        <option value="Overdue">OVERDUE</option>
+                      </select>
+                    </div>
+                  </div>
+                </form>
+              </div>
+
+              <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
+                <button
+                  type="submit"
+                  form="filterForm"
+                  className="w-full bg-primary text-white py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                >
+                  🔍 APPLY FILTERS
+                </button>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="w-full bg-white border border-slate-200 text-slate-400 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  RESET FILTERS
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Contact Action Menu Popover */}
         {activeContactMenu && (
           <div
@@ -609,7 +782,7 @@ const EMIDetailsPage = () => {
               </a>
             </div>
           </div>
-        )}
+        )}{" "}
       </div>
     </AuthGuard>
   );

@@ -118,6 +118,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     docChecklist: statusObj?.docChecklist,
     remarks: statusObj?.remarks,
     clientResponse: statusObj?.clientResponse,
+    nextFollowUpDate: statusObj?.nextFollowUpDate,
     createdBy: req.user._id,
   });
 
@@ -313,6 +314,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       docChecklist: statusObj.docChecklist,
       remarks: statusObj.remarks,
       clientResponse: statusObj.clientResponse || topLevelClientResponse,
+      nextFollowUpDate: statusObj.nextFollowUpDate,
     }),
     ...(topLevelClientResponse !== undefined &&
       !statusObj && { clientResponse: topLevelClientResponse }),
@@ -422,8 +424,14 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
 });
 // export all values
 const getPendingPayments = asyncHandler(async (req, res, next) => {
-  const { customerName, loanNumber, vehicleNumber, mobileNumber, status } =
-    req.query;
+  const {
+    customerName,
+    loanNumber,
+    vehicleNumber,
+    mobileNumber,
+    status,
+    nextFollowUpDate,
+  } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
@@ -444,6 +452,13 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
       { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
       { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
     ];
+  }
+  if (nextFollowUpDate) {
+    const start = new Date(nextFollowUpDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(nextFollowUpDate);
+    end.setHours(23, 59, 59, 999);
+    query.nextFollowUpDate = { $gte: start, $lte: end };
   }
 
   const now = new Date();

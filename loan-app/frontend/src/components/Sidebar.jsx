@@ -37,7 +37,9 @@ const Sidebar = () => {
       item.subItems?.some((sub) => pathname === sub.href),
     );
     if (activeSubMenu) {
-      setExpandedMenus((prev) => ({ ...prev, [activeSubMenu.name]: true }));
+      setTimeout(() => {
+        setExpandedMenus((prev) => ({ ...prev, [activeSubMenu.name]: true }));
+      }, 0);
     }
   }, [pathname]);
 

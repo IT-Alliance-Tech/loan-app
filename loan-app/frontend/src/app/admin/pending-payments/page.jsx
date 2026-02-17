@@ -27,6 +27,7 @@ const PendingPaymentsPage = () => {
     customerName: "",
     vehicleNumber: "",
     mobileNumber: "",
+    nextFollowUpDate: "",
   });
   const [selectedContact, setSelectedContact] = useState(null); // Contact Details Modal
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
@@ -39,19 +40,16 @@ const PendingPaymentsPage = () => {
   const { showToast } = useToast();
 
   useEffect(() => {
-    fetchSeizedPending({ page: currentPage, limit });
-  }, [currentPage]);
-
-  useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        setCurrentPage(1);
-        fetchSeizedPending({ loanNumber: searchQuery, page: 1, limit });
+      const params = { page: currentPage, limit, status: "Pending" };
+      if (searchQuery.trim()) {
+        params.loanNumber = searchQuery;
       }
+      fetchSeizedPending({ ...filters, ...params });
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, currentPage]);
 
   const fetchSeizedPending = async (params = {}) => {
     try {
@@ -83,14 +81,15 @@ const PendingPaymentsPage = () => {
 
   const handleSearch = (e) => {
     if (e) e.preventDefault();
-    setCurrentPage(1);
-    fetchSeizedPending({ loanNumber: searchQuery, page: 1, limit });
+    handleAdvancedSearch();
   };
 
   const handleAdvancedSearch = (e) => {
     if (e) e.preventDefault();
+    const params = { ...filters, page: 1, status: "Pending" };
+    if (searchQuery.trim()) params.loanNumber = searchQuery;
     setCurrentPage(1);
-    fetchSeizedPending({ ...filters, page: 1, limit });
+    fetchSeizedPending(params);
     setIsFilterOpen(false);
   };
 
@@ -105,11 +104,12 @@ const PendingPaymentsPage = () => {
       customerName: "",
       vehicleNumber: "",
       mobileNumber: "",
+      nextFollowUpDate: "",
     };
     setFilters(emptyFilters);
     setSearchQuery("");
     setCurrentPage(1);
-    fetchSeizedPending({ page: 1, limit });
+    fetchSeizedPending({ page: 1, status: "Pending" });
     setIsFilterOpen(false);
   };
 
@@ -137,19 +137,19 @@ const PendingPaymentsPage = () => {
           </div>
           <main className="py-8 px-4 sm:px-8">
             <div className="max-w-7xl mx-auto">
-              <div className="flex justify-between items-start mb-8">
+              <div className="flex justify-between items-start mb-2 sm:mb-8">
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
                     Pending Payments
                   </h1>
-                  <p className="text-slate-400 font-bold text-[9px] sm:text-[10px] uppercase tracking-[0.2em] mt-2">
-                    Monitoring outstanding payments for assets
+                  <p className="text-slate-400 font-bold text-[9px] sm:text-sm uppercase tracking-[0.15em] mt-1.5">
+                    {totalRecords} RECORDS FOUND
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3 mb-8">
-                <div className="flex-1 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center h-14 overflow-hidden">
+                <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center h-[46px]">
                   <form
                     onSubmit={handleSearch}
                     className="flex-1 flex items-center px-4"
@@ -157,8 +157,8 @@ const PendingPaymentsPage = () => {
                     <div className="text-slate-300 text-lg">🔍</div>
                     <input
                       type="text"
-                      placeholder="Quick Search Loan #"
-                      className="w-full py-3 px-3 text-sm font-medium text-slate-700 focus:outline-none placeholder:text-slate-300 uppercase"
+                      placeholder="Search by Loan Number (e.g. LN-001)"
+                      className="w-full px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none placeholder:text-slate-300 placeholder:font-black uppercase bg-transparent"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -166,10 +166,11 @@ const PendingPaymentsPage = () => {
                 </div>
                 <button
                   onClick={() => setIsFilterOpen(true)}
-                  className="w-14 h-14 bg-white border border-slate-100 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-50 transition-all shadow-sm group"
+                  className="flex-none w-[46px] h-[46px] bg-white border border-slate-200 text-slate-400 rounded-xl flex items-center justify-center hover:bg-slate-50 transition-all shadow-sm"
+                  title="Advanced Filter"
                 >
                   <svg
-                    className="w-6 h-6 group-hover:text-primary transition-colors"
+                    className="w-5 h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -177,10 +178,16 @@ const PendingPaymentsPage = () => {
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth="2"
+                      strokeWidth="2.5"
                       d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
                     />
                   </svg>
+                </button>
+                <button
+                  onClick={resetFilters}
+                  className="flex-none px-6 h-[46px] bg-red-50 border border-red-100 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 shadow-sm"
+                >
+                  Clear
                 </button>
               </div>
 
@@ -491,22 +498,34 @@ const PendingPaymentsPage = () => {
                       className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
                     />
                   </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                      Follow-up Date
+                    </label>
+                    <input
+                      type="date"
+                      name="nextFollowUpDate"
+                      value={filters.nextFollowUpDate}
+                      onChange={handleFilterChange}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
+                    />
+                  </div>
                 </form>
               </div>
               <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
                 <button
                   type="submit"
                   form="filterForm"
-                  className="w-full bg-primary text-white py-4 rounded-2xl font-black text-[12px] uppercase shadow-xl shadow-blue-200"
+                  className="w-full bg-primary text-white py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                 >
-                  Apply Filters
+                  🔍 APPLY FILTERS
                 </button>
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="w-full bg-white border border-slate-200 text-slate-400 py-4 rounded-2xl font-black text-[12px] uppercase"
+                  className="w-full bg-white border border-slate-200 text-slate-400 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all"
                 >
-                  Reset
+                  RESET FILTERS
                 </button>
               </div>
             </div>

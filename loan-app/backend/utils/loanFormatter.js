@@ -57,6 +57,7 @@ const formatLoanResponse = (loanDoc) => {
       docChecklist: loan.docChecklist,
       remarks: loan.remarks,
       clientResponse: loan.clientResponse,
+      nextFollowUpDate: loan.nextFollowUpDate,
       id: loan._id,
       createdBy: loan.createdBy,
       createdAt: loan.createdAt,
