@@ -28,16 +28,13 @@ const LoanPendingViewPage = () => {
   const [newFollowUpDate, setNewFollowUpDate] = useState("");
   const [updating, setUpdating] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [dateGroups, setDateGroups] = useState([]);
   const [editData, setEditData] = useState({
-    amountPaid: "",
-    paymentMode: "",
-    paymentDate: new Date().toISOString().split("T")[0],
     overdue: 0,
     status: "Pending",
     remarks: "",
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [activeContactMenu, setActiveContactMenu] = useState(null);
   const [pendingEmis, setPendingEmis] = useState([]);
   const [selectedEmi, setSelectedEmi] = useState(null);
   const { showToast } = useToast();
@@ -71,7 +68,6 @@ const LoanPendingViewPage = () => {
   const handleUpdateStatus = async () => {
     try {
       setUpdating(true);
-      // Update the Loan's clientResponse globally
       await updateLoan(loan.loanId, {
         clientResponse: newStatus,
         nextFollowUpDate: newFollowUpDate,
@@ -89,12 +85,118 @@ const LoanPendingViewPage = () => {
     }
   };
 
+  const handleModalChange = (e) => {
+    const { name, value } = e.target;
+    setEditData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddDate = () => {
+    setDateGroups([
+      ...dateGroups,
+      {
+        id: Date.now(),
+        date: new Date().toISOString().split("T")[0],
+        payments: [{ id: Date.now() + 1, mode: "", amount: "" }],
+      },
+    ]);
+  };
+
+  const handleAddMore = (groupId) => {
+    setDateGroups(
+      dateGroups.map((group) => {
+        if (group.id === groupId) {
+          return {
+            ...group,
+            payments: [
+              ...group.payments,
+              { id: Date.now(), mode: "", amount: "" },
+            ],
+          };
+        }
+        return group;
+      }),
+    );
+  };
+
+  const handleGroupDateChange = (groupId, value) => {
+    setDateGroups(
+      dateGroups.map((group) =>
+        group.id === groupId ? { ...group, date: value } : group,
+      ),
+    );
+  };
+
+  const handlePaymentChange = (groupId, paymentId, field, value) => {
+    setDateGroups(
+      dateGroups.map((group) => {
+        if (group.id === groupId) {
+          return {
+            ...group,
+            payments: group.payments.map((p) =>
+              p.id === paymentId ? { ...p, [field]: value } : p,
+            ),
+          };
+        }
+        return group;
+      }),
+    );
+  };
+
+  const handleRemovePayment = (groupId, paymentId) => {
+    setDateGroups(
+      dateGroups
+        .map((group) => {
+          if (group.id === groupId) {
+            return {
+              ...group,
+              payments: group.payments.filter((p) => p.id !== paymentId),
+            };
+          }
+          return group;
+        })
+        .filter((g) => g.payments.length > 0),
+    );
+  };
+
+  const calculateTotalPaidNow = () => {
+    return dateGroups.reduce((acc, group) => {
+      return (
+        acc +
+        group.payments.reduce(
+          (pAcc, p) => pAcc + (parseFloat(p.amount) || 0),
+          0,
+        )
+      );
+    }, 0);
+  };
+
+  const remainingBalance = Math.max(
+    0,
+    (selectedEmi?.emiAmount || 0) -
+      (selectedEmi?.amountPaid || 0) -
+      calculateTotalPaidNow(),
+  );
+
   const handleSaveEMI = async (e) => {
     e.preventDefault();
     setUpdating(true);
+
+    const totalAddedAmount = calculateTotalPaidNow();
+    const allModes = [
+      ...new Set(
+        dateGroups
+          .flatMap((g) => g.payments.map((p) => p.mode))
+          .filter(Boolean),
+      ),
+    ].join(", ");
+    const latestDate = dateGroups[dateGroups.length - 1]?.date;
+
     try {
       const payload = {
         ...editData,
+        addedAmount: totalAddedAmount,
+        paymentMode: allModes,
+        paymentDate: latestDate,
       };
 
       await updateEMI(selectedEmi._id, payload);
@@ -110,11 +212,6 @@ const LoanPendingViewPage = () => {
     } finally {
       setUpdating(false);
     }
-  };
-
-  const handleModalChange = (e) => {
-    const { name, value } = e.target;
-    setEditData((prev) => ({ ...prev, [name]: value }));
   };
 
   if (loading)
@@ -460,15 +557,25 @@ const LoanPendingViewPage = () => {
                                 onClick={() => {
                                   setSelectedEmi(emi);
                                   setEditData({
-                                    amountPaid: "",
-                                    paymentMode: emi.paymentMode || "",
-                                    paymentDate: new Date()
-                                      .toISOString()
-                                      .split("T")[0],
                                     overdue: emi.overdue || 0,
                                     status: emi.status || "Pending",
                                     remarks: emi.remarks || "",
                                   });
+                                  setDateGroups([
+                                    {
+                                      id: Date.now(),
+                                      date: new Date()
+                                        .toISOString()
+                                        .split("T")[0],
+                                      payments: [
+                                        {
+                                          id: Date.now() + 1,
+                                          mode: "",
+                                          amount: "",
+                                        },
+                                      ],
+                                    },
+                                  ]);
                                   setShowModal(true);
                                 }}
                                 className="w-full bg-primary hover:bg-blue-700 text-white rounded-xl py-2.5 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-100 active:scale-[0.98] flex items-center justify-center gap-2"
@@ -511,94 +618,199 @@ const LoanPendingViewPage = () => {
                     </button>
                   </div>
 
-                  {/* Removed undefined isDropdownOpen backdrop */}
-
-                  <form onSubmit={handleSaveEMI} className="p-8 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Remaining Balance
+                  <form
+                    onSubmit={handleSaveEMI}
+                    className="flex flex-col max-h-[85vh]"
+                  >
+                    {/* Scrollable Content Container */}
+                    <div className="p-8 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+                      {/* Remaining Balance at Top */}
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">
+                          Remaining Amount
                         </label>
-                        <input
-                          type="text"
-                          value={`₹${Math.max(
-                            0,
-                            (selectedEmi?.emiAmount || 0) -
-                              (selectedEmi?.amountPaid || 0),
-                          ).toLocaleString()}`}
-                          disabled
-                          className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 cursor-not-allowed"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Payment Date
-                        </label>
-                        <input
-                          type="date"
-                          name="paymentDate"
-                          value={editData.paymentDate}
-                          onChange={handleModalChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
-                          required
-                        />
-                      </div>
-
-                      <PaymentModeSelector
-                        value={editData.paymentMode}
-                        onChange={(val) =>
-                          setEditData((prev) => ({ ...prev, paymentMode: val }))
-                        }
-                      />
-
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Payment Status
-                        </label>
-                        <div
-                          className={`w-full px-4 py-3 border rounded-xl text-sm font-black uppercase tracking-wider ${
-                            editData.status === "Paid"
-                              ? "bg-green-50 border-green-200 text-green-600"
-                              : editData.status === "Partially Paid"
-                                ? "bg-orange-50 border-orange-200 text-orange-600"
-                                : "bg-red-50 border-red-200 text-red-600"
-                          }`}
-                        >
-                          {editData.status}
+                        <div className="text-xl font-black text-slate-900">
+                          ₹{remainingBalance.toLocaleString()}
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Overdue Amount
-                        </label>
-                        <input
-                          type="number"
-                          name="overdue"
-                          value={editData.overdue}
-                          onChange={handleModalChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-red-600 focus:outline-none focus:ring-4 focus:ring-red-100 focus:border-red-400 transition-all"
-                          placeholder="0"
-                        />
+                      {/* Dynamic Date Groups */}
+                      <div className="space-y-8">
+                        {dateGroups.map((group) => (
+                          <div
+                            key={group.id}
+                            className="space-y-4 p-4 border border-slate-100 rounded-2xl bg-white shadow-sm"
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex-1">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                  Payment Date
+                                </label>
+                                <input
+                                  type="date"
+                                  value={group.date}
+                                  onChange={(e) =>
+                                    handleGroupDateChange(
+                                      group.id,
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-mono"
+                                  required
+                                />
+                              </div>
+                              {dateGroups.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDateGroups(
+                                      dateGroups.filter(
+                                        (g) => g.id !== group.id,
+                                      ),
+                                    )
+                                  }
+                                  className="mt-6 p-2 text-red-400 hover:text-red-600 transition-colors"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Payments within group */}
+                            <div className="space-y-4 pl-4 border-l-2 border-slate-50">
+                              {group.payments.map((payment) => (
+                                <div
+                                  key={payment.id}
+                                  className="grid grid-cols-1 md:grid-cols-2 gap-4 relative"
+                                >
+                                  <div className="relative">
+                                    <PaymentModeSelector
+                                      value={payment.mode}
+                                      onChange={(val) =>
+                                        handlePaymentChange(
+                                          group.id,
+                                          payment.id,
+                                          "mode",
+                                          val,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  <div className="flex gap-2 items-end">
+                                    <div className="flex-1">
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                        Amount
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={payment.amount}
+                                        onChange={(e) =>
+                                          handlePaymentChange(
+                                            group.id,
+                                            payment.id,
+                                            "amount",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300"
+                                        placeholder="0.00"
+                                        required
+                                      />
+                                    </div>
+                                    {group.payments.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleRemovePayment(
+                                            group.id,
+                                            payment.id,
+                                          )
+                                        }
+                                        className="mb-2 p-2 text-red-400 hover:text-red-600 transition-colors"
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+
+                              <button
+                                type="button"
+                                onClick={() => handleAddMore(group.id)}
+                                className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline flex items-center gap-1.5 px-1 py-2"
+                              >
+                                + Add More
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={handleAddDate}
+                          className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-primary hover:text-primary transition-all bg-slate-50/50"
+                        >
+                          + Add Date
+                        </button>
                       </div>
 
-                      <div className="md:col-span-2">
+                      {/* Status and Overdue Row */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                            Payment Status
+                          </label>
+                          <div
+                            className={`w-full px-4 py-3 border rounded-xl text-sm font-black uppercase tracking-wider ${
+                              remainingBalance === 0
+                                ? "bg-green-50 border-green-200 text-green-600"
+                                : remainingBalance <
+                                    (selectedEmi?.emiAmount || 0)
+                                  ? "bg-orange-50 border-orange-200 text-orange-600"
+                                  : "bg-red-50 border-red-200 text-red-600"
+                            }`}
+                          >
+                            {remainingBalance === 0
+                              ? "Paid"
+                              : remainingBalance < (selectedEmi?.emiAmount || 0)
+                                ? "Partially Paid"
+                                : "Pending"}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                            Overdue Amount
+                          </label>
+                          <input
+                            type="number"
+                            name="overdue"
+                            value={editData.overdue}
+                            onChange={handleModalChange}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-red-600 focus:outline-none focus:ring-4 focus:ring-red-100 focus:border-red-400 transition-all font-mono"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Remarks */}
+                      <div className="pt-2">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Remarks
+                          Remark
                         </label>
                         <textarea
                           name="remarks"
                           value={editData.remarks}
                           onChange={handleModalChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all resize-none"
-                          rows="3"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all resize-none min-h-[100px]"
                           placeholder="Add any payment notes..."
                         ></textarea>
                       </div>
                     </div>
 
-                    <div className="flex gap-4 pt-4">
+                    {/* Fixed Footer Buttons Container */}
+                    <div className="p-8 border-t border-slate-100 bg-white flex gap-4 mt-auto">
                       <button
                         type="button"
                         onClick={() => setShowModal(false)}
@@ -611,7 +823,7 @@ const LoanPendingViewPage = () => {
                         disabled={updating}
                         className="flex-[2] px-6 py-4 bg-primary text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                       >
-                        {updating ? "PROCESSING..." : "UPDATE PAYMENT RECORD"}
+                        {updating ? "PROCESSING..." : "UPDATE EMI"}
                       </button>
                     </div>
                   </form>
