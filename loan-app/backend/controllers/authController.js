@@ -8,7 +8,7 @@ const generateTokens = (user) => {
   const accessToken = jwt.sign(
     { id: user._id, email: user.email, role: user.role, name: user.name },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE || "30m" },
+    { expiresIn: process.env.JWT_EXPIRE || "24h" },
   );
 
   const refreshToken = jwt.sign(
@@ -44,15 +44,17 @@ const login = asyncHandler(async (req, res, next) => {
 
   const { accessToken, refreshToken } = generateTokens(user);
 
-  // Save refresh token in DB
+  // Save refresh token in DB and clear old grace period data
   user.refreshToken = refreshToken;
+  user.previousRefreshToken = undefined;
+  user.previousRefreshTokenExpiresAt = undefined;
   await user.save();
 
   // Set refresh token in secure cookie
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+    secure: true,
+    sameSite: "none",
     maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
   });
 
@@ -76,6 +78,7 @@ const refreshToken = asyncHandler(async (req, res, next) => {
       process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
     );
   } catch (err) {
+    console.error("Refresh token verification failed:", err.message);
     return next(new ErrorHandler("Invalid refresh token", 403));
   }
 
@@ -97,7 +100,11 @@ const refreshToken = asyncHandler(async (req, res, next) => {
       isGracePeriod = true;
       console.log("Grace period refresh token used for user:", user.email);
     } else {
-      console.warn("Invalid refresh token attempt for user:", user.email);
+      console.warn(
+        "Invalid refresh token attempt for user:",
+        user.email,
+        "| Token mismatch vs stored and no valid grace period found",
+      );
       return next(new ErrorHandler("Invalid refresh token", 403));
     }
   }
@@ -106,7 +113,8 @@ const refreshToken = asyncHandler(async (req, res, next) => {
 
   if (!isGracePeriod) {
     user.previousRefreshToken = token;
-    user.previousRefreshTokenExpiresAt = new Date(Date.now() + 30000);
+    // 60 second grace period for concurrency
+    user.previousRefreshTokenExpiresAt = new Date(Date.now() + 60000);
   }
 
   user.refreshToken = tokens.refreshToken;
@@ -114,8 +122,8 @@ const refreshToken = asyncHandler(async (req, res, next) => {
 
   res.cookie("refreshToken", tokens.refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+    secure: true,
+    sameSite: "none",
     maxAge: 10 * 24 * 60 * 60 * 1000,
   });
 
@@ -137,8 +145,8 @@ const logout = asyncHandler(async (req, res, next) => {
 
   res.clearCookie("refreshToken", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    secure: true,
+    sameSite: "none",
   });
 
   return sendResponse(

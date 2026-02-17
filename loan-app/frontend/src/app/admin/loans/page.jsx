@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "../../../components/AuthGuard";
@@ -8,6 +9,7 @@ import { getUserFromToken } from "../../../utils/auth";
 import { getLoans, searchLoan } from "../../../services/loan.service";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
 import Pagination from "../../../components/Pagination";
+import ContactActionMenu from "../../../components/ContactActionMenu";
 
 const LoansPage = () => {
   const router = useRouter();
@@ -26,6 +28,8 @@ const LoansPage = () => {
     tenureMonths: "",
     status: "",
   });
+  const [selectedContact, setSelectedContact] = useState(null); // For contact details modal
+  const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -224,6 +228,9 @@ const LoansPage = () => {
                             STATUS
                           </th>
                           <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
+                            CLIENT RESPONSE
+                          </th>
+                          <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             ACTIONS
                           </th>
                         </tr>
@@ -254,19 +261,70 @@ const LoansPage = () => {
                               className="active:bg-slate-50 transition-colors"
                             >
                               <td className="px-4 py-6 whitespace-nowrap">
-                                <span className="font-bold text-slate-900 tracking-tight text-base">
+                                <Link
+                                  href={`/admin/loans/edit/${loan._id || loan.id || loan.status?.id}`}
+                                  className="font-bold text-slate-900 tracking-tight text-base hover:text-primary hover:underline transition-all"
+                                >
                                   {loan.loanTerms?.loanNumber}
-                                </span>
+                                </Link>
                               </td>
                               <td className="px-4 py-6">
                                 <div className="flex flex-col">
                                   <span className="font-bold text-slate-700 text-base leading-tight">
                                     {loan.customerDetails?.customerName}
                                   </span>
-                                  <span className="text-[11px] font-medium text-slate-400 mt-1 tracking-tight">
-                                    {loan.customerDetails?.mobileNumbers?.[0] ||
-                                      "No number"}
-                                  </span>
+                                  <div className="flex flex-col gap-0.5 mt-1">
+                                    {(
+                                      loan.customerDetails?.mobileNumbers || []
+                                    ).map((num, idx) => (
+                                      <button
+                                        key={idx}
+                                        onClick={(e) => {
+                                          const rect =
+                                            e.currentTarget.getBoundingClientRect();
+                                          setActiveContactMenu({
+                                            number: num,
+                                            name: loan.customerDetails
+                                              ?.customerName,
+                                            type: "Applicant",
+                                            x: rect.left,
+                                            y: rect.bottom,
+                                          });
+                                        }}
+                                        className="text-[10px] font-bold text-slate-400 tracking-tight hover:text-primary transition-colors text-left"
+                                      >
+                                        {num}
+                                      </button>
+                                    ))}
+                                    <div className="mt-1 flex flex-col pt-1 border-t border-slate-100">
+                                      <span className="text-[8px] font-black text-primary uppercase">
+                                        G: {loan.customerDetails?.guarantorName}
+                                      </span>
+                                      {(
+                                        loan.customerDetails
+                                          ?.guarantorMobileNumbers || []
+                                      ).map((num, idx) => (
+                                        <button
+                                          key={idx}
+                                          onClick={(e) => {
+                                            const rect =
+                                              e.currentTarget.getBoundingClientRect();
+                                            setActiveContactMenu({
+                                              number: num,
+                                              name: loan.customerDetails
+                                                ?.guarantorName,
+                                              type: "Guarantor",
+                                              x: rect.left,
+                                              y: rect.bottom,
+                                            });
+                                          }}
+                                          className="text-[9px] font-bold text-slate-400 opacity-70 hover:opacity-100 hover:text-primary transition-all text-left"
+                                        >
+                                          {num}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
                                 </div>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap text-[#2463EB] font-black text-base">
@@ -285,6 +343,14 @@ const LoansPage = () => {
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${loan.isSeized ? "bg-red-50 text-red-500 border-red-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"}`}
                                 >
                                   {loan.status.isSeized ? "Seized" : "Active"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-6 text-center whitespace-nowrap">
+                                <span
+                                  title={loan.status.clientResponse}
+                                  className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate max-w-[100px] mx-auto"
+                                >
+                                  {loan.status.clientResponse || "—"}
                                 </span>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap">
@@ -391,6 +457,12 @@ const LoansPage = () => {
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                             Mobile
                           </th>
+                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                            Guarantor
+                          </th>
+                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                            Guar. Mobile
+                          </th>
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                             EMI
                           </th>
@@ -399,6 +471,9 @@ const LoansPage = () => {
                           </th>
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                             Status
+                          </th>
+                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                            Client Response
                           </th>
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                             Actions
@@ -430,15 +505,72 @@ const LoansPage = () => {
                               key={loan._id}
                               className={`${loan.isSeized ? "bg-red-50/50" : "hover:bg-slate-50"} transition-colors`}
                             >
-                              <td className="px-6 py-4 whitespace-nowrap font-black text-slate-900 uppercase text-xs tracking-tight">
-                                {loan.loanTerms?.loanNumber}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <Link
+                                  href={`/admin/loans/edit/${loan._id || loan.id || loan.status?.id}`}
+                                  className="font-black text-slate-900 uppercase text-xs tracking-tight hover:text-primary hover:underline transition-all"
+                                >
+                                  {loan.loanTerms?.loanNumber}
+                                </Link>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap font-extrabold text-slate-800 text-xs uppercase">
                                 {loan.customerDetails?.customerName}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-slate-500 font-bold text-xs tracking-widest">
-                                {loan.customerDetails?.mobileNumbers?.[0] ||
-                                  "No number"}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex flex-col gap-1 items-start">
+                                  {(
+                                    loan.customerDetails?.mobileNumbers || []
+                                  ).map((num, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={(e) => {
+                                        const rect =
+                                          e.currentTarget.getBoundingClientRect();
+                                        setActiveContactMenu({
+                                          number: num,
+                                          name: loan.customerDetails
+                                            ?.customerName,
+                                          type: "Applicant",
+                                          x: rect.left,
+                                          y: rect.bottom,
+                                        });
+                                      }}
+                                      className="text-slate-600 font-bold text-xs tracking-widest hover:text-primary transition-colors text-left"
+                                    >
+                                      {num}
+                                    </button>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap font-extrabold text-slate-800 text-xs uppercase">
+                                {loan.customerDetails?.guarantorName || "—"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex flex-col gap-1 items-start">
+                                  {(
+                                    loan.customerDetails
+                                      ?.guarantorMobileNumbers || []
+                                  ).map((num, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={(e) => {
+                                        const rect =
+                                          e.currentTarget.getBoundingClientRect();
+                                        setActiveContactMenu({
+                                          number: num,
+                                          name: loan.customerDetails
+                                            ?.guarantorName,
+                                          type: "Guarantor",
+                                          x: rect.left,
+                                          y: rect.bottom,
+                                        });
+                                      }}
+                                      className="text-slate-600 font-bold text-xs tracking-widest hover:text-primary transition-colors text-left"
+                                    >
+                                      {num}
+                                    </button>
+                                  ))}
+                                </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center font-black text-primary text-xs">
                                 ₹{loan.loanTerms?.monthlyEMI?.toLocaleString()}
@@ -453,6 +585,14 @@ const LoansPage = () => {
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${loan.isSeized ? "bg-red-100 text-red-600 border-red-200" : "bg-green-100 text-green-600 border-green-200"}`}
                                 >
                                   {loan.status.isSeized ? "Seized" : "Active"}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <span
+                                  title={loan.status.clientResponse}
+                                  className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate max-w-[150px] mx-auto"
+                                >
+                                  {loan.status.clientResponse || "—"}
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -795,6 +935,12 @@ const LoansPage = () => {
           </span>
         </button>
       </div>
+
+      {/* Contact Action Menu */}
+      <ContactActionMenu
+        contact={activeContactMenu}
+        onClose={() => setActiveContactMenu(null)}
+      />
     </AuthGuard>
   );
 };

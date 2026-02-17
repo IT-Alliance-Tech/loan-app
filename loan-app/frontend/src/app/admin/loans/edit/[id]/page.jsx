@@ -64,6 +64,12 @@ const EditLoanPage = () => {
                 .split("T")[0]
             : "",
         },
+        status: {
+          ...data.status,
+          nextFollowUpDate: data.status?.nextFollowUpDate
+            ? new Date(data.status.nextFollowUpDate).toISOString().split("T")[0]
+            : "",
+        },
       };
 
       setLoan(formattedData);
@@ -85,8 +91,8 @@ const EditLoanPage = () => {
     setSubmitting(true);
     try {
       await updateLoan(id, formData);
-      showToast("Loan profile updated successfully", "success");
-      router.push("/admin/loans");
+      showToast("Loan profile updated and EMIs synchronized", "success");
+      await fetchLoanData();
     } catch (err) {
       showToast(err.message || "Failed to update loan", "error");
     } finally {

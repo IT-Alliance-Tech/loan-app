@@ -4,8 +4,12 @@ import { useRouter } from "next/navigation";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
-import { getSeizedPending } from "../../../services/loan.service";
+import ContactActionMenu from "../../../components/ContactActionMenu";
+import { getSeizedPending, toggleSeized } from "../../../services/loan.service";
 import Pagination from "../../../components/Pagination";
+import { useToast } from "../../../context/ToastContext";
+import Link from "next/link";
+import TableActionMenu from "../../../components/TableActionMenu";
 
 const PartialPaymentsPage = () => {
   const router = useRouter();
@@ -18,13 +22,17 @@ const PartialPaymentsPage = () => {
     loanNumber: "",
     customerName: "",
     vehicleNumber: "",
+    mobileNumber: "",
+    nextFollowUpDate: "",
   });
+  const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
+  const { showToast } = useToast();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -91,12 +99,28 @@ const PartialPaymentsPage = () => {
       loanNumber: "",
       customerName: "",
       vehicleNumber: "",
+      mobileNumber: "",
+      nextFollowUpDate: "",
     };
     setFilters(emptyFilters);
     setSearchQuery("");
     setCurrentPage(1);
     fetchSeizedPending({ page: 1, status: "Partially Paid" });
     setIsFilterOpen(false);
+  };
+
+  const handleSeize = async (loanId) => {
+    if (
+      !window.confirm("Are you sure you want to mark this vehicle as seized?")
+    )
+      return;
+    try {
+      await toggleSeized(loanId);
+      showToast("Vehicle marked as seized", "success");
+      fetchSeizedPending({ page: currentPage, limit });
+    } catch (err) {
+      showToast(err.message || "Failed to seize vehicle", "error");
+    }
   };
 
   return (
@@ -180,16 +204,28 @@ const PartialPaymentsPage = () => {
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                           Applicant Name
                         </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          Applicant Mobile
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          Guarantor Name
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          Guarantor Mobile
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          Customer Response
+                        </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                          Month
+                          Months
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Remaining Amount
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                          Remarks
+                          Days
                         </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap sticky right-0 bg-slate-50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                           Action
                         </th>
                       </tr>
@@ -198,7 +234,7 @@ const PartialPaymentsPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="6"
+                            colSpan="10"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             Loading records...
@@ -207,7 +243,7 @@ const PartialPaymentsPage = () => {
                       ) : data.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="6"
+                            colSpan="10"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             No records found
@@ -216,53 +252,142 @@ const PartialPaymentsPage = () => {
                       ) : (
                         data.map((item) => (
                           <tr
-                            key={item._id}
+                            key={item.loanId}
                             className="hover:bg-slate-50 transition-colors group"
                           >
                             <td className="px-6 py-5 whitespace-nowrap">
-                              <span className="text-[11px] font-black text-primary uppercase tracking-wider">
+                              <Link
+                                href={`/admin/pending-payments/view/${item.earliestEmiId}?from=partial`}
+                                className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
+                              >
                                 {item.loanNumber}
-                              </span>
+                              </Link>
                             </td>
                             <td className="px-6 py-5 whitespace-nowrap">
                               <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
                                 {item.customerName}
                               </span>
                             </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap">
-                              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                                {new Date(item.dueDate).toLocaleDateString(
-                                  "en-US",
-                                  { month: "short", year: "numeric" },
+                            <td className="px-6 py-5 whitespace-nowrap">
+                              <div className="flex flex-col gap-0.5 mt-1">
+                                {(item.mobileNumbers || []).map((num, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={(e) => {
+                                      const rect =
+                                        e.currentTarget.getBoundingClientRect();
+                                      setActiveContactMenu({
+                                        number: num,
+                                        name: item.customerName,
+                                        type: "Applicant",
+                                        x: rect.left,
+                                        y: rect.bottom,
+                                      });
+                                    }}
+                                    className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
+                                  >
+                                    {num}
+                                  </button>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 whitespace-nowrap">
+                              <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
+                                {item.guarantorName || "—"}
+                              </span>
+                            </td>
+                            <td className="px-6 py-5 whitespace-nowrap">
+                              <div className="flex flex-col gap-0.5 mt-1">
+                                {(item.guarantorMobileNumbers || []).map(
+                                  (num, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={(e) => {
+                                        const rect =
+                                          e.currentTarget.getBoundingClientRect();
+                                        setActiveContactMenu({
+                                          number: num,
+                                          name: item.guarantorName,
+                                          type: "Guarantor",
+                                          x: rect.left,
+                                          y: rect.bottom,
+                                        });
+                                      }}
+                                      className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
+                                    >
+                                      {num}
+                                    </button>
+                                  ),
                                 )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="font-bold text-slate-600 text-[11px] uppercase tracking-tight max-w-[120px] truncate block"
+                                  title={
+                                    item.clientResponse ||
+                                    item.status?.clientResponse
+                                  }
+                                >
+                                  {item.clientResponse ||
+                                    item.status?.clientResponse ||
+                                    "—"}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap">
+                              <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-md">
+                                {item.unpaidMonths}{" "}
+                                {item.unpaidMonths === 1 ? "Month" : "Months"}
                               </span>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <div className="flex flex-col items-center">
                                 <span className="text-sm font-black text-orange-600 tracking-tight">
-                                  ₹
-                                  {(
-                                    item.emiAmount - item.amountPaid
-                                  ).toLocaleString()}
+                                  ₹{item.totalDueAmount.toLocaleString()}
                                 </span>
                               </div>
                             </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap max-w-[200px]">
-                              <span className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate">
-                                {item.remarks || "No remarks"}
-                              </span>
-                            </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
-                              <button
-                                onClick={() =>
-                                  router.push(
-                                    `/admin/pending-payments/view/${item._id}`,
-                                  )
-                                }
-                                className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-100"
-                              >
-                                View
-                              </button>
+                              {(() => {
+                                const days = Math.floor(
+                                  (new Date().setHours(23, 59, 59, 999) -
+                                    new Date(item.earliestDueDate)) /
+                                    (1000 * 60 * 60 * 24),
+                                );
+                                let colorClass = "text-slate-600";
+                                if (days >= 71) colorClass = "text-red-600";
+                                else if (days >= 36)
+                                  colorClass = "text-orange-600";
+                                else if (days >= 1)
+                                  colorClass = "text-yellow-600";
+
+                                return (
+                                  <span
+                                    className={`text-xs font-black tracking-tight ${colorClass}`}
+                                  >
+                                    {days > 0 ? `${days} Days` : "0 Days"}
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                              <TableActionMenu
+                                actions={[
+                                  {
+                                    label: "View",
+                                    onClick: () =>
+                                      router.push(
+                                        `/admin/pending-payments/view/${item.earliestEmiId}?from=partial`,
+                                      ),
+                                  },
+                                  {
+                                    label: "Seize Vehicle",
+                                    onClick: () => handleSeize(item.loanId),
+                                  },
+                                ]}
+                              />
                             </td>
                           </tr>
                         ))
@@ -346,6 +471,30 @@ const PartialPaymentsPage = () => {
                       className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
                     />
                   </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                      Mobile Number
+                    </label>
+                    <input
+                      type="text"
+                      name="mobileNumber"
+                      value={filters.mobileNumber}
+                      onChange={handleFilterChange}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                      Follow-up Date
+                    </label>
+                    <input
+                      type="date"
+                      name="nextFollowUpDate"
+                      value={filters.nextFollowUpDate}
+                      onChange={handleFilterChange}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
+                    />
+                  </div>
                 </form>
               </div>
               <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
@@ -367,6 +516,11 @@ const PartialPaymentsPage = () => {
             </div>
           </div>
         )}
+
+        <ContactActionMenu
+          contact={activeContactMenu}
+          onClose={() => setActiveContactMenu(null)}
+        />
       </div>
     </AuthGuard>
   );

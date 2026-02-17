@@ -31,7 +31,6 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
     tenureMonths,
     loanStartDate,
     remarks,
-    // Additional fields
     ownRent,
     panNumber,
     aadharNumber,
@@ -110,7 +109,6 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
       emiAmount: monthlyEMI,
       status: "Pending",
     });
-    // Increment month properly
     currentEmiDate.setMonth(currentEmiDate.getMonth() + 1);
   }
 
@@ -224,11 +222,26 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     newStatus = "Pending";
   }
 
+  // Handle unique payment mode merging
+  let mergedPaymentMode = emi.paymentMode || "";
+  if (paymentMode) {
+    const existingModes = mergedPaymentMode
+      ? mergedPaymentMode.split(",").map((m) => m.trim())
+      : [];
+    const newModes = paymentMode.split(",").map((m) => m.trim());
+
+    // Create a unique set of modes, filtering out empty strings
+    const uniqueModes = [
+      ...new Set([...existingModes, ...newModes].filter((m) => m !== "")),
+    ];
+    mergedPaymentMode = uniqueModes.join(", ");
+  }
+
   emi = await EMI.findByIdAndUpdate(
     id,
     {
       amountPaid: newAmountPaid,
-      paymentMode: paymentMode || emi.paymentMode,
+      paymentMode: mergedPaymentMode,
       paymentDate: paymentDate || emi.paymentDate,
       overdue: overdue !== undefined ? overdue : emi.overdue,
       status: newStatus,
@@ -246,7 +259,42 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
   const skip = (page - 1) * limit;
 
   const total = await EMI.countDocuments();
-  const emis = await EMI.find().sort({ updatedAt: -1 }).skip(skip).limit(limit);
+
+  const emis = await EMI.aggregate([
+    { $sort: { updatedAt: -1 } },
+    { $skip: skip },
+    { $limit: limit },
+    {
+      $lookup: {
+        from: "loans",
+        localField: "loanId",
+        foreignField: "_id",
+        as: "loan",
+      },
+    },
+    { $unwind: "$loan" },
+    {
+      $project: {
+        _id: 1,
+        loanId: 1,
+        loanNumber: 1,
+        customerName: 1,
+        emiNumber: 1,
+        dueDate: 1,
+        emiAmount: 1,
+        amountPaid: 1,
+        paymentDate: 1,
+        paymentMode: 1,
+        overdue: 1,
+        status: 1,
+        remarks: 1,
+        updatedAt: 1,
+        mobileNumbers: "$loan.mobileNumbers",
+        guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
+        guarantorName: "$loan.guarantorName",
+      },
+    },
+  ]);
 
   sendResponse(res, 200, "success", "EMI details fetched successfully", null, {
     emis,

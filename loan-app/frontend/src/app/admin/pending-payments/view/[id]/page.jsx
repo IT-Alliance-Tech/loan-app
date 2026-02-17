@@ -1,12 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import AuthGuard from "../../../../../components/AuthGuard";
 import Navbar from "../../../../../components/Navbar";
 import Sidebar from "../../../../../components/Sidebar";
+import ContactActionMenu from "../../../../../components/ContactActionMenu";
+import PaymentModeSelector from "../../../../../components/PaymentModeSelector";
 import {
   getLoanById,
   getPendingEmiDetails,
+  updateLoan,
   updatePaymentStatus,
 } from "../../../../../services/loan.service";
 import { updateEMI } from "../../../../../services/customer";
@@ -16,10 +19,13 @@ import { useToast } from "../../../../../context/ToastContext";
 const LoanPendingViewPage = () => {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromPage = searchParams.get("from");
   const [loan, setLoan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newStatus, setNewStatus] = useState("");
+  const [newFollowUpDate, setNewFollowUpDate] = useState("");
   const [updating, setUpdating] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editData, setEditData] = useState({
@@ -30,6 +36,10 @@ const LoanPendingViewPage = () => {
     status: "Pending",
     remarks: "",
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [pendingEmis, setPendingEmis] = useState([]);
+  const [selectedEmi, setSelectedEmi] = useState(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -40,19 +50,16 @@ const LoanPendingViewPage = () => {
     try {
       setLoading(true);
       const res = await getPendingEmiDetails(id);
-      if (res.data) {
-        setLoan(res.data);
-        setNewStatus(res.data.remarks || "");
-        setEditData({
-          amountPaid: "", // Initialized to empty for incremental payment
-          paymentMode: res.data.paymentMode || "",
-          paymentDate: res.data.paymentDate
-            ? new Date(res.data.paymentDate).toISOString().split("T")[0]
-            : new Date().toISOString().split("T")[0],
-          overdue: res.data.overdue || 0,
-          status: res.data.status || "Pending",
-          remarks: res.data.remarks || "",
-        });
+      if (res.data && Array.isArray(res.data)) {
+        setPendingEmis(res.data);
+        const current = res.data.find((e) => e._id === id) || res.data[0];
+        setLoan(current);
+        setNewStatus(current.clientResponse || "");
+        setNewFollowUpDate(
+          current.nextFollowUpDate
+            ? new Date(current.nextFollowUpDate).toISOString().split("T")[0]
+            : "",
+        );
       }
     } catch (err) {
       setError(err.message);
@@ -64,9 +71,17 @@ const LoanPendingViewPage = () => {
   const handleUpdateStatus = async () => {
     try {
       setUpdating(true);
-      await updateEMI(id, { remarks: newStatus });
-      showToast("Status response updated", "success");
-      router.push("/admin/pending-payments");
+      // Update the Loan's clientResponse globally
+      await updateLoan(loan.loanId, {
+        clientResponse: newStatus,
+        nextFollowUpDate: newFollowUpDate,
+      });
+      showToast("Client response updated globally", "success");
+      const redirectPath =
+        fromPage === "partial"
+          ? "/admin/partial-payments"
+          : "/admin/pending-payments";
+      router.push(redirectPath);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -78,18 +93,18 @@ const LoanPendingViewPage = () => {
     e.preventDefault();
     setUpdating(true);
     try {
-      // Send addedAmount for incremental update
       const payload = {
         ...editData,
-        addedAmount: parseFloat(editData.amountPaid) || 0,
       };
-      // Remove amountPaid from payload to avoid confusion/overwriting with the small incremental value as absolute
-      delete payload.amountPaid;
 
-      await updateEMI(id, payload);
+      await updateEMI(selectedEmi._id, payload);
       showToast("EMI updated successfully", "success");
       setShowModal(false);
-      router.push("/admin/pending-payments");
+      const redirectPath =
+        fromPage === "partial"
+          ? "/admin/partial-payments"
+          : "/admin/pending-payments";
+      router.push(redirectPath);
     } catch (error) {
       showToast(error.message || "Failed to update EMI", "error");
     } finally {
@@ -99,27 +114,7 @@ const LoanPendingViewPage = () => {
 
   const handleModalChange = (e) => {
     const { name, value } = e.target;
-    setEditData((prev) => {
-      const newData = { ...prev, [name]: value };
-
-      // UI Preview only: Auto-calculate status if amountPaid changes
-      if (name === "amountPaid") {
-        const currentPaid = parseFloat(loan?.amountPaid) || 0;
-        const newPayment = parseFloat(value) || 0;
-        const totalPaid = currentPaid + newPayment;
-        const total = parseFloat(loan?.emiAmount) || 0;
-
-        if (totalPaid >= total) {
-          newData.status = "Paid";
-        } else if (totalPaid > 0) {
-          newData.status = "Partially Paid";
-        } else {
-          newData.status = "Pending";
-        }
-      }
-
-      return newData;
-    });
+    setEditData((prev) => ({ ...prev, [name]: value }));
   };
 
   if (loading)
@@ -156,19 +151,15 @@ const LoanPendingViewPage = () => {
                   </button>
                   <div>
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
-                      Pending EMI Details
+                      {fromPage === "partial"
+                        ? "Partial EMI Details"
+                        : "Pending EMI Details"}
                     </h1>
                     <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-1">
                       Manage collection response for {loan.loanNumber}
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="px-6 py-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center gap-2"
-                >
-                  <span className="text-sm">₹</span> Pay EMI
-                </button>
               </div>
 
               {error && (
@@ -193,14 +184,27 @@ const LoanPendingViewPage = () => {
                         <p className="text-sm font-black text-slate-900 uppercase">
                           {loan.customerName}
                         </p>
-                        <div className="text-xs font-bold text-slate-500 mt-1 space-y-1">
-                          {loan.mobileNumbers?.map((num, idx) => (
-                            <p key={idx}>{num}</p>
+                        <div className="text-xs font-bold text-slate-500 mt-1 flex flex-col items-start gap-1">
+                          {(loan.mobileNumbers || []).map((num, idx) => (
+                            <button
+                              key={idx}
+                              onClick={(e) => {
+                                const rect =
+                                  e.currentTarget.getBoundingClientRect();
+                                setActiveContactMenu({
+                                  number: num,
+                                  name: loan.customerName,
+                                  type: "Applicant",
+                                  x: rect.left,
+                                  y: rect.bottom,
+                                });
+                              }}
+                              className="hover:text-primary transition-colors"
+                            >
+                              {num}
+                            </button>
                           ))}
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-3 leading-relaxed">
-                          {loan.address}
-                        </p>
                       </div>
                       <div>
                         <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-2">
@@ -209,13 +213,29 @@ const LoanPendingViewPage = () => {
                         <p className="text-sm font-black text-slate-900 uppercase">
                           {loan.guarantorName || "N/A"}
                         </p>
-                        <div className="text-xs font-bold text-slate-500 mt-1 space-y-1">
-                          {loan.guarantorMobileNumbers?.length > 0 ? (
+                        <div className="text-xs font-bold text-slate-500 mt-1 flex flex-col items-start gap-1">
+                          {(loan.guarantorMobileNumbers || []).length > 0 ? (
                             loan.guarantorMobileNumbers.map((num, idx) => (
-                              <p key={idx}>{num}</p>
+                              <button
+                                key={idx}
+                                onClick={(e) => {
+                                  const rect =
+                                    e.currentTarget.getBoundingClientRect();
+                                  setActiveContactMenu({
+                                    number: num,
+                                    name: loan.guarantorName || "Guarantor",
+                                    type: "Guarantor",
+                                    x: rect.left,
+                                    y: rect.bottom,
+                                  });
+                                }}
+                                className="hover:text-primary transition-colors"
+                              >
+                                {num}
+                              </button>
                             ))
                           ) : (
-                            <p>N/A</p>
+                            <p className="text-slate-300">N/A</p>
                           )}
                         </div>
                       </div>
@@ -268,21 +288,37 @@ const LoanPendingViewPage = () => {
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">
                       Status Update (Client Response)
                     </h3>
-                    <div className="space-y-4">
-                      <textarea
-                        value={newStatus}
-                        onChange={(e) => setNewStatus(e.target.value)}
-                        placeholder="Enter the response or current status of the collection..."
-                        className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-5 text-white text-sm font-medium focus:outline-none focus:border-primary transition-all min-h-[120px] placeholder:text-slate-600"
-                      />
-                      <button
-                        onClick={handleUpdateStatus}
-                        disabled={updating}
-                        className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-500/20"
-                      >
-                        {updating ? "Updating..." : "Update Status Response"}
-                      </button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">
+                          Message
+                        </label>
+                        <textarea
+                          value={newStatus}
+                          onChange={(e) => setNewStatus(e.target.value)}
+                          placeholder="Enter response..."
+                          className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white text-sm font-medium focus:outline-none focus:border-primary transition-all min-h-[100px] placeholder:text-slate-600 resize-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">
+                          Follow-up Date
+                        </label>
+                        <input
+                          type="date"
+                          value={newFollowUpDate}
+                          onChange={(e) => setNewFollowUpDate(e.target.value)}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white text-sm font-medium focus:outline-none focus:border-primary transition-all"
+                        />
+                      </div>
                     </div>
+                    <button
+                      onClick={handleUpdateStatus}
+                      disabled={updating}
+                      className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-500/20"
+                    >
+                      {updating ? "Updating..." : "Update Client Response"}
+                    </button>
                   </div>
                 </div>
 
@@ -293,7 +329,8 @@ const LoanPendingViewPage = () => {
                       Financial Summary
                     </span>
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center">
+                      {/* principal, total months, total overdue summary */}
+                      <div className="flex justify-between items-center mb-1">
                         <span className="text-[10px] font-bold text-slate-400 uppercase">
                           Principal
                         </span>
@@ -301,48 +338,145 @@ const LoanPendingViewPage = () => {
                           ₹{loan.principalAmount?.toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
-                        <div className="flex justify-between items-start">
-                          <span className="text-[10px] font-bold text-red-500 uppercase">
-                            Monthly EMI
-                          </span>
-                          <div className="text-right">
-                            <span className="text-xs font-black text-red-600 font-mono block">
-                              ₹{loan.emiAmount?.toLocaleString()}
-                            </span>
-                            <span className="text-[9px] font-bold text-red-400 uppercase tracking-tighter">
-                              {loan.dueDate &&
-                                format(new Date(loan.dueDate), "dd MMM yyyy")}
-                            </span>
-                          </div>
-                        </div>
 
-                        {(loan.amountPaid > 0 ||
-                          loan.status === "Partially Paid") && (
-                          <div className="pt-3 border-t border-red-200/50 space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
-                                Amount Paid
+                      {(() => {
+                        const filtered = pendingEmis.filter((emi) =>
+                          fromPage === "partial"
+                            ? emi.status === "Partially Paid"
+                            : emi.status === "Pending",
+                        );
+                        const totalRemaining = filtered.reduce(
+                          (sum, emi) =>
+                            sum + (emi.emiAmount - (emi.amountPaid || 0)),
+                          0,
+                        );
+
+                        return (
+                          <>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                Total (
+                                {fromPage === "partial" ? "Partial" : "Pending"}
+                                )
                               </span>
-                              <span className="text-[11px] font-black text-green-600 font-mono">
-                                ₹{loan.amountPaid?.toLocaleString()}
+                              <span className="text-xs font-black text-slate-600 font-mono">
+                                {filtered.length}{" "}
+                                {filtered.length === 1 ? "Month" : "Months"}
                               </span>
                             </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[9px] font-bold text-red-500 uppercase tracking-tight">
-                                Balance Due
+                            <div className="flex justify-between items-center border-t border-slate-50 pt-3 mb-2">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                Remaining Due
                               </span>
-                              <span className="text-[11px] font-black text-red-700 font-mono">
-                                ₹
-                                {Math.max(
-                                  0,
-                                  (loan.emiAmount || 0) -
-                                    (loan.amountPaid || 0),
-                                ).toLocaleString()}
+                              <span className="text-sm font-black text-red-600 font-mono">
+                                ₹{totalRemaining.toLocaleString()}
                               </span>
                             </div>
-                          </div>
-                        )}
+                          </>
+                        );
+                      })()}
+
+                      <div className="pt-4 pb-2">
+                        <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-2 border-b border-primary/20 pb-1">
+                          {fromPage === "partial"
+                            ? "Partially Paid"
+                            : "Pending"}{" "}
+                          Installments
+                        </span>
+                      </div>
+
+                      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                        {pendingEmis
+                          .filter((emi) =>
+                            fromPage === "partial"
+                              ? emi.status === "Partially Paid"
+                              : emi.status === "Pending",
+                          )
+                          .map((emi, idx) => (
+                            <div
+                              key={emi._id}
+                              className={`bg-white border rounded-[2rem] p-4 mb-2 last:mb-0 shadow-sm hover:shadow-md transition-shadow ${emi.status === "Partially Paid" ? "border-orange-100 ring-1 ring-orange-50" : "border-red-100 ring-1 ring-red-50"}`}
+                            >
+                              <div className="flex justify-between items-center mb-2">
+                                <span
+                                  className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${emi.status === "Partially Paid" ? "bg-orange-50 text-orange-600" : "bg-red-50 text-red-600"}`}
+                                >
+                                  {emi.status}
+                                </span>
+                              </div>
+                              {/* Header: Date & Amount */}
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                    Due Date
+                                  </span>
+                                  <p className="text-[11px] font-black text-slate-900 uppercase">
+                                    {emi.dueDate &&
+                                      format(
+                                        new Date(emi.dueDate),
+                                        "dd MMM yy",
+                                      )}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                    Due Amount
+                                  </span>
+                                  <p className="text-[12px] font-black text-red-600 font-mono">
+                                    ₹{emi.emiAmount?.toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Mid row: Paid & Balance (Conditional) */}
+                              {emi.amountPaid > 0 && (
+                                <div className="grid grid-cols-2 gap-2 py-2.5 border-y border-slate-50 mb-3">
+                                  <div>
+                                    <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                      Paid
+                                    </span>
+                                    <p className="text-[10px] font-bold text-emerald-600">
+                                      ₹{emi.amountPaid?.toLocaleString()}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.15em] block mb-0.5">
+                                      Balance
+                                    </span>
+                                    <p className="text-[10px] font-bold text-red-600">
+                                      ₹
+                                      {Math.max(
+                                        0,
+                                        (emi.emiAmount || 0) -
+                                          (emi.amountPaid || 0),
+                                      ).toLocaleString()}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Action Row: Full Width Button */}
+                              <button
+                                onClick={() => {
+                                  setSelectedEmi(emi);
+                                  setEditData({
+                                    amountPaid: "",
+                                    paymentMode: emi.paymentMode || "",
+                                    paymentDate: new Date()
+                                      .toISOString()
+                                      .split("T")[0],
+                                    overdue: emi.overdue || 0,
+                                    status: emi.status || "Pending",
+                                    remarks: emi.remarks || "",
+                                  });
+                                  setShowModal(true);
+                                }}
+                                className="w-full bg-primary hover:bg-blue-700 text-white rounded-xl py-2.5 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-100 active:scale-[0.98] flex items-center justify-center gap-2"
+                              >
+                                <span className="text-sm">₹</span> PAY EMI
+                              </button>
+                            </div>
+                          ))}
                       </div>
                     </div>
                   </div>
@@ -357,13 +491,16 @@ const LoanPendingViewPage = () => {
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <div>
                       <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                        UPDATE EMI #
+                        UPDATE EMI #{selectedEmi?.emiNumber}
                       </h3>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                         DUE DATE:{" "}
-                        {loan?.dueDate &&
-                          format(new Date(loan.dueDate), "dd-MM-yyyy")}{" "}
-                        | AMOUNT: ₹{loan?.emiAmount}
+                        {selectedEmi?.dueDate &&
+                          format(
+                            new Date(selectedEmi.dueDate),
+                            "dd-MM-yyyy",
+                          )}{" "}
+                        | AMOUNT: ₹{selectedEmi?.emiAmount}
                       </p>
                     </div>
                     <button
@@ -374,35 +511,21 @@ const LoanPendingViewPage = () => {
                     </button>
                   </div>
 
+                  {/* Removed undefined isDropdownOpen backdrop */}
+
                   <form onSubmit={handleSaveEMI} className="p-8 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Amount to Pay
-                        </label>
-                        <input
-                          type="number"
-                          name="amountPaid"
-                          value={editData.amountPaid}
-                          onChange={handleModalChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
-                          placeholder="Enter Amount"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Remaining Amount
+                          Remaining Balance
                         </label>
                         <input
                           type="text"
                           value={`₹${Math.max(
                             0,
-                            (loan?.emiAmount || 0) -
-                              (loan?.amountPaid || 0) -
-                              (parseFloat(editData.amountPaid) || 0),
-                          ).toFixed(2)}`}
+                            (selectedEmi?.emiAmount || 0) -
+                              (selectedEmi?.amountPaid || 0),
+                          ).toLocaleString()}`}
                           disabled
                           className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 cursor-not-allowed"
                         />
@@ -422,25 +545,12 @@ const LoanPendingViewPage = () => {
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                          Payment Mode
-                        </label>
-                        <select
-                          name="paymentMode"
-                          value={editData.paymentMode}
-                          onChange={handleModalChange}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all appearance-none cursor-pointer"
-                          required
-                        >
-                          <option value="">Select Mode</option>
-                          <option value="Cash">Cash</option>
-                          <option value="Online">Online</option>
-                          <option value="GPay">GPay</option>
-                          <option value="PhonePe">PhonePe</option>
-                          <option value="Cheque">Cheque</option>
-                        </select>
-                      </div>
+                      <PaymentModeSelector
+                        value={editData.paymentMode}
+                        onChange={(val) =>
+                          setEditData((prev) => ({ ...prev, paymentMode: val }))
+                        }
+                      />
 
                       <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
@@ -510,6 +620,11 @@ const LoanPendingViewPage = () => {
             )}
           </main>
         </div>
+        {/* Contact Action Menu */}
+        <ContactActionMenu
+          contact={activeContactMenu}
+          onClose={() => setActiveContactMenu(null)}
+        />
       </div>
     </AuthGuard>
   );
