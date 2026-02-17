@@ -176,7 +176,8 @@ const EmployeesPage = () => {
                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
                                   {meta.totalUsers} Administrator(s) hidden by
                                   registry filter. <br />
-                                  Please add an "OPERATOR" to see them here.
+                                  Please add an &quot;OPERATOR&quot; to see them
+                                  here.
                                 </p>
                               )}
                           </td>
