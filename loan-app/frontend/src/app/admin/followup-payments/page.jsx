@@ -5,7 +5,11 @@ import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import ContactActionMenu from "../../../components/ContactActionMenu";
-import { getSeizedPending, toggleSeized } from "../../../services/loan.service";
+import {
+  getFollowupLoans,
+  updateLoan,
+  toggleSeized,
+} from "../../../services/loan.service";
 import Pagination from "../../../components/Pagination";
 import { useToast } from "../../../context/ToastContext";
 import Link from "next/link";
@@ -39,12 +43,8 @@ const FollowupPaymentsPage = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const params = {
-        ...filters,
-        page: currentPage,
-        limit,
-        status: "Pending",
-      };
+      // Ensure strict date filtering by always including nextFollowUpDate
+      const params = { ...filters, page: currentPage, limit };
       if (searchQuery.trim()) {
         params.loanNumber = searchQuery;
       }
@@ -57,7 +57,8 @@ const FollowupPaymentsPage = () => {
   const fetchFollowups = async (params = {}) => {
     try {
       setLoading(true);
-      const res = await getSeizedPending(params);
+      // Use the dedicated followup endpoint
+      const res = await getFollowupLoans(params);
       if (res.data) {
         if (res.data.payments) {
           setData(res.data.payments);
@@ -86,7 +87,7 @@ const FollowupPaymentsPage = () => {
 
   const handleAdvancedSearch = (e) => {
     if (e) e.preventDefault();
-    const params = { ...filters, page: 1, status: "Pending" };
+    const params = { ...filters, page: 1 };
     if (searchQuery.trim()) params.loanNumber = searchQuery;
     setCurrentPage(1);
     fetchFollowups(params);
@@ -99,17 +100,17 @@ const FollowupPaymentsPage = () => {
   };
 
   const resetFilters = () => {
-    const emptyFilters = {
+    const resetValues = {
       loanNumber: "",
       customerName: "",
       vehicleNumber: "",
       mobileNumber: "",
-      nextFollowUpDate: "",
+      nextFollowUpDate: today, // Reset to today instead of empty
     };
-    setFilters(emptyFilters);
+    setFilters(resetValues);
     setSearchQuery("");
     setCurrentPage(1);
-    fetchFollowups({ page: 1, status: "Pending" });
+    fetchFollowups({ ...resetValues, page: 1 });
     setIsFilterOpen(false);
   };
 
@@ -137,17 +138,6 @@ const FollowupPaymentsPage = () => {
           </div>
           <main className="py-8 px-4 sm:px-8">
             <div className="max-w-7xl mx-auto">
-              <div className="flex justify-between items-start mb-2 sm:mb-8">
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
-                    Follow-up Payments
-                  </h1>
-                  <p className="text-slate-400 font-bold text-[9px] sm:text-sm uppercase tracking-[0.15em] mt-1.5">
-                    {totalRecords} RECORDS FOUND
-                  </p>
-                </div>
-              </div>
-
               <div className="flex items-center gap-3 mb-8">
                 <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center h-[46px]">
                   <form
@@ -157,7 +147,7 @@ const FollowupPaymentsPage = () => {
                     <div className="text-slate-300 text-lg">🔍</div>
                     <input
                       type="text"
-                      placeholder="Search by Loan Number (e.g. LN-001)"
+                      placeholder="Search within this date..."
                       className="w-full px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none placeholder:text-slate-300 placeholder:font-black uppercase bg-transparent"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -167,7 +157,7 @@ const FollowupPaymentsPage = () => {
                 <button
                   onClick={() => setIsFilterOpen(true)}
                   className="flex-none w-[46px] h-[46px] bg-white border border-slate-200 text-slate-400 rounded-xl flex items-center justify-center hover:bg-slate-50 transition-all shadow-sm"
-                  title="Advanced Filter"
+                  title="Change Date / Filters"
                 >
                   <svg
                     className="w-5 h-5"
@@ -179,15 +169,15 @@ const FollowupPaymentsPage = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth="2.5"
-                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                     />
                   </svg>
                 </button>
                 <button
                   onClick={resetFilters}
-                  className="flex-none px-6 h-[46px] bg-red-50 border border-red-100 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 shadow-sm"
+                  className="flex-none px-6 h-[46px] bg-blue-50 border border-blue-100 text-primary rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center justify-center gap-2 shadow-sm"
                 >
-                  Clear
+                  Reset To Today
                 </button>
               </div>
 
@@ -216,9 +206,6 @@ const FollowupPaymentsPage = () => {
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Remaining Amount
-                        </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                          Follow-up Date
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Client Response
@@ -291,23 +278,16 @@ const FollowupPaymentsPage = () => {
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-md">
-                                {item.unpaidMonths}{" "}
+                                {item.unpaidMonths || 0}{" "}
                                 {item.unpaidMonths === 1 ? "Month" : "Months"}
                               </span>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <div className="flex flex-col items-center">
                                 <span className="text-sm font-black text-red-600 tracking-tight">
-                                  ₹{item.totalDueAmount.toLocaleString()}
+                                  ₹{(item.totalDueAmount || 0).toLocaleString()}
                                 </span>
                               </div>
-                            </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap">
-                              <span className="text-xs font-black text-orange-600 tracking-tight bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-100">
-                                {new Date(
-                                  filters.nextFollowUpDate,
-                                ).toLocaleDateString()}
-                              </span>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <div className="flex items-center justify-center gap-2">
