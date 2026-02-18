@@ -83,6 +83,7 @@ const LoanForm = ({
   isViewOnly,
   submitting,
   renderExtraActions,
+  emis = [],
 }) => {
   const { showToast } = useToast();
 
@@ -90,6 +91,8 @@ const LoanForm = ({
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [isRtoDropdownOpen, setIsRtoDropdownOpen] = useState(false);
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+
+  const [remainingPrincipalAmount, setRemainingPrincipalAmount] = useState(0);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -346,6 +349,46 @@ const LoanForm = ({
   }, [
     formik.values.loanTerms.emiStartDate,
     formik.values.loanTerms.tenureMonths,
+  ]);
+
+  // Auto-calculate Remaining Principal Amount
+  useEffect(() => {
+    const principal = parseFloat(formik.values.loanTerms.principalAmount) || 0;
+    const tenure = parseInt(formik.values.loanTerms.tenureMonths) || 0;
+
+    if (principal > 0 && tenure > 0) {
+      const principalPerMonth = principal / tenure;
+      let remainingTenureCount = 0;
+
+      if (emis && emis.length > 0) {
+        emis.forEach((emi) => {
+          const emiAmount = parseFloat(emi.emiAmount) || 0;
+          const amountPaid = parseFloat(emi.amountPaid) || 0;
+          if (emiAmount > 0) {
+            // How much of this specific EMI's principal portion is still remaining?
+            // Since we use flat interest, we assume each month's principal part is (Principal/Tenure)
+            // and we track remaining tenure as a fraction of paid/unpaid.
+            const remainingPortion = Math.max(
+              0,
+              (emiAmount - amountPaid) / emiAmount,
+            );
+            remainingTenureCount += remainingPortion;
+          }
+        });
+      } else {
+        // If no EMIs data yet, assume full principal remains
+        remainingTenureCount = tenure;
+      }
+
+      const remainingPrincipal = principalPerMonth * remainingTenureCount;
+      setRemainingPrincipalAmount(remainingPrincipal.toFixed(2));
+    } else {
+      setRemainingPrincipalAmount(0);
+    }
+  }, [
+    formik.values.loanTerms.principalAmount,
+    formik.values.loanTerms.tenureMonths,
+    emis,
   ]);
 
   const ErrorMsg = ({ name }) => {
@@ -984,18 +1027,34 @@ const LoanForm = ({
                       ₹{formik.values.loanTerms.monthlyEMI || 0}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                      Total Interest Amount
-                    </label>
-                    <input
-                      type="number"
-                      name="loanTerms.totalInterestAmount"
-                      value={formik.values.loanTerms.totalInterestAmount || ""}
-                      readOnly
-                      className="bg-transparent border-b border-slate-200 text-sm font-bold text-slate-700 focus:outline-none focus:border-primary text-right w-32"
-                      placeholder="0"
-                    />
+                  <div className="text-right flex flex-col items-end gap-2">
+                    <div className="flex flex-col items-end">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Total Interest Amount
+                      </label>
+                      <input
+                        type="number"
+                        name="loanTerms.totalInterestAmount"
+                        value={
+                          formik.values.loanTerms.totalInterestAmount || ""
+                        }
+                        readOnly
+                        className="bg-transparent border-b border-slate-200 text-sm font-bold text-slate-700 focus:outline-none focus:border-primary text-right w-32"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <label className="text-[10px] font-black text-primary uppercase tracking-widest block mb-1">
+                        Remaining Principal Amount
+                      </label>
+                      <input
+                        type="text"
+                        value={`₹${remainingPrincipalAmount || 0}`}
+                        readOnly
+                        className="bg-transparent border-b border-primary/20 text-sm font-black text-primary focus:outline-none text-right w-40"
+                        placeholder="₹0"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

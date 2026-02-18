@@ -247,6 +247,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     vehicleInformation,
     status: statusObj,
     clientResponse: topLevelClientResponse,
+    nextFollowUpDate: topLevelNextFollowUpDate,
   } = req.body;
 
   const currentPrincipal =
@@ -314,10 +315,13 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       docChecklist: statusObj.docChecklist,
       remarks: statusObj.remarks,
       clientResponse: statusObj.clientResponse || topLevelClientResponse,
-      nextFollowUpDate: statusObj.nextFollowUpDate,
+      nextFollowUpDate: statusObj.nextFollowUpDate || topLevelNextFollowUpDate,
     }),
+    // If statusObj is missing, still handle top-level updates
     ...(topLevelClientResponse !== undefined &&
       !statusObj && { clientResponse: topLevelClientResponse }),
+    ...(topLevelNextFollowUpDate !== undefined &&
+      !statusObj && { nextFollowUpDate: topLevelNextFollowUpDate }),
     monthlyEMI,
     totalInterestAmount: calculatedTotalInterest,
   };
@@ -483,12 +487,17 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
             cond: {
               $and: [
                 { $ne: ["$$emi.status", "Paid"] },
-                { $lte: ["$$emi.dueDate", now] },
-                // If status is provided, filter list to only that status.
-                // Otherwise (Pending Page), filter to strictly "Pending".
+                // If nextFollowUpDate is provided, we include ALL Pending/Partial EMIs to ensure the loan shows up
+                // If NOT provided, we strictly filter by overdue EMIs (dueDate <= now)
+                nextFollowUpDate ? true : { $lte: ["$$emi.dueDate", now] },
                 status
                   ? { $eq: ["$$emi.status", status] }
-                  : { $eq: ["$$emi.status", "Pending"] },
+                  : {
+                      $in: [
+                        "$$emi.status",
+                        ["Pending", "Partially Paid", "Overdue"],
+                      ],
+                    },
               ],
             },
           },
@@ -497,7 +506,38 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     },
     {
       $match: {
-        $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] },
+        $or: [
+          { $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] } },
+          // IF we are searching specifically for a follow-up date,
+          // allow the loan even if no EMIs are strictly "overdue" yet,
+          // as long as it has SOME Pending/Partial EMIs
+          {
+            $and: [
+              { nextFollowUpDate: { $exists: true, $ne: null } },
+              {
+                $expr: {
+                  $gt: [
+                    {
+                      $size: {
+                        $filter: {
+                          input: "$emis",
+                          as: "e",
+                          cond: {
+                            $in: [
+                              "$$e.status",
+                              ["Pending", "Partially Paid", "Overdue"],
+                            ],
+                          },
+                        },
+                      },
+                    },
+                    0,
+                  ],
+                },
+              },
+            ],
+          },
+        ],
       },
     },
     {
@@ -688,6 +728,144 @@ const updatePaymentStatus = asyncHandler(async (req, res, next) => {
   );
 });
 
+const getFollowupLoans = asyncHandler(async (req, res, next) => {
+  const {
+    customerName,
+    loanNumber,
+    vehicleNumber,
+    mobileNumber,
+    nextFollowUpDate,
+  } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  let query = {};
+
+  if (customerName) {
+    query.customerName = { $regex: customerName, $options: "i" };
+  }
+  if (loanNumber) {
+    query.loanNumber = { $regex: loanNumber, $options: "i" };
+  }
+  if (vehicleNumber) {
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  }
+  if (mobileNumber) {
+    query.$or = [
+      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+    ];
+  }
+
+  // Mandatory date filtering for follow-ups
+  const dateToFilter =
+    nextFollowUpDate || new Date().toISOString().split("T")[0];
+  const start = new Date(dateToFilter);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(dateToFilter);
+  end.setHours(23, 59, 59, 999);
+  query.nextFollowUpDate = { $gte: start, $lte: end };
+
+  // For followup logic, we don't care if the payment is officially "overdue" yet
+  // We just want ANY loan that has at least one Pending/Partial EMI
+  const result = await Loan.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $addFields: {
+        pendingEmisList: {
+          $filter: {
+            input: "$emis",
+            as: "emi",
+            cond: {
+              $in: ["$$emi.status", ["Pending", "Partially Paid", "Overdue"]],
+            },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        loanId: "$_id",
+        loanNumber: 1,
+        customerName: 1,
+        guarantorName: 1,
+        status: 1,
+        mobileNumbers: 1,
+        guarantorMobileNumbers: 1,
+        vehicleNumber: 1,
+        model: 1,
+        unpaidMonths: { $size: "$pendingEmisList" },
+        totalDueAmount: {
+          $reduce: {
+            input: "$pendingEmisList",
+            initialValue: 0,
+            in: { $add: ["$$value", "$$this.emiAmount"] },
+          },
+        },
+        earliestEmiId: {
+          $let: {
+            vars: {
+              firstPending: { $arrayElemAt: ["$pendingEmisList", 0] },
+            },
+            in: { $toString: "$$firstPending._id" },
+          },
+        },
+        earliestDueDate: {
+          $let: {
+            vars: {
+              sortedEmis: {
+                $sortArray: {
+                  input: "$pendingEmisList",
+                  sortBy: { dueDate: 1 },
+                },
+              },
+            },
+            in: { $arrayElemAt: ["$$sortedEmis.dueDate", 0] },
+          },
+        },
+        clientResponse: 1,
+        nextFollowUpDate: 1,
+      },
+    },
+    { $sort: { earliestDueDate: 1 } },
+    {
+      $facet: {
+        metadata: [{ $count: "total" }],
+        payments: [{ $skip: skip }, { $limit: limit }],
+      },
+    },
+  ]);
+
+  const total = result[0].metadata[0] ? result[0].metadata[0].total : 0;
+  const payments = result[0].payments;
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Follow-up loans fetched successfully",
+    null,
+    {
+      payments,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
+  );
+});
+
 // export all values
 module.exports = {
   createLoan,
@@ -698,6 +876,7 @@ module.exports = {
   toggleSeizedStatus,
   calculateEMIApi,
   getPendingPayments,
+  getFollowupLoans,
   getPendingEmiDetails,
   updatePaymentStatus,
 };

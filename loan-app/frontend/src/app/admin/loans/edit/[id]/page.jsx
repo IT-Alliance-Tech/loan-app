@@ -170,6 +170,7 @@ const EditLoanPage = () => {
                     onSubmit={handleSubmit}
                     onCancel={() => router.push("/admin/loans")}
                     submitting={submitting}
+                    emis={emis}
                     renderExtraActions={() =>
                       // <button
                       //   type="button"

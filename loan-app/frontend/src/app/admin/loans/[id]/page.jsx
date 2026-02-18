@@ -123,6 +123,7 @@ const ViewLoanPage = () => {
                     initialData={loan}
                     isViewOnly={true}
                     onCancel={() => router.push("/admin/loans")}
+                    emis={emis}
                   />
 
                   <div className="mt-12">
