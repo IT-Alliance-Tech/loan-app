@@ -188,8 +188,8 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     paymentMode,
     paymentDate,
     overdue,
-    status,
     remarks,
+    dateGroups,
   } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
@@ -201,19 +201,38 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("EMI record not found", 404));
   }
 
-  let newAmountPaid = emi.amountPaid || 0;
-  let newStatus = status || emi.status;
-
-  // Handle incremental update if addedAmount is provided
-  if (addedAmount !== undefined && addedAmount !== null) {
-    newAmountPaid = (parseFloat(emi.amountPaid) || 0) + parseFloat(addedAmount);
-  } else if (amountPaid !== undefined) {
-    // Fallback to absolute update if amountPaid is explicitly provided
-    newAmountPaid = parseFloat(amountPaid);
+  // Process payments from dateGroups if provided (replaces existing history)
+  if (dateGroups && Array.isArray(dateGroups)) {
+    emi.paymentHistory = []; // Clear current history to replace with updated state from modal
+    dateGroups.forEach((group) => {
+      if (group.date && group.payments) {
+        group.payments.forEach((p) => {
+          const amount = parseFloat(p.amount);
+          if (amount > 0 && p.mode) {
+            emi.paymentHistory.push({
+              amount: amount,
+              mode: p.mode,
+              date: new Date(group.date),
+            });
+          }
+        });
+      }
+    });
   }
 
-  // Auto-calculate status based on total amount paid
+  // Recalculate amountPaid and paymentMode from full history
+  const totalPaidFromHistory = emi.paymentHistory.reduce(
+    (acc, curr) => acc + curr.amount,
+    0,
+  );
+  const modesFromHistory = [
+    ...new Set(emi.paymentHistory.map((p) => p.mode).filter(Boolean)),
+  ].join(", ");
+
+  // Final values
+  newAmountPaid = totalPaidFromHistory;
   const totalEmiAmount = parseFloat(emi.emiAmount);
+
   if (newAmountPaid >= totalEmiAmount) {
     newStatus = "Paid";
   } else if (newAmountPaid > 0) {
@@ -222,30 +241,21 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     newStatus = "Pending";
   }
 
-  // Handle unique payment mode merging
-  let mergedPaymentMode = emi.paymentMode || "";
-  if (paymentMode) {
-    const existingModes = mergedPaymentMode
-      ? mergedPaymentMode.split(",").map((m) => m.trim())
-      : [];
-    const newModes = paymentMode.split(",").map((m) => m.trim());
-
-    // Create a unique set of modes, filtering out empty strings
-    const uniqueModes = [
-      ...new Set([...existingModes, ...newModes].filter((m) => m !== "")),
-    ];
-    mergedPaymentMode = uniqueModes.join(", ");
-  }
-
   emi = await EMI.findByIdAndUpdate(
     id,
     {
       amountPaid: newAmountPaid,
-      paymentMode: mergedPaymentMode,
-      paymentDate: paymentDate || emi.paymentDate,
+      paymentMode: modesFromHistory || emi.paymentMode,
+      paymentDate:
+        paymentDate ||
+        emi.paymentDate ||
+        (emi.paymentHistory.length > 0
+          ? emi.paymentHistory[emi.paymentHistory.length - 1].date
+          : null),
       overdue: overdue !== undefined ? overdue : emi.overdue,
       status: newStatus,
       remarks: remarks || emi.remarks,
+      paymentHistory: emi.paymentHistory,
     },
     { new: true, runValidators: true },
   );
