@@ -1,370 +1,464 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
-import { getForeclosureLoans } from "../../../services/loan.service";
-import Pagination from "../../../components/Pagination";
+import {
+  getLoans,
+  getLoanById,
+  forecloseLoan,
+} from "../../../services/loan.service";
 import { useToast } from "../../../context/ToastContext";
-import Link from "next/link";
-import TableActionMenu from "../../../components/TableActionMenu";
 
 const ForeclosurePage = () => {
   const router = useRouter();
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    loanNumber: "",
-    customerName: "",
-  });
-
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalRecords, setTotalRecords] = useState(0);
-  const [limit] = useState(10);
   const { showToast } = useToast();
 
+  const [loading, setLoading] = useState(false);
+  const [loans, setLoans] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedLoan, setSelectedLoan] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const [formData, setFormData] = useState({
+    foreclosureChargePercent: 0,
+    foreclosureChargeAmount: 0,
+    od: 0,
+    miscellaneousFee: 0,
+    remarks: "",
+  });
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const params = { page: currentPage, limit };
-      if (searchQuery.trim()) {
-        params.loanNumber = searchQuery;
+    const fetchLoansList = async () => {
+      try {
+        const res = await getLoans({ limit: 100, status: "Active" });
+        if (res.data && res.data.loans) {
+          setLoans(res.data.loans);
+        }
+      } catch (err) {
+        console.error("Failed to fetch loans", err);
       }
-      fetchLoans({ ...filters, ...params });
-    }, 500);
+    };
+    fetchLoansList();
+  }, []);
 
-    return () => clearTimeout(timer);
-  }, [searchQuery, currentPage]);
-
-  const fetchLoans = async (params = {}) => {
+  const handleLoanSelect = async (loan) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await getForeclosureLoans(params);
+      const res = await getLoanById(loan._id);
       if (res.data) {
-        setData(res.data.loans);
-        setTotalPages(res.data.pagination.totalPages);
-        setTotalRecords(res.data.pagination.total);
+        setSelectedLoan(res.data);
+        setSearchTerm(res.data.loanNumber);
       }
-      setError("");
     } catch (err) {
-      setError(err.message);
+      showToast("Failed to fetch loan details", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
-  const handleSearch = (e) => {
-    if (e) e.preventDefault();
-    fetchLoans({ ...filters, page: 1 });
-  };
-
-  const handleAdvancedSearch = (e) => {
-    if (e) e.preventDefault();
-    setCurrentPage(1);
-    fetchLoans({ ...filters, page: 1 });
-    setIsFilterOpen(false);
-  };
-
-  const handleFilterChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
+    let numValue = parseFloat(value) || 0;
+
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: numValue };
+
+      // Auto-calculate charge amount if percentage changes
+      if (name === "foreclosureChargePercent" && selectedLoan) {
+        const principal = selectedLoan.remainingPrincipalAmount || 0;
+        updated.foreclosureChargeAmount = (principal * numValue) / 100;
+      }
+
+      // Update remarks if text
+      if (e.target.type === "textarea") {
+        updated[name] = value;
+      }
+
+      return updated;
+    });
   };
 
-  const resetFilters = () => {
-    setFilters({ loanNumber: "", customerName: "" });
-    setSearchQuery("");
-    setCurrentPage(1);
-    fetchLoans({ page: 1 });
-    setIsFilterOpen(false);
+  const remainingPrincipal = selectedLoan?.remainingPrincipalAmount || 0;
+  const totalAmount =
+    remainingPrincipal +
+    formData.foreclosureChargeAmount +
+    formData.od +
+    formData.miscellaneousFee;
+
+  const handleProceed = async () => {
+    setLoading(true);
+    try {
+      await forecloseLoan(selectedLoan._id, {
+        ...formData,
+        totalAmount,
+        remainingPrincipal,
+      });
+      showToast("Loan foreclosed successfully", "success");
+      setShowPreview(false);
+      setSelectedLoan(null);
+      setSearchTerm("");
+      setFormData({
+        foreclosureChargePercent: 0,
+        foreclosureChargeAmount: 0,
+        od: 0,
+        miscellaneousFee: 0,
+        remarks: "",
+      });
+    } catch (err) {
+      showToast(err.message || "Failed to foreclose loan", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#F8FAFC] flex">
+      <div className="min-h-screen bg-[#F8FAFC] flex font-['Outfit']">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0 pb-20 sm:pb-0">
-          <div className="hidden lg:block">
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="hidden lg:block border-b border-slate-100 bg-white">
             <Navbar />
           </div>
-          <main className="py-8 px-4 sm:px-8">
-            <div className="max-w-7xl mx-auto">
-              <div className="flex justify-between items-start mb-2 sm:mb-8">
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
-                    Foreclosure Payments
-                  </h1>
-                  <p className="text-slate-400 font-bold text-[9px] sm:text-sm uppercase tracking-[0.15em] mt-1.5">
-                    {totalRecords} RECORDS FOUND
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-3 mb-8">
-                <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center h-[46px]">
-                  <form
-                    onSubmit={handleSearch}
-                    className="flex-1 flex items-center px-4"
-                  >
-                    <div className="text-slate-300 text-lg">🔍</div>
+          <main className="p-4 sm:p-10 max-w-5xl mx-auto w-full">
+            <div className="mb-12">
+              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight uppercase mb-2">
+                Foreclosure Loan
+              </h1>
+              <div className="h-1.5 w-20 bg-primary rounded-full"></div>
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/60 border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
+              {/* Search Section */}
+              <div className="p-6 sm:p-8 bg-slate-50/50 border-b border-slate-100">
+                <div className="max-w-md space-y-3 relative">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                    Enter Loan Number
+                  </label>
+                  <div className="group relative">
                     <input
                       type="text"
-                      placeholder="Search by Loan Number"
-                      className="w-full px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none placeholder:text-slate-300 placeholder:font-black uppercase bg-transparent"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="e.g. LN-001"
+                      className="w-full pl-6 pr-12 py-5 bg-white border-2 border-slate-100 rounded-2xl text-base font-bold text-slate-700 focus:outline-none focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all placeholder:text-slate-200 uppercase"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                  </form>
+                    {searchTerm && !selectedLoan && (
+                      <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar overflow-hidden">
+                        {loans
+                          .filter((l) =>
+                            l.loanNumber
+                              .toLowerCase()
+                              .includes(searchTerm.toLowerCase()),
+                          )
+                          .map((loan) => (
+                            <button
+                              key={loan._id}
+                              onClick={() => handleLoanSelect(loan)}
+                              className="w-full px-6 py-4 text-left hover:bg-slate-50 flex justify-between items-center transition-colors border-b border-slate-50 last:border-0"
+                            >
+                              <span className="font-black text-slate-700 uppercase">
+                                {loan.loanNumber}
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-400">
+                                {loan.customerName}
+                              </span>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                    {selectedLoan && (
+                      <button
+                        onClick={() => {
+                          setSelectedLoan(null);
+                          setSearchTerm("");
+                        }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <button
-                  onClick={() => setIsFilterOpen(true)}
-                  className="flex-none w-[46px] h-[46px] bg-white border border-slate-200 text-slate-400 rounded-xl flex items-center justify-center hover:bg-slate-50 transition-all shadow-sm"
-                  title="Filter"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2.5"
-                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={resetFilters}
-                  className="flex-none px-6 h-[46px] bg-red-50 border border-red-100 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 shadow-sm"
-                >
-                  Clear
-                </button>
               </div>
 
-              {error && (
-                <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-bold uppercase tracking-tight">
-                  {error}
-                </div>
-              )}
+              {/* Simple Table UI Section */}
+              <div className="p-0 border-b border-slate-100">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    {/* Row 1: Profile */}
+                    <tr className="border-b border-slate-100">
+                      <td className="p-5 w-1/3">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                          Customer Name
+                        </label>
+                        <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                          {selectedLoan?.customerName || "—"}
+                        </p>
+                      </td>
+                      <td className="p-5 w-1/3 border-l border-slate-100">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                          Mobile Number
+                        </label>
+                        <p className="text-sm font-bold text-slate-700 tracking-tight">
+                          {(selectedLoan?.mobileNumbers || []).join(", ") ||
+                            "—"}
+                        </p>
+                      </td>
+                      <td className="p-5 w-1/3 border-l border-slate-100">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                          Address
+                        </label>
+                        <p className="text-[10px] font-bold text-slate-500 line-clamp-1 leading-relaxed">
+                          {selectedLoan?.address || "—"}
+                        </p>
+                      </td>
+                    </tr>
 
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50 overflow-hidden">
-                <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-100 pb-1">
-                  <table className="w-full text-left border-collapse min-w-[1000px]">
-                    <thead>
-                      <tr className="bg-slate-50/50 border-b border-slate-200">
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                          Loan ID
-                        </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                          Applicant Name
-                        </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                          Principal Amount
-                        </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                          Paid Amount
-                        </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                    {/* Row 2: Vehicle & Finance */}
+                    <tr className="border-b border-slate-100">
+                      <td className="p-5">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                          Vehicle Number
+                        </label>
+                        <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                          {selectedLoan?.vehicleNumber || "—"}
+                        </p>
+                      </td>
+                      <td className="p-5 border-l border-slate-100">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                          Model
+                        </label>
+                        <p className="text-sm font-bold text-slate-600 uppercase tracking-tight">
+                          {selectedLoan?.model || "2020"}
+                        </p>
+                      </td>
+                      <td className="p-5 border-l border-slate-100">
+                        <label className="block text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-2">
                           Remaining Principal
-                        </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                          Foreclosure Amount
-                        </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap sticky right-0 bg-slate-50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {loading ? (
-                        <tr>
-                          <td
-                            colSpan="7"
-                            className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
-                          >
-                            Loading records...
-                          </td>
-                        </tr>
-                      ) : data.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan="7"
-                            className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
-                          >
-                            No records found
-                          </td>
-                        </tr>
-                      ) : (
-                        data.map((item) => (
-                          <tr
-                            key={item.loanId}
-                            className="hover:bg-slate-50 transition-colors group"
-                          >
-                            <td className="px-6 py-5 whitespace-nowrap">
-                              <span className="text-[11px] font-black text-primary uppercase tracking-wider">
-                                {item.loanNumber}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5 whitespace-nowrap">
-                              <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
-                                {item.customerName}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap">
-                              <span className="text-xs font-bold text-slate-600">
-                                ₹{item.principalAmount.toLocaleString()}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap">
-                              <span className="text-xs font-bold text-green-600">
-                                ₹{item.totalPaidAmount.toLocaleString()}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap">
-                              <span className="text-xs font-bold text-orange-600">
-                                ₹
-                                {(item.remainingPrincipal || 0).toLocaleString(
-                                  undefined,
-                                  {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  },
-                                )}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap">
-                              <div className="bg-blue-50 px-3 py-2 rounded-xl inline-block border border-blue-100">
-                                <span className="text-sm font-black text-primary tracking-tight">
-                                  ₹
-                                  {(item.foreclosureAmount || 0).toLocaleString(
-                                    undefined,
-                                    {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    },
-                                  )}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
-                              <TableActionMenu
-                                actions={[
-                                  {
-                                    label: "View Loan",
-                                    onClick: () =>
-                                      router.push(
-                                        `/admin/loans/view/${item.loanId}`,
-                                      ),
-                                  },
-                                  {
-                                    label: "Edit Loan",
-                                    onClick: () =>
-                                      router.push(
-                                        `/admin/loans/edit/${item.loanId}`,
-                                      ),
-                                  },
-                                ]}
-                              />
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                        </label>
+                        <p className="text-base font-black text-primary tracking-tight">
+                          ₹
+                          {remainingPrincipal.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </p>
+                      </td>
+                    </tr>
+
+                    {/* Row 3: Charges */}
+                    <tr className="border-b border-slate-100">
+                      <td className="p-5">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                          Foreclosure Charge (%)
+                        </label>
+                        <input
+                          type="number"
+                          name="foreclosureChargePercent"
+                          value={formData.foreclosureChargePercent}
+                          onChange={handleInputChange}
+                          className="w-full bg-transparent text-base font-black text-slate-800 focus:outline-none placeholder:text-slate-200"
+                          placeholder="00"
+                        />
+                      </td>
+                      <td className="p-5 border-l border-slate-100">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                          Charge Amount
+                        </label>
+                        <p className="text-base font-black text-slate-800 tracking-tight">
+                          ₹
+                          {formData.foreclosureChargeAmount.toLocaleString(
+                            undefined,
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            },
+                          )}
+                        </p>
+                      </td>
+                      <td className="p-5 border-l border-slate-100">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                          OD Amount
+                        </label>
+                        <input
+                          type="number"
+                          name="od"
+                          value={formData.od}
+                          onChange={handleInputChange}
+                          className="w-full bg-transparent text-base font-black text-red-500 focus:outline-none placeholder:text-slate-200"
+                          placeholder="0000"
+                        />
+                      </td>
+                    </tr>
+
+                    {/* Row 4: Final Calculation */}
+                    <tr>
+                      <td className="p-5 border-b border-slate-100">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                          Misalliances Fee
+                        </label>
+                        <input
+                          type="number"
+                          name="miscellaneousFee"
+                          value={formData.miscellaneousFee}
+                          onChange={handleInputChange}
+                          className="w-full bg-transparent text-base font-black text-slate-800 focus:outline-none placeholder:text-slate-200"
+                          placeholder="0000"
+                        />
+                      </td>
+                      <td className="p-5 border-l border-slate-100 border-b border-slate-100"></td>
+                      <td className="p-5 border-l border-slate-100 border-b border-slate-100"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Separated Total Pay Card */}
+              <div className="px-6 py-6 flex justify-end bg-slate-50/10">
+                <div className="bg-slate-900 rounded-[1.8rem] overflow-hidden flex items-center shadow-2xl shadow-slate-900/40 w-full max-w-sm h-24">
+                  <div className="flex-1 px-8 py-4">
+                    <label className="block text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-0.5">
+                      Total Pay Amount
+                    </label>
+                    <p className="text-2xl font-black text-white tracking-tighter">
+                      ₹
+                      {totalAmount.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                  </div>
+                  <div className="px-6 h-full flex items-center bg-white/5 border-l border-white/5">
+                    <button
+                      onClick={() => setShowPreview(true)}
+                      disabled={!selectedLoan || loading}
+                      className="px-8 py-3.5 bg-primary text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 hover:bg-blue-600 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-30 disabled:grayscale disabled:pointer-events-none"
+                    >
+                      Pay Now
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-                totalRecords={totalRecords}
-                limit={limit}
-              />
+              {/* Remarks Section */}
+              <div className="p-6 bg-white">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4">
+                  Remarks
+                </label>
+                <textarea
+                  name="remarks"
+                  value={formData.remarks}
+                  onChange={handleInputChange}
+                  className="w-full p-6 bg-slate-50/50 border border-slate-100 rounded-3xl text-sm font-bold text-slate-600 focus:outline-none focus:border-primary/20 transition-all resize-none h-24 placeholder:text-slate-300"
+                  placeholder="Add a remark for this foreclosure..."
+                ></textarea>
+              </div>
             </div>
           </main>
-        </div>
 
-        {/* Filter Drawer */}
-        {isFilterOpen && (
-          <div className="fixed inset-0 z-[100] flex justify-end">
-            <div
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
-              onClick={() => setIsFilterOpen(false)}
-            ></div>
-            <div className="relative w-full max-w-md bg-white h-full shadow-2xl animate-slide-in-right border-l border-slate-100 flex flex-col">
-              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
-                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
-                  Filter Loans
-                </h2>
-                <button
-                  onClick={() => setIsFilterOpen(false)}
-                  className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-slate-600 border border-slate-100"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-8">
-                <form
-                  id="filterForm"
-                  onSubmit={handleAdvancedSearch}
-                  className="space-y-6"
-                >
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
-                      Loan Number
-                    </label>
-                    <input
-                      type="text"
-                      name="loanNumber"
-                      value={filters.loanNumber}
-                      onChange={handleFilterChange}
-                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
-                    />
+          {/* Preview Modal */}
+          {showPreview && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300">
+              <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                    Foreclosure Preview
+                  </h3>
+                  <button
+                    onClick={() => setShowPreview(false)}
+                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-500 transition-all"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="p-8 space-y-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        Customer
+                      </label>
+                      <p className="text-xs font-black text-slate-900 uppercase">
+                        {selectedLoan?.customerName}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        Loan Number
+                      </label>
+                      <p className="text-xs font-black text-primary uppercase">
+                        {selectedLoan?.loanNumber}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        Vehicle
+                      </label>
+                      <p className="text-xs font-black text-slate-900 uppercase">
+                        {selectedLoan?.vehicleNumber} ({selectedLoan?.model})
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        Remaining Principal
+                      </label>
+                      <p className="text-xs font-black text-slate-900">
+                        ₹
+                        {remainingPrincipal.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
-                      Applicant Name
+
+                  <div className="bg-slate-900 rounded-[1.2rem] p-4 text-center space-y-0.5 max-w-[220px] mx-auto">
+                    <label className="text-[7px] font-black text-slate-500 uppercase tracking-[0.3em]">
+                      Total Foreclosure Amount
                     </label>
-                    <input
-                      type="text"
-                      name="customerName"
-                      value={filters.customerName}
-                      onChange={handleFilterChange}
-                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
-                    />
+                    <p className="text-lg font-black text-white tracking-tighter">
+                      ₹
+                      {totalAmount.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
                   </div>
-                </form>
-              </div>
-              <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
-                <button
-                  type="submit"
-                  form="filterForm"
-                  className="w-full bg-primary text-white py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700"
-                >
-                  APPLY FILTERS
-                </button>
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="w-full bg-white border border-slate-200 text-slate-400 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest hover:bg-slate-50"
-                >
-                  RESET
-                </button>
+
+                  <div className="flex flex-col gap-4">
+                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
+                      <span className="text-lg">⚠️</span>
+                      <p className="text-[9px] font-bold text-amber-800 leading-relaxed uppercase tracking-tight">
+                        Warning: This action will close the loan permanently.
+                        All pending EMIs will be marked as paid. This process
+                        cannot be undone.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-4 pt-2">
+                      <button
+                        onClick={() => setShowPreview(false)}
+                        className="flex-1 py-4 border-2 border-slate-100 rounded-2xl font-black text-[9px] uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
+                      >
+                        BACK TO EDIT
+                      </button>
+                      <button
+                        onClick={handleProceed}
+                        disabled={loading}
+                        className="flex-[2] py-4 bg-primary text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50"
+                      >
+                        {loading ? "PROCESSING..." : "PROCEED & CLOSE LOAN"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </AuthGuard>
   );

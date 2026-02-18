@@ -100,3 +100,9 @@ export const getForeclosureLoans = async (params = {}) => {
     },
   );
 };
+export const forecloseLoan = async (id, data) => {
+  return await apiHandler(`/api/loans/${id}/foreclose`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+};
