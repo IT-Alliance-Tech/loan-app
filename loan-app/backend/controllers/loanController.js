@@ -866,6 +866,109 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
   );
 });
 
+const getForeclosureLoans = asyncHandler(async (req, res, next) => {
+  const { loanNumber, customerName } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  const query = {};
+  if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (customerName)
+    query.customerName = { $regex: customerName, $options: "i" };
+
+  const result = await Loan.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $project: {
+        loanId: "$_id",
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumbers: 1,
+        principalAmount: 1,
+        tenureMonths: 1,
+        monthlyEMI: 1,
+        status: 1,
+        paidEmis: {
+          $size: {
+            $filter: {
+              input: "$emis",
+              as: "e",
+              cond: { $eq: ["$$e.status", "Paid"] },
+            },
+          },
+        },
+        totalPaidAmount: { $sum: "$emis.amountPaid" },
+      },
+    },
+    {
+      $addFields: {
+        remainingPrincipal: {
+          $max: [
+            0,
+            {
+              $subtract: [
+                "$principalAmount",
+                {
+                  $multiply: [
+                    "$paidEmis",
+                    {
+                      $divide: [
+                        { $toDouble: "$principalAmount" },
+                        { $toInt: "$tenureMonths" },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+    {
+      $addFields: {
+        foreclosureAmount: "$remainingPrincipal",
+      },
+    },
+    { $sort: { loanNumber: 1 } },
+    {
+      $facet: {
+        loans: [{ $skip: skip }, { $limit: limit }],
+        totalCount: [{ $count: "count" }],
+      },
+    },
+  ]);
+
+  const loans = result[0].loans;
+  const total = result[0].totalCount[0]?.count || 0;
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Foreclosure loans fetched successfully",
+    null,
+    {
+      loans,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
+  );
+});
+
 // export all values
 module.exports = {
   createLoan,
@@ -879,4 +982,5 @@ module.exports = {
   getFollowupLoans,
   getPendingEmiDetails,
   updatePaymentStatus,
+  getForeclosureLoans,
 };

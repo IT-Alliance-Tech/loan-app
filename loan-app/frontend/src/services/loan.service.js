@@ -91,3 +91,12 @@ export const updatePaymentStatus = async (id, paymentStatus) => {
     body: JSON.stringify({ paymentStatus }),
   });
 };
+export const getForeclosureLoans = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return await apiHandler(
+    `/api/loans/foreclosure${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+    },
+  );
+};

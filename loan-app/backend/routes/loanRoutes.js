@@ -12,6 +12,7 @@ const {
   getFollowupLoans,
   getPendingEmiDetails,
   updatePaymentStatus,
+  getForeclosureLoans,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
@@ -36,6 +37,7 @@ router.get(
   getPendingPayments,
 );
 router.get("/followups", getFollowupLoans);
+router.get("/foreclosure", getForeclosureLoans);
 router.get(
   "/pending-details/:id",
   authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
