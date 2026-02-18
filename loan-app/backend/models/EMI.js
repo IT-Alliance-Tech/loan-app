@@ -53,6 +53,14 @@ const emiSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    paymentHistory: [
+      {
+        amount: { type: Number, required: true },
+        mode: { type: String, required: true },
+        date: { type: Date, required: true },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true },
 );

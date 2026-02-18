@@ -27,13 +27,52 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
       status: emi.status || "Pending",
       remarks: emi.remarks || "",
     });
-    setDateGroups([
-      {
-        id: Date.now(),
-        date: new Date().toISOString().split("T")[0],
-        payments: [{ id: Date.now() + 1, mode: "", amount: "" }],
-      },
-    ]);
+
+    if (emi.paymentHistory && emi.paymentHistory.length > 0) {
+      // Group history by date
+      const groups = {};
+      emi.paymentHistory.forEach((p) => {
+        const dateKey = new Date(p.date).toISOString().split("T")[0];
+        if (!groups[dateKey]) {
+          groups[dateKey] = {
+            id: Math.random(),
+            date: dateKey,
+            payments: [],
+          };
+        }
+        groups[dateKey].payments.push({
+          id: Math.random(),
+          mode: p.mode,
+          amount: p.amount,
+        });
+      });
+      setDateGroups(Object.values(groups));
+    } else if (emi.amountPaid > 0) {
+      // Fallback for legacy data (before paymentHistory was added)
+      setDateGroups([
+        {
+          id: Date.now(),
+          date: emi.paymentDate
+            ? new Date(emi.paymentDate).toISOString().split("T")[0]
+            : new Date().toISOString().split("T")[0],
+          payments: [
+            {
+              id: Date.now() + 1,
+              mode: (emi.paymentMode || "").split(", ")[0] || "CASH",
+              amount: emi.amountPaid,
+            },
+          ],
+        },
+      ]);
+    } else {
+      setDateGroups([
+        {
+          id: Date.now(),
+          date: new Date().toISOString().split("T")[0],
+          payments: [{ id: Date.now() + 1, mode: "", amount: "" }],
+        },
+      ]);
+    }
     setShowModal(true);
   };
 
@@ -132,9 +171,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
     try {
       await updateEMI(editingEmi._id, {
         ...editData,
-        addedAmount: totalAddedAmount,
-        paymentMode: allModes,
-        paymentDate: latestDate,
+        dateGroups: dateGroups, // Send the full date groups to backend
       });
       setShowModal(false);
       setEditingEmi(null);
@@ -170,9 +207,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
 
   const remainingBalance = Math.max(
     0,
-    (editingEmi?.emiAmount || 0) -
-      (editingEmi?.amountPaid || 0) -
-      calculateTotalPaidNow(),
+    (editingEmi?.emiAmount || 0) - calculateTotalPaidNow(),
   );
 
   return (
