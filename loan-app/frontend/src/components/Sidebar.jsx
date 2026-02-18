@@ -23,6 +23,7 @@ const navItems = [
       { name: "Pending", href: "/admin/pending-payments" },
       { name: "Partial", href: "/admin/partial-payments" },
       { name: "Followup", href: "/admin/followup-payments" },
+      { name: "Foreclosure", href: "/admin/foreclosure-payments" },
     ],
   },
 ];
@@ -168,11 +169,11 @@ const Sidebar = () => {
               Partial
             </Link>
             <Link
-              href="/admin/followup-payments"
+              href="/admin/foreclosure-payments"
               onClick={() => toggleMenu("mobilePayments")}
-              className="flex-1 py-4 bg-orange-600 text-white text-center rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-orange-200"
+              className="flex-1 py-4 bg-red-600 text-white text-center rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-200"
             >
-              Followup
+              Foreclosure
             </Link>
           </div>
         )}

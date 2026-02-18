@@ -219,14 +219,22 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
-  sendResponse(
-    res,
-    200,
-    "success",
-    "Loan found",
-    null,
-    formatLoanResponse(loan),
+
+  // Calculate remaining principal
+  const paidEmisCount = await EMI.countDocuments({
+    loanId: loan._id,
+    status: "Paid",
+  });
+  const remainingPrincipalAmount = Math.max(
+    0,
+    loan.principalAmount -
+      paidEmisCount * (loan.principalAmount / loan.tenureMonths),
   );
+
+  const formattedLoan = formatLoanResponse(loan);
+  formattedLoan.remainingPrincipalAmount = remainingPrincipalAmount;
+
+  sendResponse(res, 200, "success", "Loan found", null, formattedLoan);
 });
 
 const updateLoan = asyncHandler(async (req, res, next) => {
@@ -866,6 +874,150 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
   );
 });
 
+const getForeclosureLoans = asyncHandler(async (req, res, next) => {
+  const { loanNumber, customerName } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  const query = {};
+  if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (customerName)
+    query.customerName = { $regex: customerName, $options: "i" };
+
+  const result = await Loan.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $project: {
+        loanId: "$_id",
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumbers: 1,
+        principalAmount: 1,
+        tenureMonths: 1,
+        monthlyEMI: 1,
+        status: 1,
+        paidEmis: {
+          $size: {
+            $filter: {
+              input: "$emis",
+              as: "e",
+              cond: { $eq: ["$$e.status", "Paid"] },
+            },
+          },
+        },
+        totalPaidAmount: { $sum: "$emis.amountPaid" },
+      },
+    },
+    {
+      $addFields: {
+        remainingPrincipal: {
+          $max: [
+            0,
+            {
+              $subtract: [
+                "$principalAmount",
+                {
+                  $multiply: [
+                    "$paidEmis",
+                    {
+                      $divide: [
+                        { $toDouble: "$principalAmount" },
+                        { $toInt: "$tenureMonths" },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+    {
+      $addFields: {
+        foreclosureAmount: "$remainingPrincipal",
+      },
+    },
+    { $sort: { loanNumber: 1 } },
+    {
+      $facet: {
+        loans: [{ $skip: skip }, { $limit: limit }],
+        totalCount: [{ $count: "count" }],
+      },
+    },
+  ]);
+
+  const loans = result[0].loans;
+  const total = result[0].totalCount[0]?.count || 0;
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Foreclosure loans fetched successfully",
+    null,
+    {
+      loans,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
+  );
+});
+
+const forecloseLoan = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { foreclosureCharges, od, miscellaneousFee, totalAmount, remarks } =
+    req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ErrorHandler("Invalid Loan ID", 400));
+  }
+
+  const loan = await Loan.findById(id);
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // 1. Update Loan status to Closed
+  loan.status = "Closed";
+  loan.remarks = remarks || `Foreclosed on ${new Date().toLocaleDateString()}`;
+  await loan.save();
+
+  // 2. Update all pending/partial EMIs for this loan to "Paid"
+  // We mark them as Paid because the foreclosure payment covers them.
+  await EMI.updateMany(
+    {
+      loanId: id,
+      status: { $ne: "Paid" },
+    },
+    {
+      $set: {
+        status: "Paid",
+        paymentDate: new Date(),
+        paymentMode: "Foreclosure",
+        remarks: `Loan foreclosed. Total Payment: ₹${totalAmount}`,
+      },
+    },
+  );
+
+  sendResponse(res, 200, "success", "Loan foreclosed successfully", null, {
+    loan,
+  });
+});
+
 // export all values
 module.exports = {
   createLoan,
@@ -879,4 +1031,6 @@ module.exports = {
   getFollowupLoans,
   getPendingEmiDetails,
   updatePaymentStatus,
+  getForeclosureLoans,
+  forecloseLoan,
 };
