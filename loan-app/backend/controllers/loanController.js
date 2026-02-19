@@ -507,32 +507,31 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       insuranceDate: vehicleInformation.insuranceDate,
       rtoWorkPending: vehicleInformation.rtoWorkPending,
     }),
-    // Flatten status
-    ...(statusObj && {
-      status: statusObj.status,
-      paymentStatus: statusObj.paymentStatus,
-      isSeized: statusObj.isSeized,
-      docChecklist: statusObj.docChecklist,
-      remarks: statusObj.remarks,
-      clientResponse: statusObj.clientResponse || topLevelClientResponse,
-      nextFollowUpDate: statusObj.nextFollowUpDate || topLevelNextFollowUpDate,
-    }),
+    // Automatic Status Derivation
+    status: foreclosureDetails?.foreclosureDate
+      ? "Closed"
+      : statusObj?.isSeized || loan.isSeized
+        ? "Seized"
+        : "Active",
+
+    paymentStatus: statusObj?.paymentStatus || loan.paymentStatus,
+    isSeized:
+      statusObj?.isSeized !== undefined ? statusObj.isSeized : loan.isSeized,
+    docChecklist: statusObj?.docChecklist || loan.docChecklist,
+    remarks: statusObj?.remarks || loan.remarks,
+    clientResponse: statusObj?.clientResponse || topLevelClientResponse,
+    nextFollowUpDate: statusObj?.nextFollowUpDate || topLevelNextFollowUpDate,
+
     // Flatten foreclosureDetails
-    ...(foreclosureDetails && {
-      foreclosedBy: foreclosureDetails.foreclosedBy || loan.foreclosedBy,
-      foreclosureDate:
-        foreclosureDetails.foreclosureDate || loan.foreclosureDate,
-      foreclosureAmount:
-        foreclosureDetails.foreclosureAmount !== undefined &&
-        foreclosureDetails.foreclosureAmount !== ""
-          ? foreclosureDetails.foreclosureAmount
-          : loan.foreclosureAmount,
-    }),
-    // If statusObj is missing, still handle top-level updates
-    ...(topLevelClientResponse !== undefined &&
-      !statusObj && { clientResponse: topLevelClientResponse }),
-    ...(topLevelNextFollowUpDate !== undefined &&
-      !statusObj && { nextFollowUpDate: topLevelNextFollowUpDate }),
+    foreclosedBy: foreclosureDetails?.foreclosedBy || loan.foreclosedBy,
+    foreclosureDate:
+      foreclosureDetails?.foreclosureDate || loan.foreclosureDate,
+    foreclosureAmount:
+      foreclosureDetails?.foreclosureAmount !== undefined &&
+      foreclosureDetails?.foreclosureAmount !== ""
+        ? foreclosureDetails.foreclosureAmount
+        : loan.foreclosureAmount,
+
     monthlyEMI,
     totalInterestAmount: calculatedTotalInterest,
     updatedBy: req.user._id,

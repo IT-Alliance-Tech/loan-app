@@ -165,6 +165,7 @@ const loanSchema = new mongoose.Schema(
         values: ["Active", "Closed", "Seized"],
         message: "Please select a valid status",
       },
+      default: "Active",
       trim: true,
     },
     paymentStatus: {
