@@ -60,6 +60,7 @@ const formatLoanResponse = (loanDoc) => {
             },
             createdAt: loan.createdAt,
             updatedAt: loan.updatedAt,
+            updatedBy: loan.updatedBy,
           }
         : {
             status: loan.status,
@@ -70,6 +71,7 @@ const formatLoanResponse = (loanDoc) => {
             clientResponse: loan.clientResponse,
             nextFollowUpDate: loan.nextFollowUpDate,
             createdBy: loan.createdBy,
+            updatedBy: loan.updatedBy,
             createdAt: loan.createdAt,
             updatedAt: loan.updatedAt,
           },

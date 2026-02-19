@@ -425,9 +425,33 @@ const LoanForm = ({
         <form onSubmit={formik.handleSubmit} className="space-y-8">
           {/* Basic Info */}
           <div className="space-y-4">
-            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
-              Basic Information
-            </h3>
+            <div className="flex items-center justify-between gap-3 border-b border-primary/10 pb-2">
+              <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">
+                Basic Information
+              </h3>
+              {formik.values.status?.updatedBy && (
+                <div className="flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-lg px-3 py-1">
+                  <span className="text-[8px] font-black text-primary/50 uppercase tracking-widest">
+                    Last Updated By:
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-600">
+                    {typeof formik.values.status.updatedBy === "string"
+                      ? formik.values.status.updatedBy
+                      : formik.values.status.updatedBy.name}{" "}
+                    on{" "}
+                    {new Date(
+                      formik.values.status.updatedAt,
+                    ).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -1529,16 +1553,19 @@ const LoanForm = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Status <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   name="status.status"
                   value={formik.values.status.status || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
+                  disabled={isViewOnly}
                   className={getFieldClass("status.status")}
-                  placeholder="Enter current status (e.g. Verified, Pending Documents, etc.)"
-                />
+                >
+                  <option value="">Select Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Closed">Closed</option>
+                  <option value="Seized">Seized</option>
+                </select>
                 <ErrorMsg name="status.status" />
               </div>
             </div>

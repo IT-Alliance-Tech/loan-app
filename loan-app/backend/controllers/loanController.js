@@ -196,7 +196,8 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
 const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   const loan = await Loan.findOne({ loanNumber: req.params.loanNumber })
     .populate("createdBy", "name")
-    .populate("foreclosedBy", "name");
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name");
 
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
@@ -315,7 +316,8 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   }
   const loan = await Loan.findById(req.params.id)
     .populate("createdBy", "name")
-    .populate("foreclosedBy", "name");
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name");
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
@@ -533,6 +535,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       !statusObj && { nextFollowUpDate: topLevelNextFollowUpDate }),
     monthlyEMI,
     totalInterestAmount: calculatedTotalInterest,
+    updatedBy: req.user._id,
   };
 
   loan = await Loan.findByIdAndUpdate(req.params.id, updateData, {
@@ -540,7 +543,8 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     runValidators: true,
   })
     .populate("createdBy", "name")
-    .populate("foreclosedBy", "name");
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name");
 
   // Synchronize EMIs if relevant terms changed
   if (loanTerms || customerDetails || (statusObj && statusObj.status)) {

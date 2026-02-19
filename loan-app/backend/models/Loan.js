@@ -161,6 +161,10 @@ const loanSchema = new mongoose.Schema(
     status: {
       type: String,
       required: [true, "Status is required"],
+      enum: {
+        values: ["Active", "Closed", "Seized"],
+        message: "Please select a valid status",
+      },
       trim: true,
     },
     paymentStatus: {
@@ -182,6 +186,10 @@ const loanSchema = new mongoose.Schema(
     },
     foreclosureAmount: {
       type: Number,
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
   },
   { timestamps: true },
