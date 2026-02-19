@@ -234,6 +234,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
                 Mode
               </th>
+
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
                 Overdue
               </th>
@@ -242,6 +243,9 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
                 Remarks
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+                Last Updated
               </th>
               {isEditMode && (
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
@@ -285,6 +289,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                     </div>
                   )}
                 </td>
+
                 <td className="px-6 py-4 text-xs font-medium text-red-600 text-center">
                   ₹{emi.overdue || 0}
                 </td>
@@ -311,6 +316,26 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   title={emi.remarks}
                 >
                   {emi.remarks || "-"}
+                </td>
+                <td className="px-6 py-4 text-xs font-medium text-slate-500 text-center whitespace-nowrap">
+                  {emi.updatedBy ? (
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-700">
+                        {typeof emi.updatedBy === "string"
+                          ? emi.updatedBy
+                          : emi.updatedBy.name}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(emi.updatedAt).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  ) : (
+                    "-"
+                  )}
                 </td>
                 {isEditMode && (
                   <td className="px-6 py-4">
