@@ -178,6 +178,8 @@ const LoanForm = ({
           foreclosureAmount:
             initialData?.status?.foreclosureDetails?.foreclosureAmount || 0,
         },
+        updatedBy: initialData?.status?.updatedBy || null,
+        updatedAt: initialData?.status?.updatedAt || null,
       },
     },
     validationSchema,
