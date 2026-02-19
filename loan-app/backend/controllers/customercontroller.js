@@ -256,9 +256,10 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       status: newStatus,
       remarks: remarks || emi.remarks,
       paymentHistory: emi.paymentHistory,
+      updatedBy: req.user._id,
     },
     { new: true, runValidators: true },
-  );
+  ).populate("updatedBy", "name");
 
   sendResponse(res, 200, "success", "EMI updated successfully", null, emi);
 });
@@ -299,9 +300,45 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
         status: 1,
         remarks: 1,
         updatedAt: 1,
-        mobileNumbers: "$loan.mobileNumbers",
         guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
         guarantorName: "$loan.guarantorName",
+        updatedBy: 1,
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "updatedBy",
+        foreignField: "_id",
+        as: "updatedBy",
+      },
+    },
+    {
+      $unwind: {
+        path: "$updatedBy",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        updatedBy: { $ifNull: ["$updatedBy.name", null] },
+        _id: 1,
+        loanId: 1,
+        loanNumber: 1,
+        customerName: 1,
+        emiNumber: 1,
+        dueDate: 1,
+        emiAmount: 1,
+        amountPaid: 1,
+        paymentDate: 1,
+        paymentMode: 1,
+        overdue: 1,
+        status: 1,
+        remarks: 1,
+        updatedAt: 1,
+        mobileNumbers: 1,
+        guarantorMobileNumbers: 1,
+        guarantorName: 1,
       },
     },
   ]);
@@ -322,9 +359,11 @@ const getEMIsByLoanId = asyncHandler(async (req, res, next) => {
   if (!mongoose.Types.ObjectId.isValid(loanId) || loanId === "undefined") {
     return next(new ErrorHandler("Invalid Loan ID provided", 400));
   }
-  const emis = await EMI.find({ loanId }).sort({
-    emiNumber: 1,
-  });
+  const emis = await EMI.find({ loanId })
+    .sort({
+      emiNumber: 1,
+    })
+    .populate("updatedBy", "name");
   sendResponse(res, 200, "success", "EMIs fetched successfully", null, emis);
 });
 
