@@ -170,6 +170,14 @@ const LoanForm = ({
         remarks: initialData?.status?.remarks || "",
         clientResponse: initialData?.status?.clientResponse || "",
         nextFollowUpDate: initialData?.status?.nextFollowUpDate || "",
+        foreclosureDetails: {
+          foreclosedBy:
+            initialData?.status?.foreclosureDetails?.foreclosedBy || "",
+          foreclosureDate:
+            initialData?.status?.foreclosureDetails?.foreclosureDate || "",
+          foreclosureAmount:
+            initialData?.status?.foreclosureDetails?.foreclosureAmount || 0,
+        },
       },
     },
     validationSchema,
@@ -417,9 +425,33 @@ const LoanForm = ({
         <form onSubmit={formik.handleSubmit} className="space-y-8">
           {/* Basic Info */}
           <div className="space-y-4">
-            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
-              Basic Information
-            </h3>
+            <div className="flex items-center justify-between gap-3 border-b border-primary/10 pb-2">
+              <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">
+                Basic Information
+              </h3>
+              {formik.values.status?.updatedBy && (
+                <div className="flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-lg px-3 py-1">
+                  <span className="text-[8px] font-black text-primary/50 uppercase tracking-widest">
+                    Last Updated By:
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-600">
+                    {typeof formik.values.status.updatedBy === "string"
+                      ? formik.values.status.updatedBy
+                      : formik.values.status.updatedBy.name}{" "}
+                    on{" "}
+                    {new Date(
+                      formik.values.status.updatedAt,
+                    ).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -1521,16 +1553,19 @@ const LoanForm = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Status <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   name="status.status"
                   value={formik.values.status.status || ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
+                  disabled={isViewOnly}
                   className={getFieldClass("status.status")}
-                  placeholder="Enter current status (e.g. Verified, Pending Documents, etc.)"
-                />
+                >
+                  <option value="">Select Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Closed">Closed</option>
+                  <option value="Seized">Seized</option>
+                </select>
                 <ErrorMsg name="status.status" />
               </div>
             </div>
@@ -1573,6 +1608,97 @@ const LoanForm = ({
                         onBlur={formik.handleBlur}
                         readOnly={isViewOnly}
                         className={`w-full bg-slate-800/30 border border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all ${isViewOnly ? "opacity-80" : ""}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {(formik.values.status?.status?.toLowerCase() === "closed" ||
+                formik.values.status === "Closed") && (
+                <div className="bg-emerald-900/90 backdrop-blur-sm rounded-2xl border border-emerald-500/30 p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500 mt-6 relative overflow-hidden group">
+                  {/* Decorative element */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
+
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-emerald-500/20 rounded-lg">
+                      <svg
+                        className="w-4 h-4 text-emerald-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">
+                      Loan Foreclosure Finalized
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                    <div className="space-y-1.5">
+                      <label className="text-[8px] font-black text-emerald-500/70 uppercase tracking-widest pl-1">
+                        Processed By
+                      </label>
+                      <input
+                        type="text"
+                        name="status.foreclosureDetails.foreclosedBy"
+                        value={
+                          formik.values.status?.foreclosureDetails
+                            ?.foreclosedBy || ""
+                        }
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        readOnly={isViewOnly}
+                        className={`w-full bg-emerald-950/40 border border-emerald-500/20 rounded-xl px-4 py-3 text-[11px] font-bold text-emerald-50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all ${isViewOnly ? "opacity-80" : ""}`}
+                        placeholder="Staff name..."
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[8px] font-black text-emerald-500/70 uppercase tracking-widest pl-1">
+                        Completion Date
+                      </label>
+                      <input
+                        type="date"
+                        name="status.foreclosureDetails.foreclosureDate"
+                        value={
+                          formik.values.status?.foreclosureDetails
+                            ?.foreclosureDate
+                            ? new Date(
+                                formik.values.status.foreclosureDetails
+                                  .foreclosureDate,
+                              )
+                                .toISOString()
+                                .split("T")[0]
+                            : ""
+                        }
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        readOnly={isViewOnly}
+                        className={`w-full bg-emerald-950/40 border border-emerald-500/20 rounded-xl px-4 py-3 text-[11px] font-bold text-emerald-50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all ${isViewOnly ? "opacity-80" : ""}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[8px] font-black text-emerald-500/70 uppercase tracking-widest pl-1">
+                        Settlement Amount (₹)
+                      </label>
+                      <input
+                        type="number"
+                        name="status.foreclosureDetails.foreclosureAmount"
+                        value={
+                          formik.values.status?.foreclosureDetails
+                            ?.foreclosureAmount || ""
+                        }
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        readOnly={isViewOnly}
+                        className={`w-full bg-emerald-950/40 border border-emerald-500/20 rounded-xl px-4 py-3 text-[13px] font-black text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all ${isViewOnly ? "opacity-90" : ""}`}
+                        placeholder="0.00"
                       />
                     </div>
                   </div>

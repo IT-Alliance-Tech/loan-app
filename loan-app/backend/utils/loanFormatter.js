@@ -5,13 +5,6 @@ const formatLoanResponse = (loanDoc) => {
 
   return {
     _id: loan._id,
-    id: loan._id,
-    loanNumber: loan.loanNumber,
-    customerName: loan.customerName,
-    mobileNumbers: loan.mobileNumbers || [],
-    vehicleNumber: loan.vehicleNumber,
-    model: loan.model,
-    isSeized: loan.isSeized || false,
     customerDetails: {
       customerName: loan.customerName,
       address: loan.address,
@@ -19,7 +12,6 @@ const formatLoanResponse = (loanDoc) => {
       panNumber: loan.panNumber,
       aadharNumber: loan.aadharNumber,
       mobileNumbers: loan.mobileNumbers || [],
-      address: loan.address,
       guarantorName: loan.guarantorName,
       guarantorMobileNumbers: loan.guarantorMobileNumbers || [],
     },
@@ -50,19 +42,39 @@ const formatLoanResponse = (loanDoc) => {
       insuranceDate: loan.insuranceDate,
       rtoWorkPending: loan.rtoWorkPending || [],
     },
-    status: {
-      status: loan.status,
-      paymentStatus: loan.paymentStatus,
-      isSeized: loan.isSeized || false,
-      docChecklist: loan.docChecklist,
-      remarks: loan.remarks,
-      clientResponse: loan.clientResponse,
-      nextFollowUpDate: loan.nextFollowUpDate,
-      id: loan._id,
-      createdBy: loan.createdBy,
-      createdAt: loan.createdAt,
-      updatedAt: loan.updatedAt,
-    },
+    status:
+      loan.status?.toLowerCase() === "closed"
+        ? {
+            status: loan.status,
+            remarks: loan.remarks,
+            foreclosureDetails: {
+              foreclosedBy:
+                loan.foreclosedBy?.name || loan.foreclosedBy || null,
+              foreclosureDate: loan.foreclosureDate || null,
+              foreclosureAmount:
+                loan.foreclosureAmount !== undefined &&
+                loan.foreclosureAmount !== null
+                  ? loan.foreclosureAmount
+                  : null,
+              createdBy: loan.createdBy,
+            },
+            createdAt: loan.createdAt,
+            updatedAt: loan.updatedAt,
+            updatedBy: loan.updatedBy,
+          }
+        : {
+            status: loan.status,
+            paymentStatus: loan.paymentStatus,
+            isSeized: loan.isSeized || false,
+            docChecklist: loan.docChecklist,
+            remarks: loan.remarks,
+            clientResponse: loan.clientResponse,
+            nextFollowUpDate: loan.nextFollowUpDate,
+            createdBy: loan.createdBy,
+            updatedBy: loan.updatedBy,
+            createdAt: loan.createdAt,
+            updatedAt: loan.updatedAt,
+          },
   };
 };
 

@@ -194,28 +194,11 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
 });
 
 const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
-  const loan = await Loan.findOne({ loanNumber: req.params.loanNumber });
-  if (!loan) {
-    return next(new ErrorHandler("Loan not found", 404));
-  }
-  sendResponse(
-    res,
-    200,
-    "success",
-    "Loan found",
-    null,
-    formatLoanResponse(loan),
-  );
-});
+  const loan = await Loan.findOne({ loanNumber: req.params.loanNumber })
+    .populate("createdBy", "name")
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name");
 
-const getLoanById = asyncHandler(async (req, res, next) => {
-  if (
-    !mongoose.Types.ObjectId.isValid(req.params.id) ||
-    req.params.id === "undefined"
-  ) {
-    return next(new ErrorHandler("Invalid Loan ID provided", 400));
-  }
-  const loan = await Loan.findById(req.params.id);
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
@@ -232,7 +215,213 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   );
 
   const formattedLoan = formatLoanResponse(loan);
-  formattedLoan.remainingPrincipalAmount = remainingPrincipalAmount;
+  formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
+
+  // Aggressive recovery logic for foreclosureDetails for older loans
+  if (
+    loan.status?.toLowerCase() === "closed" &&
+    !loan.foreclosureAmount // Trigger if 0, null, or undefined
+  ) {
+    // 1. Search for explicit foreclosure/settlement EMI (using both ID and loanNumber)
+    const foreclosureEmi = await EMI.findOne({
+      $or: [{ loanId: loan._id }, { loanNumber: loan.loanNumber }],
+      $or: [
+        { paymentMode: { $regex: /foreclosure|settlement|closed/i } },
+        { remarks: { $regex: /foreclosure|settlement|closed|final/i } },
+      ],
+    }).sort({ createdAt: -1 });
+
+    // 2. Fallback to the absolute last paid EMI
+    const targetEmi =
+      foreclosureEmi ||
+      (await EMI.findOne({
+        $or: [{ loanId: loan._id }, { loanNumber: loan.loanNumber }],
+        status: "Paid",
+      }).sort({ dueDate: -1, createdAt: -1 }));
+
+    if (targetEmi) {
+      if (!formattedLoan.status.foreclosureDetails) {
+        formattedLoan.status.foreclosureDetails = {};
+      }
+
+      if (targetEmi.remarks) {
+        // Updated regex to prioritize currency symbols/terms and exclude date-like patterns
+        const amtMatch =
+          targetEmi.remarks.match(
+            /(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i,
+          ) ||
+          targetEmi.remarks.match(/[₹]\s*([\d,.]+)/) ||
+          targetEmi.remarks.match(/(?<![\/\d])\b([\d,.]+)(?!\s*[\/\d])/); // Avoid numbers surrounded by slashes (dates)
+        if (amtMatch) {
+          formattedLoan.status.foreclosureDetails.foreclosureAmount =
+            parseFloat(amtMatch[1].replace(/,/g, ""));
+        }
+      }
+
+      if (!formattedLoan.status.foreclosureDetails.foreclosureAmount) {
+        formattedLoan.status.foreclosureDetails.foreclosureAmount =
+          targetEmi.amountPaid || targetEmi.emiAmount;
+      }
+
+      formattedLoan.status.foreclosureDetails.foreclosureDate =
+        targetEmi.paymentDate || targetEmi.createdAt;
+    }
+
+    // Final fallback for amount: check loan's own remarks
+    if (
+      !formattedLoan.status.foreclosureDetails?.foreclosureAmount &&
+      loan.remarks
+    ) {
+      const loanAmtMatch = loan.remarks.match(
+        /(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i,
+      );
+      if (loanAmtMatch) {
+        if (!formattedLoan.status.foreclosureDetails)
+          formattedLoan.status.foreclosureDetails = {};
+        formattedLoan.status.foreclosureDetails.foreclosureAmount = parseFloat(
+          loanAmtMatch[1].replace(/,/g, ""),
+        );
+      }
+    }
+
+    // Processed By Fallback: Use creator if specific's processor is unknown
+    if (
+      !formattedLoan.status.foreclosureDetails?.foreclosedBy &&
+      !loan.foreclosedBy
+    ) {
+      if (!formattedLoan.status.foreclosureDetails)
+        formattedLoan.status.foreclosureDetails = {};
+      formattedLoan.status.foreclosureDetails.foreclosedBy =
+        loan.createdBy?.name || "System";
+    }
+
+    // Ensure we ALWAYS have a date for closed loans (using updatedAt as absolute fallback)
+    if (!formattedLoan.status.foreclosureDetails?.foreclosureDate) {
+      if (!formattedLoan.status.foreclosureDetails)
+        formattedLoan.status.foreclosureDetails = {};
+      formattedLoan.status.foreclosureDetails.foreclosureDate =
+        loan.foreclosureDate || loan.updatedAt;
+    }
+  }
+
+  sendResponse(res, 200, "success", "Loan found", null, formattedLoan);
+});
+
+const getLoanById = asyncHandler(async (req, res, next) => {
+  if (
+    !mongoose.Types.ObjectId.isValid(req.params.id) ||
+    req.params.id === "undefined"
+  ) {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
+  const loan = await Loan.findById(req.params.id)
+    .populate("createdBy", "name")
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name");
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // Calculate remaining principal
+  const paidEmisCount = await EMI.countDocuments({
+    loanId: loan._id,
+    status: "Paid",
+  });
+  const remainingPrincipalAmount = Math.max(
+    0,
+    loan.principalAmount -
+      paidEmisCount * (loan.principalAmount / loan.tenureMonths),
+  );
+
+  const formattedLoan = formatLoanResponse(loan);
+  formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
+
+  // Aggressive recovery logic for foreclosureDetails for older loans
+  if (
+    loan.status?.toLowerCase() === "closed" &&
+    !loan.foreclosureAmount // Trigger if 0, null, or undefined
+  ) {
+    // 1. Search for explicit foreclosure/settlement EMI
+    const foreclosureEmi = await EMI.findOne({
+      $or: [{ loanId: loan._id }, { loanNumber: loan.loanNumber }],
+      $or: [
+        { paymentMode: { $regex: /foreclosure|settlement|closed/i } },
+        { remarks: { $regex: /foreclosure|settlement|closed|final/i } },
+      ],
+    }).sort({ createdAt: -1 });
+
+    // 2. Fallback to the absolute last paid EMI
+    const targetEmi =
+      foreclosureEmi ||
+      (await EMI.findOne({
+        $or: [{ loanId: loan._id }, { loanNumber: loan.loanNumber }],
+        status: "Paid",
+      }).sort({ dueDate: -1, createdAt: -1 }));
+
+    if (targetEmi) {
+      if (!formattedLoan.status.foreclosureDetails) {
+        formattedLoan.status.foreclosureDetails = {};
+      }
+
+      if (targetEmi.remarks) {
+        // Updated regex to prioritize currency symbols/terms and exclude date-like patterns
+        const amtMatch =
+          targetEmi.remarks.match(
+            /(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i,
+          ) ||
+          targetEmi.remarks.match(/[₹]\s*([\d,.]+)/) ||
+          targetEmi.remarks.match(/(?<![\/\d])\b([\d,.]+)(?!\s*[\/\d])/); // Avoid numbers surrounded by slashes (dates)
+        if (amtMatch) {
+          formattedLoan.status.foreclosureDetails.foreclosureAmount =
+            parseFloat(amtMatch[1].replace(/,/g, ""));
+        }
+      }
+
+      if (!formattedLoan.status.foreclosureDetails.foreclosureAmount) {
+        formattedLoan.status.foreclosureDetails.foreclosureAmount =
+          targetEmi.amountPaid || targetEmi.emiAmount;
+      }
+
+      formattedLoan.status.foreclosureDetails.foreclosureDate =
+        targetEmi.paymentDate || targetEmi.createdAt;
+    }
+
+    // Final fallback for amount: check loan's own remarks
+    if (
+      !formattedLoan.status.foreclosureDetails?.foreclosureAmount &&
+      loan.remarks
+    ) {
+      const loanAmtMatch = loan.remarks.match(
+        /(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i,
+      );
+      if (loanAmtMatch) {
+        if (!formattedLoan.status.foreclosureDetails)
+          formattedLoan.status.foreclosureDetails = {};
+        formattedLoan.status.foreclosureDetails.foreclosureAmount = parseFloat(
+          loanAmtMatch[1].replace(/,/g, ""),
+        );
+      }
+    }
+
+    // Processed By Fallback: Use creator if specific's processor is unknown
+    if (
+      !formattedLoan.status.foreclosureDetails?.foreclosedBy &&
+      !loan.foreclosedBy
+    ) {
+      if (!formattedLoan.status.foreclosureDetails)
+        formattedLoan.status.foreclosureDetails = {};
+      formattedLoan.status.foreclosureDetails.foreclosedBy =
+        loan.createdBy?.name || "System";
+    }
+
+    // Ensure we ALWAYS have a date for closed loans (using updatedAt as absolute fallback)
+    if (!formattedLoan.status.foreclosureDetails?.foreclosureDate) {
+      if (!formattedLoan.status.foreclosureDetails)
+        formattedLoan.status.foreclosureDetails = {};
+      formattedLoan.status.foreclosureDetails.foreclosureDate =
+        loan.foreclosureDate || loan.updatedAt;
+    }
+  }
 
   sendResponse(res, 200, "success", "Loan found", null, formattedLoan);
 });
@@ -257,6 +446,9 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     clientResponse: topLevelClientResponse,
     nextFollowUpDate: topLevelNextFollowUpDate,
   } = req.body;
+
+  // Support nested foreclosureDetails in status object
+  const foreclosureDetails = statusObj?.foreclosureDetails;
 
   const currentPrincipal =
     loanTerms?.principalAmount !== undefined
@@ -325,6 +517,17 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       clientResponse: statusObj.clientResponse || topLevelClientResponse,
       nextFollowUpDate: statusObj.nextFollowUpDate || topLevelNextFollowUpDate,
     }),
+    // Flatten foreclosureDetails
+    ...(foreclosureDetails && {
+      foreclosedBy: foreclosureDetails.foreclosedBy || loan.foreclosedBy,
+      foreclosureDate:
+        foreclosureDetails.foreclosureDate || loan.foreclosureDate,
+      foreclosureAmount:
+        foreclosureDetails.foreclosureAmount !== undefined &&
+        foreclosureDetails.foreclosureAmount !== ""
+          ? foreclosureDetails.foreclosureAmount
+          : loan.foreclosureAmount,
+    }),
     // If statusObj is missing, still handle top-level updates
     ...(topLevelClientResponse !== undefined &&
       !statusObj && { clientResponse: topLevelClientResponse }),
@@ -332,12 +535,16 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       !statusObj && { nextFollowUpDate: topLevelNextFollowUpDate }),
     monthlyEMI,
     totalInterestAmount: calculatedTotalInterest,
+    updatedBy: req.user._id,
   };
 
   loan = await Loan.findByIdAndUpdate(req.params.id, updateData, {
     new: true,
     runValidators: true,
-  });
+  })
+    .populate("createdBy", "name")
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name");
 
   // Synchronize EMIs if relevant terms changed
   if (loanTerms || customerDetails || (statusObj && statusObj.status)) {
@@ -994,6 +1201,9 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
   // 1. Update Loan status to Closed
   loan.status = "Closed";
   loan.remarks = remarks || `Foreclosed on ${new Date().toLocaleDateString()}`;
+  loan.foreclosedBy = req.user?._id;
+  loan.foreclosureDate = new Date();
+  loan.foreclosureAmount = totalAmount;
   await loan.save();
 
   // 2. Update all pending/partial EMIs for this loan to "Paid"
