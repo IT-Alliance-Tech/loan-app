@@ -62,6 +62,25 @@ const ViewLoanPage = () => {
                   .split("T")[0]
               : "",
           },
+          status: {
+            ...data.status,
+            nextFollowUpDate: data.status?.nextFollowUpDate
+              ? new Date(data.status.nextFollowUpDate)
+                  .toISOString()
+                  .split("T")[0]
+              : "",
+            foreclosureDetails: data.status?.foreclosureDetails
+              ? {
+                  ...data.status.foreclosureDetails,
+                  foreclosureDate: data.status.foreclosureDetails
+                    .foreclosureDate
+                    ? new Date(data.status.foreclosureDetails.foreclosureDate)
+                        .toISOString()
+                        .split("T")[0]
+                    : "",
+                }
+              : undefined,
+          },
         };
 
         setLoan(formattedData);

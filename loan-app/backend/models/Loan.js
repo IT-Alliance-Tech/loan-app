@@ -173,6 +173,16 @@ const loanSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    foreclosedBy: {
+      type: mongoose.Schema.Types.Mixed,
+      ref: "User",
+    },
+    foreclosureDate: {
+      type: Date,
+    },
+    foreclosureAmount: {
+      type: Number,
+    },
   },
   { timestamps: true },
 );

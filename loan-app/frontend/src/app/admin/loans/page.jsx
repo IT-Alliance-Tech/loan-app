@@ -340,9 +340,17 @@ const LoansPage = () => {
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${loan.isSeized ? "bg-red-50 text-red-500 border-red-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"}`}
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${
+                                    loan.status.isSeized
+                                      ? "bg-red-50 text-red-500 border-red-100"
+                                      : loan.status.status === "Closed"
+                                        ? "bg-slate-100 text-slate-500 border-slate-200"
+                                        : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                  }`}
                                 >
-                                  {loan.status.isSeized ? "Seized" : "Active"}
+                                  {loan.status.isSeized
+                                    ? "Seized"
+                                    : loan.status.status}
                                 </span>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap">
@@ -582,9 +590,17 @@ const LoansPage = () => {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${loan.isSeized ? "bg-red-100 text-red-600 border-red-200" : "bg-green-100 text-green-600 border-green-200"}`}
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${
+                                    loan.status.isSeized
+                                      ? "bg-red-100 text-red-600 border-red-200"
+                                      : loan.status.status === "Closed"
+                                        ? "bg-slate-100 text-slate-500 border-slate-200"
+                                        : "bg-green-100 text-green-600 border-green-200"
+                                  }`}
                                 >
-                                  {loan.status.isSeized ? "Seized" : "Active"}
+                                  {loan.status.isSeized
+                                    ? "Seized"
+                                    : loan.status.status}
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">

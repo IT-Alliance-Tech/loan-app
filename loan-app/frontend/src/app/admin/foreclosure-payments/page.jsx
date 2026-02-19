@@ -67,7 +67,7 @@ const ForeclosurePage = () => {
 
       // Auto-calculate charge amount if percentage changes
       if (name === "foreclosureChargePercent" && selectedLoan) {
-        const principal = selectedLoan.remainingPrincipalAmount || 0;
+        const principal = selectedLoan.loanTerms?.remainingPrincipalAmount || 0;
         updated.foreclosureChargeAmount = (principal * numValue) / 100;
       }
 
@@ -80,7 +80,8 @@ const ForeclosurePage = () => {
     });
   };
 
-  const remainingPrincipal = selectedLoan?.remainingPrincipalAmount || 0;
+  const remainingPrincipal =
+    selectedLoan?.loanTerms?.remainingPrincipalAmount || 0;
   const totalAmount =
     remainingPrincipal +
     formData.foreclosureChargeAmount +
@@ -115,7 +116,7 @@ const ForeclosurePage = () => {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#F8FAFC] flex font-['Outfit']">
+      <div className="min-h-screen bg-[#F8FAFC] flex">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <div className="hidden lg:block border-b border-slate-100 bg-white">
