@@ -10,6 +10,7 @@ import Pagination from "../../../components/Pagination";
 import { useToast } from "../../../context/ToastContext";
 import Link from "next/link";
 import TableActionMenu from "../../../components/TableActionMenu";
+import ConfirmationModal from "../../../components/ConfirmationModal";
 
 const PartialPaymentsPage = () => {
   const router = useRouter();
@@ -26,6 +27,8 @@ const PartialPaymentsPage = () => {
     nextFollowUpDate: "",
   });
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [showSeizeModal, setShowSeizeModal] = useState(false);
+  const [selectedLoanId, setSelectedLoanId] = useState(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -109,15 +112,20 @@ const PartialPaymentsPage = () => {
     setIsFilterOpen(false);
   };
 
-  const handleSeize = async (loanId) => {
-    if (
-      !window.confirm("Are you sure you want to mark this vehicle as seized?")
-    )
-      return;
+  const handleSeizeClick = (loanId) => {
+    setSelectedLoanId(loanId);
+    setShowSeizeModal(true);
+  };
+
+  const confirmSeize = async () => {
+    if (!selectedLoanId) return;
+
     try {
-      await toggleSeized(loanId);
+      await toggleSeized(selectedLoanId);
       showToast("Vehicle marked as seized", "success");
       fetchSeizedPending({ page: currentPage, limit });
+      setShowSeizeModal(false);
+      setSelectedLoanId(null);
     } catch (err) {
       showToast(err.message || "Failed to seize vehicle", "error");
     }
@@ -384,7 +392,8 @@ const PartialPaymentsPage = () => {
                                   },
                                   {
                                     label: "Seize Vehicle",
-                                    onClick: () => handleSeize(item.loanId),
+                                    onClick: () =>
+                                      handleSeizeClick(item.loanId),
                                   },
                                 ]}
                               />
@@ -520,6 +529,14 @@ const PartialPaymentsPage = () => {
         <ContactActionMenu
           contact={activeContactMenu}
           onClose={() => setActiveContactMenu(null)}
+        />
+
+        <ConfirmationModal
+          isOpen={showSeizeModal}
+          onClose={() => setShowSeizeModal(false)}
+          onConfirm={confirmSeize}
+          title="Confirm Seizure"
+          message="Are you sure you want to mark this vehicle as seized? This action cannot be undone."
         />
       </div>
     </AuthGuard>

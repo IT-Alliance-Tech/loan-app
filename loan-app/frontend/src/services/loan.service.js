@@ -106,3 +106,18 @@ export const forecloseLoan = async (id, data) => {
     body: JSON.stringify(data),
   });
 };
+export const getSeizedVehicles = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return await apiHandler(
+    `/api/loans/seized-vehicles${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+    },
+  );
+};
+export const updateSeizedStatus = async (id, seizedStatus) => {
+  return await apiHandler(`/api/loans/seized-vehicles/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ seizedStatus }),
+  });
+};

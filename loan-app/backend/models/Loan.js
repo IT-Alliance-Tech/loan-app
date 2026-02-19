@@ -147,6 +147,14 @@ const loanSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    seizedDate: {
+      type: Date,
+    },
+    seizedStatus: {
+      type: String,
+      enum: ["For Seizing", "Seized", "Sold", "Re-activate"],
+      default: "For Seizing",
+    },
     remarks: {
       type: String,
       trim: true,
