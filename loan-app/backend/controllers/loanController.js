@@ -629,6 +629,19 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
   }
 
   loan.isSeized = !loan.isSeized;
+
+  // Simultaneously update the status field to match isSeized
+  if (loan.isSeized) {
+    loan.status = "Seized";
+    loan.seizedDate = new Date();
+    loan.seizedStatus = "For Seizing";
+  } else {
+    // If we are un-seizing, revert to Active.
+    loan.status = "Active";
+    loan.seizedDate = undefined;
+    loan.seizedStatus = undefined;
+  }
+
   await loan.save();
 
   sendResponse(
@@ -1227,6 +1240,138 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
   });
 });
 
+const getSeizedVehicles = asyncHandler(async (req, res, next) => {
+  const { loanNumber, customerName, vehicleNumber } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  const query = { isSeized: true };
+
+  if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (customerName)
+    query.customerName = { $regex: customerName, $options: "i" };
+  if (vehicleNumber)
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+
+  const result = await Loan.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $addFields: {
+        pendingEmisList: {
+          $filter: {
+            input: "$emis",
+            as: "emi",
+            cond: { $ne: ["$$emi.status", "Paid"] },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumbers: 1,
+        vehicleNumber: 1,
+        seizedDate: 1,
+        seizedStatus: 1,
+        updatedAt: 1,
+        unpaidMonths: { $size: "$pendingEmisList" },
+        totalDueAmount: {
+          $reduce: {
+            input: "$pendingEmisList",
+            initialValue: 0,
+            in: {
+              $add: [
+                "$$value",
+                {
+                  $subtract: [
+                    "$$this.emiAmount",
+                    { $ifNull: ["$$this.amountPaid", 0] },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+    { $sort: { seizedDate: -1, updatedAt: -1 } },
+    {
+      $facet: {
+        vehicles: [{ $skip: skip }, { $limit: limit }],
+        totalCount: [{ $count: "count" }],
+      },
+    },
+  ]);
+
+  const vehicles = result[0].vehicles;
+  const total = result[0].totalCount[0]?.count || 0;
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Seized vehicles fetched successfully",
+    null,
+    {
+      vehicles,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
+  );
+});
+
+const updateSeizedStatus = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { seizedStatus } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
+
+  const validStatuses = ["For Seizing", "Seized", "Sold", "Re-activate"];
+  if (!validStatuses.includes(seizedStatus)) {
+    return next(new ErrorHandler("Invalid seized status", 400));
+  }
+
+  const loan = await Loan.findById(id);
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  loan.seizedStatus = seizedStatus;
+
+  // If Re-activate: un-seize the loan and revert to Active
+  if (seizedStatus === "Re-activate") {
+    loan.isSeized = false;
+    loan.status = "Active";
+  }
+
+  await loan.save();
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    `Seized status updated to ${seizedStatus}`,
+    null,
+    { _id: loan._id, seizedStatus: loan.seizedStatus, status: loan.status },
+  );
+});
+
 // export all values
 module.exports = {
   createLoan,
@@ -1242,4 +1387,6 @@ module.exports = {
   updatePaymentStatus,
   getForeclosureLoans,
   forecloseLoan,
+  getSeizedVehicles,
+  updateSeizedStatus,
 };

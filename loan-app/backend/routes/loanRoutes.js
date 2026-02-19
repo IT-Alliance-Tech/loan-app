@@ -14,6 +14,8 @@ const {
   updatePaymentStatus,
   getForeclosureLoans,
   forecloseLoan,
+  getSeizedVehicles,
+  updateSeizedStatus,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
@@ -39,6 +41,12 @@ router.get(
 );
 router.get("/followups", getFollowupLoans);
 router.get("/foreclosure", getForeclosureLoans);
+router.get("/seized-vehicles", getSeizedVehicles);
+router.patch(
+  "/seized-vehicles/:id/status",
+  authorizeRoles("SUPER_ADMIN"),
+  updateSeizedStatus,
+);
 router.get(
   "/pending-details/:id",
   authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),

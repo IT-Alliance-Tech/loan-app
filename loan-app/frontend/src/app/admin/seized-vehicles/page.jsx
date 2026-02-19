@@ -3,7 +3,10 @@ import { useState, useEffect } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
-import { getLoans } from "../../../services/loan.service";
+import {
+  getSeizedVehicles,
+  updateSeizedStatus,
+} from "../../../services/loan.service";
 import Pagination from "../../../components/Pagination";
 
 const SeizedVehiclesPage = () => {
@@ -19,6 +22,24 @@ const SeizedVehiclesPage = () => {
   });
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
 
+  const handleSeizedStatusChange = async (loanId, newStatus) => {
+    try {
+      await updateSeizedStatus(loanId, newStatus);
+      if (newStatus === "Re-activate") {
+        setSeizedLoans((prev) => prev.filter((l) => l._id !== loanId));
+        setTotalRecords((prev) => prev - 1);
+      } else {
+        setSeizedLoans((prev) =>
+          prev.map((l) =>
+            l._id === loanId ? { ...l, seizedStatus: newStatus } : l,
+          ),
+        );
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -27,7 +48,7 @@ const SeizedVehiclesPage = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const params = { page: currentPage, limit, status: "Seized" };
+      const params = { page: currentPage, limit };
       if (searchQuery.trim()) {
         params.loanNumber = searchQuery;
       }
@@ -40,11 +61,11 @@ const SeizedVehiclesPage = () => {
   const fetchSeizedLoans = async (params = {}) => {
     try {
       setLoading(true);
-      const res = await getLoans({ ...params, status: "Seized", limit });
-      if (res.data && res.data.loans) {
-        setSeizedLoans(res.data.loans);
+      const res = await getSeizedVehicles({ ...params, limit });
+      if (res.data && res.data.vehicles) {
+        setSeizedLoans(res.data.vehicles);
         setTotalPages(res.data.pagination?.totalPages || 1);
-        setTotalRecords(res.data.pagination?.total || res.data.loans.length);
+        setTotalRecords(res.data.pagination?.total || res.data.vehicles.length);
       } else {
         setSeizedLoans(res.data || []);
       }
@@ -67,7 +88,7 @@ const SeizedVehiclesPage = () => {
 
   const handleAdvancedSearch = (e) => {
     if (e) e.preventDefault();
-    const params = { ...filters, page: 1, status: "Seized" };
+    const params = { ...filters, page: 1 };
     if (searchQuery.trim()) params.loanNumber = searchQuery;
     setCurrentPage(1);
     fetchSeizedLoans(params);
@@ -88,7 +109,7 @@ const SeizedVehiclesPage = () => {
     setFilters(emptyFilters);
     setSearchQuery("");
     setCurrentPage(1);
-    fetchSeizedLoans({ page: 1, status: "Seized" });
+    fetchSeizedLoans({ page: 1 });
     setIsFilterOpen(false);
   };
 
@@ -168,13 +189,28 @@ const SeizedVehiclesPage = () => {
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-100">
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          Vehicle / Loan
+                          Loan Number
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          Customer Details
+                          Name
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          Mobile
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          Vehicle Number
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
-                          Model
+                          Months
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                          Amount
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                          Days
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                          Count Down
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                           Status
@@ -185,7 +221,7 @@ const SeizedVehiclesPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="4"
+                            colSpan="9"
                             className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase"
                           >
                             Loading inventory...
@@ -194,36 +230,53 @@ const SeizedVehiclesPage = () => {
                       ) : seizedLoans.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="4"
+                            colSpan="9"
                             className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase"
                           >
                             No seized vehicles found
                           </td>
                         </tr>
                       ) : (
-                        seizedLoans.map((loan) => (
-                          <tr
-                            key={loan._id}
-                            className="hover:bg-slate-50 transition-colors"
-                          >
-                            <td className="px-6 py-5">
-                              <div className="flex flex-col">
-                                <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
-                                  {loan.loanTerms?.vehicleNumber || "N/A"}
+                        seizedLoans.map((loan) => {
+                          // Countdown Logic
+                          const seizedDate = loan.seizedDate
+                            ? new Date(loan.seizedDate)
+                            : new Date(loan.updatedAt);
+                          const today = new Date();
+                          const diffTime = Math.abs(today - seizedDate);
+                          const diffDays = Math.ceil(
+                            diffTime / (1000 * 60 * 60 * 24),
+                          );
+                          const daysRemaining = 30 - diffDays;
+
+                          return (
+                            <tr
+                              key={loan._id}
+                              className="hover:bg-slate-50 transition-colors"
+                            >
+                              {/* 1. Loan Number */}
+                              <td className="px-6 py-5">
+                                <span className="text-[10px] font-bold text-primary uppercase">
+                                  {loan.loanTerms?.loanNumber ||
+                                    loan.loanNumber}
                                 </span>
-                                <span className="text-[10px] font-bold text-primary uppercase mt-1">
-                                  {loan.loanTerms?.loanNumber}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-5">
-                              <div className="flex flex-col">
+                              </td>
+
+                              {/* 2. Name */}
+                              <td className="px-6 py-5">
                                 <span className="font-extrabold text-slate-700 text-xs uppercase">
-                                  {loan.customerDetails?.customerName}
+                                  {loan.customerDetails?.customerName ||
+                                    loan.customerName}
                                 </span>
-                                <div className="flex flex-col gap-0.5 mt-1">
+                              </td>
+
+                              {/* 3. Mobile */}
+                              <td className="px-6 py-5">
+                                <div className="flex flex-col gap-0.5">
                                   {(
-                                    loan.customerDetails?.mobileNumbers || []
+                                    loan.customerDetails?.mobileNumbers ||
+                                    loan.mobileNumbers ||
+                                    []
                                   ).map((num, idx) => (
                                     <button
                                       key={idx}
@@ -232,8 +285,10 @@ const SeizedVehiclesPage = () => {
                                           e.currentTarget.getBoundingClientRect();
                                         setActiveContactMenu({
                                           number: num,
-                                          name: loan.customerDetails
-                                            ?.customerName,
+                                          name:
+                                            loan.customerDetails
+                                              ?.customerName ||
+                                            loan.customerName,
                                           type: "Applicant",
                                           x: rect.left,
                                           y: rect.bottom,
@@ -245,20 +300,90 @@ const SeizedVehiclesPage = () => {
                                     </button>
                                   ))}
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-5 text-center">
-                              <span className="text-[10px] font-black text-slate-500 uppercase">
-                                {loan.loanTerms?.vehicleModel || "N/A"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5 text-center">
-                              <span className="inline-flex px-3 py-1 rounded-full bg-red-100 text-red-600 text-[9px] font-black uppercase border border-red-200">
-                                Seized
-                              </span>
-                            </td>
-                          </tr>
-                        ))
+                              </td>
+
+                              {/* 4. Vehicle Number */}
+                              <td className="px-6 py-5">
+                                <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
+                                  {loan.loanTerms?.vehicleNumber ||
+                                    loan.vehicleNumber ||
+                                    "N/A"}
+                                </span>
+                              </td>
+
+                              {/* 5. Months */}
+                              <td className="px-6 py-5 text-center">
+                                <span className="text-xs font-bold text-slate-600">
+                                  {loan.unpaidMonths || 0}
+                                </span>
+                              </td>
+
+                              {/* 6. Amount */}
+                              <td className="px-6 py-5 text-right">
+                                <span className="text-xs font-black text-slate-900">
+                                  ₹
+                                  {loan.totalDueAmount?.toLocaleString() || "0"}
+                                </span>
+                              </td>
+
+                              {/* 7. Days (Since Seized) */}
+                              <td className="px-6 py-5 text-center">
+                                <span className="text-[10px] font-bold text-slate-500">
+                                  {diffDays} Days
+                                </span>
+                              </td>
+
+                              {/* 8. Count Down */}
+                              <td className="px-6 py-5 text-center">
+                                <span
+                                  className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
+                                    daysRemaining < 5
+                                      ? "bg-red-100 text-red-600 border-red-200"
+                                      : daysRemaining < 15
+                                        ? "bg-amber-100 text-amber-600 border-amber-200"
+                                        : "bg-emerald-100 text-emerald-600 border-emerald-200"
+                                  }`}
+                                >
+                                  {daysRemaining > 0
+                                    ? `${daysRemaining} Days Left`
+                                    : "Time Up"}
+                                </span>
+                              </td>
+
+                              {/* 9. Status Dropdown */}
+                              <td className="px-6 py-5 text-center">
+                                <select
+                                  value={loan.seizedStatus || "For Seizing"}
+                                  onChange={(e) =>
+                                    handleSeizedStatusChange(
+                                      loan._id,
+                                      e.target.value,
+                                    )
+                                  }
+                                  className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg border cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${
+                                    (loan.seizedStatus || "For Seizing") ===
+                                    "For Seizing"
+                                      ? "bg-amber-50 text-amber-600 border-amber-200"
+                                      : loan.seizedStatus === "Seized"
+                                        ? "bg-red-50 text-red-600 border-red-200"
+                                        : loan.seizedStatus === "Sold"
+                                          ? "bg-slate-100 text-slate-600 border-slate-300"
+                                          : "bg-emerald-50 text-emerald-600 border-emerald-200"
+                                  }`}
+                                >
+                                  <option value="For Seizing">
+                                    For Seizing
+                                  </option>
+                                  <option value="Seized">Seized</option>
+                                  <option value="Sold">Sold</option>
+                                  <option value="Re-activate">
+                                    Re-activate
+                                  </option>
+                                </select>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>

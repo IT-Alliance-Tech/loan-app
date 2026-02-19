@@ -14,6 +14,7 @@ import Pagination from "../../../components/Pagination";
 import { useToast } from "../../../context/ToastContext";
 import Link from "next/link";
 import TableActionMenu from "../../../components/TableActionMenu";
+import ConfirmationModal from "../../../components/ConfirmationModal";
 
 const FollowupPaymentsPage = () => {
   const router = useRouter();
@@ -34,6 +35,8 @@ const FollowupPaymentsPage = () => {
     nextFollowUpDate: today,
   });
   const [activeContactMenu, setActiveContactMenu] = useState(null);
+  const [showSeizeModal, setShowSeizeModal] = useState(false);
+  const [selectedLoanId, setSelectedLoanId] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -114,15 +117,20 @@ const FollowupPaymentsPage = () => {
     setIsFilterOpen(false);
   };
 
-  const handleSeize = async (loanId) => {
-    if (
-      !window.confirm("Are you sure you want to mark this vehicle as seized?")
-    )
-      return;
+  const handleSeizeClick = (loanId) => {
+    setSelectedLoanId(loanId);
+    setShowSeizeModal(true);
+  };
+
+  const confirmSeize = async () => {
+    if (!selectedLoanId) return;
+
     try {
-      await toggleSeized(loanId);
+      await toggleSeized(selectedLoanId);
       showToast("Vehicle marked as seized", "success");
       fetchFollowups({ ...filters, page: currentPage, limit });
+      setShowSeizeModal(false);
+      setSelectedLoanId(null);
     } catch (err) {
       showToast(err.message || "Failed to seize vehicle", "error");
     }
@@ -312,7 +320,8 @@ const FollowupPaymentsPage = () => {
                                   },
                                   {
                                     label: "Seize Vehicle",
-                                    onClick: () => handleSeize(item.loanId),
+                                    onClick: () =>
+                                      handleSeizeClick(item.loanId),
                                   },
                                 ]}
                               />
@@ -435,6 +444,14 @@ const FollowupPaymentsPage = () => {
         <ContactActionMenu
           contact={activeContactMenu}
           onClose={() => setActiveContactMenu(null)}
+        />
+
+        <ConfirmationModal
+          isOpen={showSeizeModal}
+          onClose={() => setShowSeizeModal(false)}
+          onConfirm={confirmSeize}
+          title="Confirm Seizure"
+          message="Are you sure you want to mark this vehicle as seized? This action cannot be undone."
         />
       </div>
     </AuthGuard>

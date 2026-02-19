@@ -14,6 +14,7 @@ import Pagination from "../../../components/Pagination";
 import { useToast } from "../../../context/ToastContext";
 import Link from "next/link";
 import TableActionMenu from "../../../components/TableActionMenu";
+import ConfirmationModal from "../../../components/ConfirmationModal";
 
 const PendingPaymentsPage = () => {
   const router = useRouter();
@@ -31,6 +32,8 @@ const PendingPaymentsPage = () => {
   });
   const [selectedContact, setSelectedContact] = useState(null); // Contact Details Modal
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [showSeizeModal, setShowSeizeModal] = useState(false);
+  const [selectedLoanId, setSelectedLoanId] = useState(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,15 +116,20 @@ const PendingPaymentsPage = () => {
     setIsFilterOpen(false);
   };
 
-  const handleSeize = async (loanId) => {
-    if (
-      !window.confirm("Are you sure you want to mark this vehicle as seized?")
-    )
-      return;
+  const handleSeizeClick = (loanId) => {
+    setSelectedLoanId(loanId);
+    setShowSeizeModal(true);
+  };
+
+  const confirmSeize = async () => {
+    if (!selectedLoanId) return;
+
     try {
-      await toggleSeized(loanId);
+      await toggleSeized(selectedLoanId);
       showToast("Vehicle marked as seized", "success");
       fetchSeizedPending({ page: currentPage, limit });
+      setShowSeizeModal(false);
+      setSelectedLoanId(null);
     } catch (err) {
       showToast(err.message || "Failed to seize vehicle", "error");
     }
@@ -399,7 +407,8 @@ const PendingPaymentsPage = () => {
                                   },
                                   {
                                     label: "Seize Vehicle",
-                                    onClick: () => handleSeize(item.loanId),
+                                    onClick: () =>
+                                      handleSeizeClick(item.loanId),
                                   },
                                 ]}
                               />
@@ -535,6 +544,14 @@ const PendingPaymentsPage = () => {
         <ContactActionMenu
           contact={activeContactMenu}
           onClose={() => setActiveContactMenu(null)}
+        />
+
+        <ConfirmationModal
+          isOpen={showSeizeModal}
+          onClose={() => setShowSeizeModal(false)}
+          onConfirm={confirmSeize}
+          title="Confirm Seizure"
+          message="Are you sure you want to mark this vehicle as seized? This action cannot be undone."
         />
       </div>
     </AuthGuard>
