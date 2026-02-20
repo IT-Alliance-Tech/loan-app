@@ -153,8 +153,14 @@ const createLoan = asyncHandler(async (req, res, next) => {
 });
 
 const getAllLoans = asyncHandler(async (req, res, next) => {
-  const { loanNumber, customerName, mobileNumber, tenureMonths, status } =
-    req.query;
+  const {
+    loanNumber,
+    customerName,
+    mobileNumber,
+    vehicleNumber,
+    tenureMonths,
+    status,
+  } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
@@ -164,6 +170,8 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
   if (customerName)
     query.customerName = { $regex: customerName, $options: "i" };
+  if (vehicleNumber)
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
   if (mobileNumber) {
     query.$or = [
       { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
@@ -172,15 +180,14 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   }
   if (tenureMonths) query.tenureMonths = tenureMonths;
   if (status) {
-    if (status === "Seized") {
+    const statusLower = status.toLowerCase();
+    if (statusLower === "seized") {
       query.isSeized = true;
-    } else if (status === "Closed") {
-      query.status = "Closed";
-    } else if (status === "Active") {
-      query.status = "Active";
+    } else if (statusLower === "active") {
+      query.status = { $regex: /^active$/i };
       query.isSeized = { $ne: true };
     } else {
-      query.status = status;
+      query.status = { $regex: new RegExp(`^${status}$`, "i") };
     }
   }
 
@@ -1104,7 +1111,7 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
 });
 
 const getForeclosureLoans = asyncHandler(async (req, res, next) => {
-  const { loanNumber, customerName } = req.query;
+  const { loanNumber, customerName, mobileNumber, vehicleNumber } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
@@ -1113,6 +1120,14 @@ const getForeclosureLoans = asyncHandler(async (req, res, next) => {
   if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
   if (customerName)
     query.customerName = { $regex: customerName, $options: "i" };
+  if (vehicleNumber)
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  if (mobileNumber) {
+    query.$or = [
+      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+    ];
+  }
 
   const result = await Loan.aggregate([
     { $match: query },
@@ -1274,7 +1289,7 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
 });
 
 const getSeizedVehicles = asyncHandler(async (req, res, next) => {
-  const { loanNumber, customerName, vehicleNumber } = req.query;
+  const { loanNumber, customerName, vehicleNumber, mobileNumber } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
@@ -1286,6 +1301,12 @@ const getSeizedVehicles = asyncHandler(async (req, res, next) => {
     query.customerName = { $regex: customerName, $options: "i" };
   if (vehicleNumber)
     query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  if (mobileNumber) {
+    query.$or = [
+      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+    ];
+  }
 
   const result = await Loan.aggregate([
     { $match: query },

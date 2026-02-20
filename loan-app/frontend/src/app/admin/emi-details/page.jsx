@@ -15,6 +15,8 @@ const EMIDetailsPage = () => {
   const [filters, setFilters] = useState({
     loanNumber: "",
     customerName: "",
+    mobileNumber: "",
+    vehicleNumber: "",
     status: "",
   });
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
@@ -82,6 +84,8 @@ const EMIDetailsPage = () => {
     const emptyFilters = {
       loanNumber: "",
       customerName: "",
+      mobileNumber: "",
+      vehicleNumber: "",
       status: "",
     };
     setFilters(emptyFilters);
@@ -165,7 +169,8 @@ const EMIDetailsPage = () => {
           ) ||
           (item.loanNumber?.toLowerCase() || "").includes(
             searchQuery.toLowerCase(),
-          ),
+          ) ||
+          (item.mobileNumbers || []).some((num) => num.includes(searchQuery)),
       )
       .sort((a, b) => new Date(b.lastUpdate) - new Date(a.lastUpdate));
   }, [emis, searchQuery]);
@@ -649,6 +654,34 @@ const EMIDetailsPage = () => {
                         value={filters.customerName}
                         onChange={handleFilterChange}
                         placeholder="ENTER NAME"
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-300 uppercase"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
+                        Mobile Number
+                      </label>
+                      <input
+                        type="text"
+                        name="mobileNumber"
+                        value={filters.mobileNumber}
+                        onChange={handleFilterChange}
+                        placeholder="MOBILE NUMBER"
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-300"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">
+                        Vehicle Number
+                      </label>
+                      <input
+                        type="text"
+                        name="vehicleNumber"
+                        value={filters.vehicleNumber}
+                        onChange={handleFilterChange}
+                        placeholder="VEHICLE NUMBER"
                         className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-slate-300 uppercase"
                       />
                     </div>
