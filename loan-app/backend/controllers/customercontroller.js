@@ -265,7 +265,8 @@ const updateEMI = asyncHandler(async (req, res, next) => {
 });
 
 const getAllEMIDetails = asyncHandler(async (req, res, next) => {
-  const { loanNumber, customerName, status } = req.query;
+  const { loanNumber, customerName, status, mobileNumber, vehicleNumber } =
+    req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
@@ -274,7 +275,18 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
   if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
   if (customerName)
     query.customerName = { $regex: customerName, $options: "i" };
-  if (status) query.status = status;
+  if (status) query.status = { $regex: new RegExp(`^${status}$`, "i") };
+
+  // For mobile and vehicle, we might need to filter after lookup or ensure they exist on EMI
+  if (mobileNumber) {
+    query.$or = [
+      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+    ];
+  }
+  if (vehicleNumber) {
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  }
 
   const total = await EMI.countDocuments(query);
 
