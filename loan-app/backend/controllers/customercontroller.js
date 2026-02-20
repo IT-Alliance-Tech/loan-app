@@ -277,15 +277,30 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
     query.customerName = { $regex: customerName, $options: "i" };
   if (status) query.status = { $regex: new RegExp(`^${status}$`, "i") };
 
-  // For mobile and vehicle, we might need to filter after lookup or ensure they exist on EMI
-  if (mobileNumber) {
-    query.$or = [
-      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
-      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
-    ];
-  }
-  if (vehicleNumber) {
-    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  // For mobile and vehicle, we MUST find matching loanIds first because these fields
+  // do not exist on the EMI model itself.
+  if (mobileNumber || vehicleNumber) {
+    const loanFilter = {};
+    if (mobileNumber) {
+      loanFilter.$or = [
+        { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+        { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      ];
+    }
+    if (vehicleNumber) {
+      loanFilter.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+    }
+
+    const matchingLoans = await Loan.find(loanFilter).select("_id");
+    const matchingLoanIds = matchingLoans.map((l) => l._id);
+
+    if (matchingLoanIds.length === 0) {
+      // If no loans match the mobile/vehicle filter, ensure no EMIs are found
+      // We use a non-existent ID to force an empty result
+      query.loanId = new mongoose.Types.ObjectId();
+    } else {
+      query.loanId = { $in: matchingLoanIds };
+    }
   }
 
   const total = await EMI.countDocuments(query);
