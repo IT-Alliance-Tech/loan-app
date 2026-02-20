@@ -127,7 +127,7 @@ const PendingPaymentsPage = () => {
     try {
       await toggleSeized(selectedLoanId);
       showToast("Vehicle marked as seized", "success");
-      fetchSeizedPending({ page: currentPage, limit });
+      router.push("/admin/seized-vehicles");
       setShowSeizeModal(false);
       setSelectedLoanId(null);
     } catch (err) {

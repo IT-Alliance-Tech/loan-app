@@ -160,8 +160,12 @@ const EMIDetailsPage = () => {
     return Object.values(grouped)
       .filter(
         (item) =>
-          item.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.loanNumber.toLowerCase().includes(searchQuery.toLowerCase()),
+          (item.customerName?.toLowerCase() || "").includes(
+            searchQuery.toLowerCase(),
+          ) ||
+          (item.loanNumber?.toLowerCase() || "").includes(
+            searchQuery.toLowerCase(),
+          ),
       )
       .sort((a, b) => new Date(b.lastUpdate) - new Date(a.lastUpdate));
   }, [emis, searchQuery]);
@@ -171,8 +175,12 @@ const EMIDetailsPage = () => {
     const filteredEmis = emis
       .filter(
         (emi) =>
-          emi.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          emi.loanNumber.toLowerCase().includes(searchQuery.toLowerCase()),
+          (emi.customerName?.toLowerCase() || "").includes(
+            searchQuery.toLowerCase(),
+          ) ||
+          (emi.loanNumber?.toLowerCase() || "").includes(
+            searchQuery.toLowerCase(),
+          ),
       )
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
@@ -657,6 +665,7 @@ const EMIDetailsPage = () => {
                       >
                         <option value="">ALL</option>
                         <option value="Paid">PAID</option>
+                        <option value="Partially Paid">PARTIALLY PAID</option>
                         <option value="Pending">PENDING</option>
                         <option value="Overdue">OVERDUE</option>
                       </select>

@@ -1554,41 +1554,98 @@ const LoanForm = ({
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end pt-8 border-t border-slate-100 mt-8 gap-6 sm:gap-4">
             <div className="flex-1 w-full sm:max-w-xl">
               {initialData?._id && (
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-xl animate-in fade-in slide-in-from-left-4 duration-500">
-                  <h3 className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">
-                    Status Update (Client Response)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">
-                        Message
-                      </label>
-                      <textarea
-                        name="status.clientResponse"
-                        value={formik.values.status.clientResponse || ""}
-                        onChange={formik.handleChange}
-                        onBlur={formik.handleBlur}
-                        readOnly={isViewOnly}
-                        rows={4}
-                        placeholder={
-                          isViewOnly ? "No response recorded" : "Response..."
-                        }
-                        className={`w-full bg-slate-800/30 border border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-slate-600 transition-all min-h-[120px] resize-none ${isViewOnly ? "opacity-80" : ""}`}
-                      ></textarea>
+                <div className="space-y-4">
+                  {/* Foreclosure Summary - Only for Closed Loans */}
+                  {formik.values.status?.status?.toLowerCase() === "closed" && (
+                    <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-6 shadow-sm animate-in fade-in slide-in-from-left-4 duration-500">
+                      <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Settlement Summary (Account Closed)
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                            Closing Amount
+                          </p>
+                          <p className="text-xl font-black text-emerald-700 tracking-tight">
+                            ₹
+                            {parseFloat(
+                              formik.values.status?.foreclosureDetails
+                                ?.foreclosureAmount || 0,
+                            ).toLocaleString("en-IN")}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                            Date of Settlement
+                          </p>
+                          <p className="text-[12px] font-black text-emerald-800 uppercase tracking-tighter">
+                            {formik.values.status?.foreclosureDetails
+                              ?.foreclosureDate
+                              ? new Date(
+                                  formik.values.status.foreclosureDetails
+                                    .foreclosureDate,
+                                ).toLocaleDateString("en-IN", {
+                                  day: "2-digit",
+                                  month: "long",
+                                  year: "numeric",
+                                })
+                              : "N/A"}
+                          </p>
+                        </div>
+                        <div className="md:col-span-2 space-y-1 pt-2 border-t border-emerald-100/50">
+                          <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                            Closing Processed By
+                          </p>
+                          <p className="text-[11px] font-black text-emerald-900 uppercase tracking-widest">
+                            {typeof formik.values.status?.foreclosureDetails
+                              ?.foreclosedBy === "object"
+                              ? formik.values.status.foreclosureDetails
+                                  .foreclosedBy.name
+                              : formik.values.status?.foreclosureDetails
+                                  ?.foreclosedBy || "AUTHORIZED SYSTEM OFFICER"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-3">
-                      <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">
-                        Follow-up Date
-                      </label>
-                      <input
-                        type="date"
-                        name="status.nextFollowUpDate"
-                        value={formik.values.status.nextFollowUpDate || ""}
-                        onChange={formik.handleChange}
-                        onBlur={formik.handleBlur}
-                        readOnly={isViewOnly}
-                        className={`w-full bg-slate-800/30 border border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all ${isViewOnly ? "opacity-80" : ""}`}
-                      />
+                  )}
+
+                  <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-xl animate-in fade-in slide-in-from-left-4 duration-500">
+                    <h3 className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">
+                      Status Update (Client Response)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">
+                          Message
+                        </label>
+                        <textarea
+                          name="status.clientResponse"
+                          value={formik.values.status.clientResponse || ""}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          readOnly={isViewOnly}
+                          rows={4}
+                          placeholder={
+                            isViewOnly ? "No response recorded" : "Response..."
+                          }
+                          className={`w-full bg-slate-800/30 border border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-slate-600 transition-all min-h-[120px] resize-none ${isViewOnly ? "opacity-80" : ""}`}
+                        ></textarea>
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">
+                          Follow-up Date
+                        </label>
+                        <input
+                          type="date"
+                          name="status.nextFollowUpDate"
+                          value={formik.values.status.nextFollowUpDate || ""}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          readOnly={isViewOnly}
+                          className={`w-full bg-slate-800/30 border border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all ${isViewOnly ? "opacity-80" : ""}`}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

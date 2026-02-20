@@ -172,8 +172,16 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   }
   if (tenureMonths) query.tenureMonths = tenureMonths;
   if (status) {
-    if (status === "Seized") query.isSeized = true;
-    if (status === "Active") query.isSeized = false;
+    if (status === "Seized") {
+      query.isSeized = true;
+    } else if (status === "Closed") {
+      query.status = "Closed";
+    } else if (status === "Active") {
+      query.status = "Active";
+      query.isSeized = { $ne: true };
+    } else {
+      query.status = status;
+    }
   }
 
   const total = await Loan.countDocuments(query);
@@ -272,9 +280,10 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
       !formattedLoan.status.foreclosureDetails?.foreclosureAmount &&
       loan.remarks
     ) {
-      const loanAmtMatch = loan.remarks.match(
-        /(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i,
-      );
+      const loanAmtMatch =
+        loan.remarks.match(/(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i) ||
+        loan.remarks.match(/[₹]\s*([\d,.]+)/) ||
+        loan.remarks.match(/(?<![\/\d])\b([\d,.]+)(?!\s*[\/\d])/);
       if (loanAmtMatch) {
         if (!formattedLoan.status.foreclosureDetails)
           formattedLoan.status.foreclosureDetails = {};
@@ -391,9 +400,10 @@ const getLoanById = asyncHandler(async (req, res, next) => {
       !formattedLoan.status.foreclosureDetails?.foreclosureAmount &&
       loan.remarks
     ) {
-      const loanAmtMatch = loan.remarks.match(
-        /(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i,
-      );
+      const loanAmtMatch =
+        loan.remarks.match(/(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i) ||
+        loan.remarks.match(/[₹]\s*([\d,.]+)/) ||
+        loan.remarks.match(/(?<![\/\d])\b([\d,.]+)(?!\s*[\/\d])/);
       if (loanAmtMatch) {
         if (!formattedLoan.status.foreclosureDetails)
           formattedLoan.status.foreclosureDetails = {};
@@ -633,7 +643,7 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
   // Simultaneously update the status field to match isSeized
   if (loan.isSeized) {
     loan.status = "Seized";
-    loan.seizedDate = new Date();
+    // loan.seizedDate = new Date(); // Removed to defer countdown
     loan.seizedStatus = "For Seizing";
   } else {
     // If we are un-seizing, revert to Active.
@@ -1198,8 +1208,15 @@ const getForeclosureLoans = asyncHandler(async (req, res, next) => {
 
 const forecloseLoan = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const { foreclosureCharges, od, miscellaneousFee, totalAmount, remarks } =
-    req.body;
+  const {
+    foreclosureChargeAmount,
+    foreclosureChargePercent,
+    miscellaneousFee,
+    od,
+    remainingPrincipal,
+    totalAmount,
+    remarks,
+  } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return next(new ErrorHandler("Invalid Loan ID", 400));
@@ -1210,13 +1227,29 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Loan not found", 404));
   }
 
-  // 1. Update Loan status to Closed
-  loan.status = "Closed";
-  loan.remarks = remarks || `Foreclosed on ${new Date().toLocaleDateString()}`;
-  loan.foreclosedBy = req.user?._id;
-  loan.foreclosureDate = new Date();
-  loan.foreclosureAmount = totalAmount;
-  await loan.save();
+  // 1. Update Loan status to Closed using findByIdAndUpdate to bypass full document validation
+  // (Prevents error if some required fields like createdBy are missing in older/test records)
+  const updatedLoan = await Loan.findByIdAndUpdate(
+    id,
+    {
+      status: "Closed",
+      paymentStatus: "Closed", // Set paymentStatus to Closed as requested
+      remarks: remarks || `Foreclosed on ${new Date().toLocaleDateString()}`,
+      foreclosedBy: req.user?._id,
+      foreclosureDate: new Date(),
+      foreclosureAmount: totalAmount,
+      // Detailed Breakdown
+      foreclosureChargeAmount,
+      foreclosureChargePercent,
+      miscellaneousFee,
+      odAmount: od, // Map 'od' from payload to 'odAmount' in schema
+      remainingPrincipal,
+    },
+    { new: true },
+  ) // Capture the updated document
+    .populate("createdBy", "name")
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name");
 
   // 2. Update all pending/partial EMIs for this loan to "Paid"
   // We mark them as Paid because the foreclosure payment covers them.
@@ -1236,7 +1269,7 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
   );
 
   sendResponse(res, 200, "success", "Loan foreclosed successfully", null, {
-    loan,
+    loan: formatLoanResponse(updatedLoan),
   });
 });
 
@@ -1284,6 +1317,7 @@ const getSeizedVehicles = asyncHandler(async (req, res, next) => {
         seizedDate: 1,
         seizedStatus: 1,
         updatedAt: 1,
+        createdAt: 1,
         unpaidMonths: { $size: "$pendingEmisList" },
         totalDueAmount: {
           $reduce: {
@@ -1347,20 +1381,29 @@ const updateSeizedStatus = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Invalid seized status", 400));
   }
 
-  const loan = await Loan.findById(id);
-  if (!loan) {
-    return next(new ErrorHandler("Loan not found", 404));
-  }
+  const updateData = { seizedStatus };
 
-  loan.seizedStatus = seizedStatus;
+  // If status is changed to 'Seized', set the seizedDate to start countdown
+  if (seizedStatus === "Seized") {
+    updateData.seizedDate = new Date();
+  }
 
   // If Re-activate: un-seize the loan and revert to Active
   if (seizedStatus === "Re-activate") {
-    loan.isSeized = false;
-    loan.status = "Active";
+    updateData.isSeized = false;
+    updateData.status = "Active";
+    updateData.seizedDate = undefined;
   }
 
-  await loan.save();
+  const loan = await Loan.findByIdAndUpdate(
+    id,
+    { $set: updateData },
+    { new: true, runValidators: false },
+  );
+
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
 
   sendResponse(
     res,
@@ -1368,7 +1411,12 @@ const updateSeizedStatus = asyncHandler(async (req, res, next) => {
     "success",
     `Seized status updated to ${seizedStatus}`,
     null,
-    { _id: loan._id, seizedStatus: loan.seizedStatus, status: loan.status },
+    {
+      _id: loan._id,
+      seizedStatus: loan.seizedStatus,
+      status: loan.status,
+      seizedDate: loan.seizedDate,
+    },
   );
 });
 

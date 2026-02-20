@@ -196,6 +196,26 @@ const loanSchema = new mongoose.Schema(
     foreclosureAmount: {
       type: Number,
     },
+    foreclosureChargeAmount: {
+      type: Number,
+      default: 0,
+    },
+    foreclosureChargePercent: {
+      type: Number,
+      default: 0,
+    },
+    miscellaneousFee: {
+      type: Number,
+      default: 0,
+    },
+    odAmount: {
+      type: Number,
+      default: 0,
+    },
+    remainingPrincipal: {
+      type: Number,
+      default: 0,
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
