@@ -204,8 +204,8 @@ const CustomersPage = () => {
 
   const filteredCustomers = customers.filter(
     (c) =>
-      c.loanNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.customerName.toLowerCase().includes(searchQuery.toLowerCase()),
+      (c.loanNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+      (c.customerName?.toLowerCase() || "").includes(searchQuery.toLowerCase()),
   );
 
   return (

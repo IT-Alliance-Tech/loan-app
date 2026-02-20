@@ -24,15 +24,13 @@ const SeizedVehiclesPage = () => {
 
   const handleSeizedStatusChange = async (loanId, newStatus) => {
     try {
-      await updateSeizedStatus(loanId, newStatus);
+      const res = await updateSeizedStatus(loanId, newStatus);
       if (newStatus === "Re-activate") {
         setSeizedLoans((prev) => prev.filter((l) => l._id !== loanId));
         setTotalRecords((prev) => prev - 1);
       } else {
         setSeizedLoans((prev) =>
-          prev.map((l) =>
-            l._id === loanId ? { ...l, seizedStatus: newStatus } : l,
-          ),
+          prev.map((l) => (l._id === loanId ? { ...l, ...res.data } : l)),
         );
       }
     } catch (err) {
@@ -239,15 +237,31 @@ const SeizedVehiclesPage = () => {
                       ) : (
                         seizedLoans.map((loan) => {
                           // Countdown Logic
-                          const seizedDate = loan.seizedDate
-                            ? new Date(loan.seizedDate)
-                            : new Date(loan.updatedAt);
-                          const today = new Date();
-                          const diffTime = Math.abs(today - seizedDate);
-                          const diffDays = Math.ceil(
-                            diffTime / (1000 * 60 * 60 * 24),
-                          );
-                          const daysRemaining = 30 - diffDays;
+                          const isSeized = loan.seizedStatus === "Seized";
+                          const seizedDateRaw = isSeized
+                            ? loan.seizedDate
+                            : null;
+                          const seizedDate = seizedDateRaw
+                            ? new Date(seizedDateRaw)
+                            : null;
+
+                          let diffDays = 0;
+                          let daysRemaining = 0;
+                          let isDateValid = false;
+
+                          if (seizedDate && !isNaN(seizedDate.getTime())) {
+                            isDateValid = true;
+                            const today = new Date();
+                            const diffTime = Math.abs(today - seizedDate);
+                            diffDays = Math.ceil(
+                              diffTime / (1000 * 60 * 60 * 24),
+                            );
+                            daysRemaining = 30 - diffDays;
+                          } else {
+                            diffDays = "N/A";
+                            daysRemaining = "N/A";
+                            isDateValid = false;
+                          }
 
                           return (
                             <tr
@@ -329,7 +343,7 @@ const SeizedVehiclesPage = () => {
                               {/* 7. Days (Since Seized) */}
                               <td className="px-6 py-5 text-center">
                                 <span className="text-[10px] font-bold text-slate-500">
-                                  {diffDays} Days
+                                  {isDateValid ? `${diffDays} Days` : "N/A"}
                                 </span>
                               </td>
 
@@ -337,16 +351,20 @@ const SeizedVehiclesPage = () => {
                               <td className="px-6 py-5 text-center">
                                 <span
                                   className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
-                                    daysRemaining < 5
-                                      ? "bg-red-100 text-red-600 border-red-200"
-                                      : daysRemaining < 15
-                                        ? "bg-amber-100 text-amber-600 border-amber-200"
-                                        : "bg-emerald-100 text-emerald-600 border-emerald-200"
+                                    !isDateValid
+                                      ? "bg-slate-100 text-slate-600 border-slate-200"
+                                      : daysRemaining < 5
+                                        ? "bg-red-100 text-red-600 border-red-200"
+                                        : daysRemaining < 15
+                                          ? "bg-amber-100 text-amber-600 border-amber-200"
+                                          : "bg-emerald-100 text-emerald-600 border-emerald-200"
                                   }`}
                                 >
-                                  {daysRemaining > 0
-                                    ? `${daysRemaining} Days Left`
-                                    : "Time Up"}
+                                  {!isDateValid
+                                    ? "Not Started"
+                                    : daysRemaining > 0
+                                      ? `${daysRemaining} Days Left`
+                                      : "Time Up"}
                                 </span>
                               </td>
 

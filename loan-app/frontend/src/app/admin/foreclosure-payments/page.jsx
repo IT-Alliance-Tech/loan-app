@@ -32,7 +32,7 @@ const ForeclosurePage = () => {
   useEffect(() => {
     const fetchLoansList = async () => {
       try {
-        const res = await getLoans({ limit: 100, status: "Active" });
+        const res = await getLoans({ limit: 1000 });
         if (res.data && res.data.loans) {
           setLoans(res.data.loans);
         }
@@ -49,7 +49,7 @@ const ForeclosurePage = () => {
       const res = await getLoanById(loan._id);
       if (res.data) {
         setSelectedLoan(res.data);
-        setSearchTerm(res.data.loanNumber);
+        setSearchTerm(res.data.loanTerms?.loanNumber || "");
       }
     } catch (err) {
       showToast("Failed to fetch loan details", "error");
@@ -149,10 +149,12 @@ const ForeclosurePage = () => {
                     {searchTerm && !selectedLoan && (
                       <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar overflow-hidden">
                         {loans
-                          .filter((l) =>
-                            l.loanNumber
-                              .toLowerCase()
-                              .includes(searchTerm.toLowerCase()),
+                          .filter(
+                            (l) =>
+                              l.loanTerms?.loanNumber &&
+                              l.loanTerms.loanNumber
+                                .toLowerCase()
+                                .includes(searchTerm.toLowerCase()),
                           )
                           .map((loan) => (
                             <button
@@ -161,10 +163,10 @@ const ForeclosurePage = () => {
                               className="w-full px-6 py-4 text-left hover:bg-slate-50 flex justify-between items-center transition-colors border-b border-slate-50 last:border-0"
                             >
                               <span className="font-black text-slate-700 uppercase">
-                                {loan.loanNumber}
+                                {loan.loanTerms?.loanNumber}
                               </span>
                               <span className="text-[10px] font-bold text-slate-400">
-                                {loan.customerName}
+                                {loan.customerDetails?.customerName}
                               </span>
                             </button>
                           ))}
@@ -196,7 +198,7 @@ const ForeclosurePage = () => {
                           Customer Name
                         </label>
                         <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                          {selectedLoan?.customerName || "—"}
+                          {selectedLoan?.customerDetails?.customerName || "—"}
                         </p>
                       </td>
                       <td className="p-5 w-1/3 border-l border-slate-100">
@@ -204,8 +206,9 @@ const ForeclosurePage = () => {
                           Mobile Number
                         </label>
                         <p className="text-sm font-bold text-slate-700 tracking-tight">
-                          {(selectedLoan?.mobileNumbers || []).join(", ") ||
-                            "—"}
+                          {(
+                            selectedLoan?.customerDetails?.mobileNumbers || []
+                          ).join(", ") || "—"}
                         </p>
                       </td>
                       <td className="p-5 w-1/3 border-l border-slate-100">
@@ -213,7 +216,7 @@ const ForeclosurePage = () => {
                           Address
                         </label>
                         <p className="text-[10px] font-bold text-slate-500 line-clamp-1 leading-relaxed">
-                          {selectedLoan?.address || "—"}
+                          {selectedLoan?.customerDetails?.address || "—"}
                         </p>
                       </td>
                     </tr>
@@ -225,7 +228,8 @@ const ForeclosurePage = () => {
                           Vehicle Number
                         </label>
                         <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                          {selectedLoan?.vehicleNumber || "—"}
+                          {selectedLoan?.vehicleInformation?.vehicleNumber ||
+                            "—"}
                         </p>
                       </td>
                       <td className="p-5 border-l border-slate-100">
@@ -233,7 +237,7 @@ const ForeclosurePage = () => {
                           Model
                         </label>
                         <p className="text-sm font-bold text-slate-600 uppercase tracking-tight">
-                          {selectedLoan?.model || "2020"}
+                          {selectedLoan?.vehicleInformation?.model || "—"}
                         </p>
                       </td>
                       <td className="p-5 border-l border-slate-100">
@@ -383,7 +387,7 @@ const ForeclosurePage = () => {
                         Customer
                       </label>
                       <p className="text-xs font-black text-slate-900 uppercase">
-                        {selectedLoan?.customerName}
+                        {selectedLoan?.customerDetails?.customerName}
                       </p>
                     </div>
                     <div className="space-y-1">
@@ -391,7 +395,7 @@ const ForeclosurePage = () => {
                         Loan Number
                       </label>
                       <p className="text-xs font-black text-primary uppercase">
-                        {selectedLoan?.loanNumber}
+                        {selectedLoan?.loanTerms?.loanNumber}
                       </p>
                     </div>
                     <div className="space-y-1">
@@ -399,7 +403,8 @@ const ForeclosurePage = () => {
                         Vehicle
                       </label>
                       <p className="text-xs font-black text-slate-900 uppercase">
-                        {selectedLoan?.vehicleNumber} ({selectedLoan?.model})
+                        {selectedLoan?.vehicleInformation?.vehicleNumber} (
+                        {selectedLoan?.vehicleInformation?.model || "—"})
                       </p>
                     </div>
                     <div className="space-y-1">

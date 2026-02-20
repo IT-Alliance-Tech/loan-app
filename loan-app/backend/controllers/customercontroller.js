@@ -265,13 +265,21 @@ const updateEMI = asyncHandler(async (req, res, next) => {
 });
 
 const getAllEMIDetails = asyncHandler(async (req, res, next) => {
+  const { loanNumber, customerName, status } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const total = await EMI.countDocuments();
+  const query = {};
+  if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (customerName)
+    query.customerName = { $regex: customerName, $options: "i" };
+  if (status) query.status = status;
+
+  const total = await EMI.countDocuments(query);
 
   const emis = await EMI.aggregate([
+    { $match: query },
     { $sort: { updatedAt: -1 } },
     { $skip: skip },
     { $limit: limit },

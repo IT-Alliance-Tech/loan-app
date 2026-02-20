@@ -46,6 +46,7 @@ const formatLoanResponse = (loanDoc) => {
       loan.status?.toLowerCase() === "closed"
         ? {
             status: loan.status,
+            paymentStatus: loan.paymentStatus,
             remarks: loan.remarks,
             foreclosureDetails: {
               foreclosedBy:
@@ -56,6 +57,12 @@ const formatLoanResponse = (loanDoc) => {
                 loan.foreclosureAmount !== null
                   ? loan.foreclosureAmount
                   : null,
+              // Detailed Breakdown
+              foreclosureChargeAmount: loan.foreclosureChargeAmount || 0,
+              foreclosureChargePercent: loan.foreclosureChargePercent || 0,
+              miscellaneousFee: loan.miscellaneousFee || 0,
+              odAmount: loan.odAmount || 0,
+              remainingPrincipal: loan.remainingPrincipal || 0,
               createdBy: loan.createdBy,
             },
             createdAt: loan.createdAt,
