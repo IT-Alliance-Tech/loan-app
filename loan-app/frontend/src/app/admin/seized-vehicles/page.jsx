@@ -8,6 +8,7 @@ import {
   updateSeizedStatus,
 } from "../../../services/loan.service";
 import Pagination from "../../../components/Pagination";
+import Link from "next/link";
 
 const SeizedVehiclesPage = () => {
   const [seizedLoans, setSeizedLoans] = useState([]);
@@ -208,9 +209,6 @@ const SeizedVehiclesPage = () => {
                           Days
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
-                          Count Down
-                        </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                           Status
                         </th>
                       </tr>
@@ -219,7 +217,7 @@ const SeizedVehiclesPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="9"
+                            colSpan="8"
                             className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase"
                           >
                             Loading inventory...
@@ -228,7 +226,7 @@ const SeizedVehiclesPage = () => {
                       ) : seizedLoans.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="9"
+                            colSpan="8"
                             className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase"
                           >
                             No seized vehicles found
@@ -236,7 +234,7 @@ const SeizedVehiclesPage = () => {
                         </tr>
                       ) : (
                         seizedLoans.map((loan) => {
-                          // Countdown Logic
+                          // Countdown Logic (kept for Days Calculation if needed, but UI column removed)
                           const isSeized = loan.seizedStatus === "Seized";
                           const seizedDateRaw = isSeized
                             ? loan.seizedDate
@@ -246,7 +244,6 @@ const SeizedVehiclesPage = () => {
                             : null;
 
                           let diffDays = 0;
-                          let daysRemaining = 0;
                           let isDateValid = false;
 
                           if (seizedDate && !isNaN(seizedDate.getTime())) {
@@ -256,10 +253,8 @@ const SeizedVehiclesPage = () => {
                             diffDays = Math.ceil(
                               diffTime / (1000 * 60 * 60 * 24),
                             );
-                            daysRemaining = 30 - diffDays;
                           } else {
                             diffDays = "N/A";
-                            daysRemaining = "N/A";
                             isDateValid = false;
                           }
 
@@ -270,10 +265,13 @@ const SeizedVehiclesPage = () => {
                             >
                               {/* 1. Loan Number */}
                               <td className="px-6 py-5">
-                                <span className="text-[10px] font-bold text-primary uppercase">
+                                <Link
+                                  href={`/admin/loans/${loan._id}`}
+                                  className="text-[10px] font-bold text-primary hover:underline uppercase transition-all"
+                                >
                                   {loan.loanTerms?.loanNumber ||
                                     loan.loanNumber}
-                                </span>
+                                </Link>
                               </td>
 
                               {/* 2. Name */}
@@ -347,28 +345,7 @@ const SeizedVehiclesPage = () => {
                                 </span>
                               </td>
 
-                              {/* 8. Count Down */}
-                              <td className="px-6 py-5 text-center">
-                                <span
-                                  className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
-                                    !isDateValid
-                                      ? "bg-slate-100 text-slate-600 border-slate-200"
-                                      : daysRemaining < 5
-                                        ? "bg-red-100 text-red-600 border-red-200"
-                                        : daysRemaining < 15
-                                          ? "bg-amber-100 text-amber-600 border-amber-200"
-                                          : "bg-emerald-100 text-emerald-600 border-emerald-200"
-                                  }`}
-                                >
-                                  {!isDateValid
-                                    ? "Not Started"
-                                    : daysRemaining > 0
-                                      ? `${daysRemaining} Days Left`
-                                      : "Time Up"}
-                                </span>
-                              </td>
-
-                              {/* 9. Status Dropdown */}
+                              {/* 8. Status Dropdown */}
                               <td className="px-6 py-5 text-center">
                                 <select
                                   value={loan.seizedStatus || "For Seizing"}
