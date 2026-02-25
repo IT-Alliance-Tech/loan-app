@@ -93,6 +93,7 @@ const LoanForm = ({
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
 
   const [remainingPrincipalAmount, setRemainingPrincipalAmount] = useState(0);
+  const [totalCollectedAmount, setTotalCollectedAmount] = useState(0);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -399,6 +400,35 @@ const LoanForm = ({
     formik.values.loanTerms.principalAmount,
     formik.values.loanTerms.tenureMonths,
     emis,
+  ]);
+
+  // Auto-calculate Total Collected Amount
+  useEffect(() => {
+    let total = 0;
+    if (emis && emis.length > 0) {
+      total = emis.reduce(
+        (sum, emi) => sum + (parseFloat(emi.amountPaid) || 0),
+        0,
+      );
+    }
+
+    // Add foreclosure amount if loan is closed
+    if (formik.values.status?.status?.toLowerCase() === "closed") {
+      total += parseFloat(
+        formik.values.status?.foreclosureDetails?.foreclosureAmount || 0,
+      );
+    }
+
+    setTotalCollectedAmount(
+      total.toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    );
+  }, [
+    emis,
+    formik.values.status?.status,
+    formik.values.status?.foreclosureDetails?.foreclosureAmount,
   ]);
 
   const ErrorMsg = ({ name }) => {
@@ -1057,6 +1087,14 @@ const LoanForm = ({
                     </span>
                     <p className="text-xl font-black text-primary">
                       ₹{formik.values.loanTerms.monthlyEMI || 0}
+                    </p>
+                  </div>
+                  <div className="text-center px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col justify-center items-center">
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                      Total Collected Amount
+                    </span>
+                    <p className="text-xl font-black text-emerald-600">
+                      ₹{totalCollectedAmount || 0}
                     </p>
                   </div>
                   <div className="text-right flex flex-col items-end gap-2">
