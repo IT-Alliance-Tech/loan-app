@@ -149,7 +149,14 @@ const ViewLoanPage = () => {
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase mb-6">
                       EMI Payment Schedule
                     </h2>
-                    <EMITable emis={emis} isEditMode={false} />
+                    <EMITable
+                      emis={
+                        loan?.status?.status?.toLowerCase() === "closed"
+                          ? emis.filter((emi) => (emi.amountPaid || 0) > 0)
+                          : emis
+                      }
+                      isEditMode={false}
+                    />
                   </div>
                 </>
               )}

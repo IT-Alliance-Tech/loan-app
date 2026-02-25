@@ -171,6 +171,9 @@ const LoanForm = ({
         remarks: initialData?.status?.remarks || "",
         clientResponse: initialData?.status?.clientResponse || "",
         nextFollowUpDate: initialData?.status?.nextFollowUpDate || "",
+        seizedStatus: initialData?.status?.seizedStatus || "",
+        seizedDate: initialData?.status?.seizedDate || "",
+        soldDetails: initialData?.status?.soldDetails || null,
         foreclosureDetails: {
           foreclosedBy:
             initialData?.status?.foreclosureDetails?.foreclosedBy || "",
@@ -419,6 +422,14 @@ const LoanForm = ({
       );
     }
 
+    // Add Sold Vehicle Amount if available
+    if (
+      formik.values.status?.seizedStatus === "Sold" &&
+      formik.values.status?.soldDetails?.totalAmount
+    ) {
+      total += parseFloat(formik.values.status.soldDetails.totalAmount);
+    }
+
     setTotalCollectedAmount(
       total.toLocaleString("en-IN", {
         minimumFractionDigits: 2,
@@ -429,6 +440,8 @@ const LoanForm = ({
     emis,
     formik.values.status?.status,
     formik.values.status?.foreclosureDetails?.foreclosureAmount,
+    formik.values.status?.seizedStatus,
+    formik.values.status?.soldDetails?.totalAmount,
   ]);
 
   const ErrorMsg = ({ name }) => {
@@ -1593,60 +1606,140 @@ const LoanForm = ({
             <div className="flex-1 w-full sm:max-w-xl">
               {initialData?._id && (
                 <div className="space-y-4">
-                  {/* Foreclosure Summary - Only for Closed Loans */}
-                  {formik.values.status?.status?.toLowerCase() === "closed" && (
-                    <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-6 shadow-sm animate-in fade-in slide-in-from-left-4 duration-500">
-                      <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        Settlement Summary (Account Closed)
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
-                            Closing Amount
-                          </p>
-                          <p className="text-xl font-black text-emerald-700 tracking-tight">
-                            ₹
-                            {parseFloat(
-                              formik.values.status?.foreclosureDetails
-                                ?.foreclosureAmount || 0,
-                            ).toLocaleString("en-IN")}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
-                            Date of Settlement
-                          </p>
-                          <p className="text-[12px] font-black text-emerald-800 uppercase tracking-tighter">
-                            {formik.values.status?.foreclosureDetails
-                              ?.foreclosureDate
-                              ? new Date(
-                                  formik.values.status.foreclosureDetails
-                                    .foreclosureDate,
-                                ).toLocaleDateString("en-IN", {
-                                  day: "2-digit",
-                                  month: "long",
-                                  year: "numeric",
-                                })
-                              : "N/A"}
-                          </p>
-                        </div>
-                        <div className="md:col-span-2 space-y-1 pt-2 border-t border-emerald-100/50">
-                          <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
-                            Closing Processed By
-                          </p>
-                          <p className="text-[11px] font-black text-emerald-900 uppercase tracking-widest">
-                            {typeof formik.values.status?.foreclosureDetails
-                              ?.foreclosedBy === "object"
-                              ? formik.values.status.foreclosureDetails
-                                  .foreclosedBy.name
-                              : formik.values.status?.foreclosureDetails
-                                  ?.foreclosedBy || "AUTHORIZED SYSTEM OFFICER"}
-                          </p>
+                  {/* Sold Vehicle Statement - Only for Sold Vehicles with a sell amount */}
+                  {formik.values.status?.seizedStatus === "Sold" &&
+                    formik.values.status?.soldDetails?.sellAmount > 0 && (
+                      <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-6 shadow-sm animate-in fade-in slide-in-from-left-4 duration-500">
+                        <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          Sold Vehicle Statement
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Sell Amount
+                            </p>
+                            <p className="text-xl font-black text-emerald-700 tracking-tight">
+                              ₹
+                              {parseFloat(
+                                formik.values.status?.soldDetails?.sellAmount ||
+                                  0,
+                              ).toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Miscellaneous Amount
+                            </p>
+                            <p className="text-xl font-black text-emerald-700 tracking-tight">
+                              ₹
+                              {parseFloat(
+                                formik.values.status?.soldDetails
+                                  ?.miscellaneousAmount || 0,
+                              ).toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Total Sale Amount
+                            </p>
+                            <p className="text-2xl font-black text-emerald-600 tracking-tight">
+                              ₹
+                              {parseFloat(
+                                formik.values.status?.soldDetails
+                                  ?.totalAmount || 0,
+                              ).toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                          <div className="space-y-1 text-right">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Date of Sale
+                            </p>
+                            <p className="text-[12px] font-black text-emerald-800 uppercase tracking-tighter">
+                              {formik.values.status?.soldDetails?.soldDate
+                                ? new Date(
+                                    formik.values.status.soldDetails.soldDate,
+                                  ).toLocaleDateString("en-IN", {
+                                    day: "2-digit",
+                                    month: "long",
+                                    year: "numeric",
+                                  })
+                                : "N/A"}
+                            </p>
+                          </div>
+                          <div className="md:col-span-2 space-y-1 pt-2 border-t border-emerald-100/50">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Sale Processed By
+                            </p>
+                            <p className="text-[11px] font-black text-emerald-900 uppercase tracking-widest">
+                              {typeof formik.values.status?.soldDetails
+                                ?.soldBy === "object"
+                                ? formik.values.status.soldDetails.soldBy.name
+                                : formik.values.status?.soldDetails?.soldBy ||
+                                  "AUTHORIZED SYSTEM OFFICER"}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                  {/* Foreclosure Summary - Only for Closed Loans that were NOT sold */}
+                  {formik.values.status?.status?.toLowerCase() === "closed" &&
+                    formik.values.status?.foreclosureDetails
+                      ?.foreclosureAmount > 0 && (
+                      <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-6 shadow-sm animate-in fade-in slide-in-from-left-4 duration-500">
+                        <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          Settlement Summary (Account Closed)
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Closing Amount
+                            </p>
+                            <p className="text-xl font-black text-emerald-700 tracking-tight">
+                              ₹
+                              {parseFloat(
+                                formik.values.status?.foreclosureDetails
+                                  ?.foreclosureAmount || 0,
+                              ).toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Date of Settlement
+                            </p>
+                            <p className="text-[12px] font-black text-emerald-800 uppercase tracking-tighter">
+                              {formik.values.status?.foreclosureDetails
+                                ?.foreclosureDate
+                                ? new Date(
+                                    formik.values.status.foreclosureDetails
+                                      .foreclosureDate,
+                                  ).toLocaleDateString("en-IN", {
+                                    day: "2-digit",
+                                    month: "long",
+                                    year: "numeric",
+                                  })
+                                : "N/A"}
+                            </p>
+                          </div>
+                          <div className="md:col-span-2 space-y-1 pt-2 border-t border-emerald-100/50">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Closing Processed By
+                            </p>
+                            <p className="text-[11px] font-black text-emerald-900 uppercase tracking-widest">
+                              {typeof formik.values.status?.foreclosureDetails
+                                ?.foreclosedBy === "object"
+                                ? formik.values.status.foreclosureDetails
+                                    .foreclosedBy.name
+                                : formik.values.status?.foreclosureDetails
+                                    ?.foreclosedBy ||
+                                  "AUTHORIZED SYSTEM OFFICER"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                   <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-xl animate-in fade-in slide-in-from-left-4 duration-500">
                     <h3 className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">

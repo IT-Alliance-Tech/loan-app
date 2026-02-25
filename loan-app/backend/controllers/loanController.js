@@ -212,7 +212,8 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   const loan = await Loan.findOne({ loanNumber: req.params.loanNumber })
     .populate("createdBy", "name")
     .populate("foreclosedBy", "name")
-    .populate("updatedBy", "name");
+    .populate("updatedBy", "name")
+    .populate("soldDetails.soldBy", "name");
 
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
@@ -235,7 +236,8 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
     loan.status?.toLowerCase() === "closed" &&
-    !loan.foreclosureAmount // Trigger if 0, null, or undefined
+    !loan.foreclosureAmount && // Trigger if 0, null, or undefined
+    !loan.soldDetails?.sellAmount // Don't trigger if it's a sold vehicle
   ) {
     // 1. Search for explicit foreclosure/settlement EMI (using both ID and loanNumber)
     const foreclosureEmi = await EMI.findOne({
@@ -333,7 +335,8 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   const loan = await Loan.findById(req.params.id)
     .populate("createdBy", "name")
     .populate("foreclosedBy", "name")
-    .populate("updatedBy", "name");
+    .populate("updatedBy", "name")
+    .populate("soldDetails.soldBy", "name");
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
@@ -355,7 +358,8 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
     loan.status?.toLowerCase() === "closed" &&
-    !loan.foreclosureAmount // Trigger if 0, null, or undefined
+    !loan.foreclosureAmount && // Trigger if 0, null, or undefined
+    !loan.soldDetails?.sellAmount // Don't trigger if it's a sold vehicle
   ) {
     // 1. Search for explicit foreclosure/settlement EMI
     const foreclosureEmi = await EMI.findOne({
@@ -560,7 +564,8 @@ const updateLoan = asyncHandler(async (req, res, next) => {
   })
     .populate("createdBy", "name")
     .populate("foreclosedBy", "name")
-    .populate("updatedBy", "name");
+    .populate("updatedBy", "name")
+    .populate("soldDetails.soldBy", "name");
 
   // Synchronize EMIs if relevant terms changed
   if (loanTerms || customerDetails || (statusObj && statusObj.status)) {
@@ -1391,7 +1396,7 @@ const getSeizedVehicles = asyncHandler(async (req, res, next) => {
 
 const updateSeizedStatus = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const { seizedStatus } = req.body;
+  const { seizedStatus, soldDetails } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
     return next(new ErrorHandler("Invalid Loan ID provided", 400));
@@ -1409,11 +1414,25 @@ const updateSeizedStatus = asyncHandler(async (req, res, next) => {
     updateData.seizedDate = new Date();
   }
 
+  // If Sold: record sale details and close the loan
+  if (seizedStatus === "Sold") {
+    if (!soldDetails || !soldDetails.sellAmount) {
+      return next(new ErrorHandler("Please provide sale details", 400));
+    }
+    updateData.status = "Closed";
+    updateData.soldDetails = {
+      ...soldDetails,
+      soldDate: soldDetails.soldDate || new Date(),
+      soldBy: req.user._id,
+    };
+  }
+
   // If Re-activate: un-seize the loan and revert to Active
   if (seizedStatus === "Re-activate") {
     updateData.isSeized = false;
     updateData.status = "Active";
     updateData.seizedDate = undefined;
+    updateData.soldDetails = undefined;
   }
 
   const loan = await Loan.findByIdAndUpdate(
