@@ -4,8 +4,8 @@ import { ToastProvider } from "../context/ToastContext";
 
 /** @type {import('next').Metadata} */
 export const metadata = {
-  title: "ILMRS - Internal Management",
-  description: "Internal Loan & EMI Management System",
+  title: "Square Finance - Internal Management",
+  description: "Enterprise Loan & EMI Management System",
 };
 
 export default function RootLayout({ children }) {

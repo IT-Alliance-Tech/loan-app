@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "../../../services/auth.service";
 import { useToast } from "../../../context/ToastContext";
+import Logo from "../../../components/Logo";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -66,9 +67,10 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg px-4">
       <div className="card max-w-md w-full p-10">
-        <div className="mb-8 text-center">
-          <div className="inline-block px-3 py-1 mb-4 text-xs font-bold tracking-widest text-primary uppercase bg-blue-50 rounded-full">
-            ILMRS Security
+        <div className="mb-8 text-center flex flex-col items-center">
+          <Logo className="mb-6" size="lg" />
+          <div className="inline-block px-3 py-1 mb-4 text-xs font-bold tracking-widest text-[#dc2626] uppercase bg-red-50 rounded-full">
+            Square Finance Security
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900">
             Internal Portal
@@ -169,7 +171,7 @@ const LoginPage = () => {
 
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-            Enterprise Loan Management System © 2026
+            Square Finance Management System © 2026
           </p>
         </div>
       </div>
