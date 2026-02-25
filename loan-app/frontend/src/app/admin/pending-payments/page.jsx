@@ -362,21 +362,21 @@ const PendingPaymentsPage = () => {
 
                                 return (
                                   <span
-                                    className={`text-xs font-black tracking-tight ${colorClass}`}
+                                    className={`text-[10px] font-black tracking-tight px-3 py-1.5 rounded-lg inline-block min-w-[80px] text-white ${colorClass.replace("text-", "bg-")}`}
                                   >
                                     {days > 0 ? `${days} Days` : "0 Days"}
                                   </span>
                                 );
                               })()}
                             </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center gap-2">
+                            <td className="px-6 py-5 text-center">
+                              <div className="flex items-center justify-center">
                                 <span
                                   title={
                                     item.clientResponse ||
                                     item.status?.clientResponse
                                   }
-                                  className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate max-w-[120px]"
+                                  className="text-[12px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 max-h-[100px] overflow-y-auto whitespace-normal break-words scrollbar-thin scrollbar-thumb-slate-200"
                                 >
                                   {item.clientResponse ||
                                     item.status?.clientResponse ||
