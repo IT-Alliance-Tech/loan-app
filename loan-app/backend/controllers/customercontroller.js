@@ -188,8 +188,8 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     paymentMode,
     paymentDate,
     overdue,
-    status,
     remarks,
+    dateGroups,
   } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
@@ -201,19 +201,38 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("EMI record not found", 404));
   }
 
-  let newAmountPaid = emi.amountPaid || 0;
-  let newStatus = status || emi.status;
-
-  // Handle incremental update if addedAmount is provided
-  if (addedAmount !== undefined && addedAmount !== null) {
-    newAmountPaid = (parseFloat(emi.amountPaid) || 0) + parseFloat(addedAmount);
-  } else if (amountPaid !== undefined) {
-    // Fallback to absolute update if amountPaid is explicitly provided
-    newAmountPaid = parseFloat(amountPaid);
+  // Process payments from dateGroups if provided (replaces existing history)
+  if (dateGroups && Array.isArray(dateGroups)) {
+    emi.paymentHistory = []; // Clear current history to replace with updated state from modal
+    dateGroups.forEach((group) => {
+      if (group.date && group.payments) {
+        group.payments.forEach((p) => {
+          const amount = parseFloat(p.amount);
+          if (amount > 0 && p.mode) {
+            emi.paymentHistory.push({
+              amount: amount,
+              mode: p.mode,
+              date: new Date(group.date),
+            });
+          }
+        });
+      }
+    });
   }
 
-  // Auto-calculate status based on total amount paid
+  // Recalculate amountPaid and paymentMode from full history
+  const totalPaidFromHistory = emi.paymentHistory.reduce(
+    (acc, curr) => acc + curr.amount,
+    0,
+  );
+  const modesFromHistory = [
+    ...new Set(emi.paymentHistory.map((p) => p.mode).filter(Boolean)),
+  ].join(", ");
+
+  // Final values
+  newAmountPaid = totalPaidFromHistory;
   const totalEmiAmount = parseFloat(emi.emiAmount);
+
   if (newAmountPaid >= totalEmiAmount) {
     newStatus = "Paid";
   } else if (newAmountPaid > 0) {
@@ -222,45 +241,72 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     newStatus = "Pending";
   }
 
-  // Handle unique payment mode merging
-  let mergedPaymentMode = emi.paymentMode || "";
-  if (paymentMode) {
-    const existingModes = mergedPaymentMode
-      ? mergedPaymentMode.split(",").map((m) => m.trim())
-      : [];
-    const newModes = paymentMode.split(",").map((m) => m.trim());
-
-    // Create a unique set of modes, filtering out empty strings
-    const uniqueModes = [
-      ...new Set([...existingModes, ...newModes].filter((m) => m !== "")),
-    ];
-    mergedPaymentMode = uniqueModes.join(", ");
-  }
-
   emi = await EMI.findByIdAndUpdate(
     id,
     {
       amountPaid: newAmountPaid,
-      paymentMode: mergedPaymentMode,
-      paymentDate: paymentDate || emi.paymentDate,
+      paymentMode: modesFromHistory || emi.paymentMode,
+      paymentDate:
+        paymentDate ||
+        emi.paymentDate ||
+        (emi.paymentHistory.length > 0
+          ? emi.paymentHistory[emi.paymentHistory.length - 1].date
+          : null),
       overdue: overdue !== undefined ? overdue : emi.overdue,
       status: newStatus,
       remarks: remarks || emi.remarks,
+      paymentHistory: emi.paymentHistory,
+      updatedBy: req.user._id,
     },
     { new: true, runValidators: true },
-  );
+  ).populate("updatedBy", "name");
 
   sendResponse(res, 200, "success", "EMI updated successfully", null, emi);
 });
 
 const getAllEMIDetails = asyncHandler(async (req, res, next) => {
+  const { loanNumber, customerName, status, mobileNumber, vehicleNumber } =
+    req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  const total = await EMI.countDocuments();
+  const query = {};
+  if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (customerName)
+    query.customerName = { $regex: customerName, $options: "i" };
+  if (status) query.status = { $regex: new RegExp(`^${status}$`, "i") };
+
+  // For mobile and vehicle, we MUST find matching loanIds first because these fields
+  // do not exist on the EMI model itself.
+  if (mobileNumber || vehicleNumber) {
+    const loanFilter = {};
+    if (mobileNumber) {
+      loanFilter.$or = [
+        { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+        { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      ];
+    }
+    if (vehicleNumber) {
+      loanFilter.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+    }
+
+    const matchingLoans = await Loan.find(loanFilter).select("_id");
+    const matchingLoanIds = matchingLoans.map((l) => l._id);
+
+    if (matchingLoanIds.length === 0) {
+      // If no loans match the mobile/vehicle filter, ensure no EMIs are found
+      // We use a non-existent ID to force an empty result
+      query.loanId = new mongoose.Types.ObjectId();
+    } else {
+      query.loanId = { $in: matchingLoanIds };
+    }
+  }
+
+  const total = await EMI.countDocuments(query);
 
   const emis = await EMI.aggregate([
+    { $match: query },
     { $sort: { updatedAt: -1 } },
     { $skip: skip },
     { $limit: limit },
@@ -289,9 +335,45 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
         status: 1,
         remarks: 1,
         updatedAt: 1,
-        mobileNumbers: "$loan.mobileNumbers",
         guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
         guarantorName: "$loan.guarantorName",
+        updatedBy: 1,
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "updatedBy",
+        foreignField: "_id",
+        as: "updatedBy",
+      },
+    },
+    {
+      $unwind: {
+        path: "$updatedBy",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        updatedBy: { $ifNull: ["$updatedBy.name", null] },
+        _id: 1,
+        loanId: 1,
+        loanNumber: 1,
+        customerName: 1,
+        emiNumber: 1,
+        dueDate: 1,
+        emiAmount: 1,
+        amountPaid: 1,
+        paymentDate: 1,
+        paymentMode: 1,
+        overdue: 1,
+        status: 1,
+        remarks: 1,
+        updatedAt: 1,
+        mobileNumbers: 1,
+        guarantorMobileNumbers: 1,
+        guarantorName: 1,
       },
     },
   ]);
@@ -312,9 +394,11 @@ const getEMIsByLoanId = asyncHandler(async (req, res, next) => {
   if (!mongoose.Types.ObjectId.isValid(loanId) || loanId === "undefined") {
     return next(new ErrorHandler("Invalid Loan ID provided", 400));
   }
-  const emis = await EMI.find({ loanId }).sort({
-    emiNumber: 1,
-  });
+  const emis = await EMI.find({ loanId })
+    .sort({
+      emiNumber: 1,
+    })
+    .populate("updatedBy", "name");
   sendResponse(res, 200, "success", "EMIs fetched successfully", null, emis);
 });
 

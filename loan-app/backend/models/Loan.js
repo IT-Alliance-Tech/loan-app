@@ -147,6 +147,14 @@ const loanSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    seizedDate: {
+      type: Date,
+    },
+    seizedStatus: {
+      type: String,
+      enum: ["For Seizing", "Seized", "Sold", "Re-activate"],
+      default: "For Seizing",
+    },
     remarks: {
       type: String,
       trim: true,
@@ -155,9 +163,17 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    nextFollowUpDate: {
+      type: Date,
+    },
     status: {
       type: String,
       required: [true, "Status is required"],
+      enum: {
+        values: ["Active", "Closed", "Seized"],
+        message: "Please select a valid status",
+      },
+      default: "Active",
       trim: true,
     },
     paymentStatus: {
@@ -169,6 +185,59 @@ const loanSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+    },
+    foreclosedBy: {
+      type: mongoose.Schema.Types.Mixed,
+      ref: "User",
+    },
+    foreclosureDate: {
+      type: Date,
+    },
+    foreclosureAmount: {
+      type: Number,
+    },
+    foreclosureChargeAmount: {
+      type: Number,
+      default: 0,
+    },
+    foreclosureChargePercent: {
+      type: Number,
+      default: 0,
+    },
+    miscellaneousFee: {
+      type: Number,
+      default: 0,
+    },
+    odAmount: {
+      type: Number,
+      default: 0,
+    },
+    remainingPrincipal: {
+      type: Number,
+      default: 0,
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    soldDetails: {
+      sellAmount: {
+        type: Number,
+      },
+      miscellaneousAmount: {
+        type: Number,
+        default: 0,
+      },
+      totalAmount: {
+        type: Number,
+      },
+      soldDate: {
+        type: Date,
+      },
+      soldBy: {
+        type: mongoose.Schema.Types.Mixed,
+        ref: "User",
+      },
     },
   },
   { timestamps: true },

@@ -9,8 +9,13 @@ const {
   toggleSeizedStatus,
   calculateEMIApi,
   getPendingPayments,
+  getFollowupLoans,
   getPendingEmiDetails,
   updatePaymentStatus,
+  getForeclosureLoans,
+  forecloseLoan,
+  getSeizedVehicles,
+  updateSeizedStatus,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
@@ -34,6 +39,14 @@ router.get(
   authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
   getPendingPayments,
 );
+router.get("/followups", getFollowupLoans);
+router.get("/foreclosure", getForeclosureLoans);
+router.get("/seized-vehicles", getSeizedVehicles);
+router.patch(
+  "/seized-vehicles/:id/status",
+  authorizeRoles("SUPER_ADMIN"),
+  updateSeizedStatus,
+);
 router.get(
   "/pending-details/:id",
   authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
@@ -46,6 +59,7 @@ router.patch(
 );
 
 router.get("/search/:loanNumber", getLoanByLoanNumber);
+router.post("/:id/foreclose", authorizeRoles("SUPER_ADMIN"), forecloseLoan);
 
 router
   .route("/:id")

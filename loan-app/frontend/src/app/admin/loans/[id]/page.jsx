@@ -62,6 +62,25 @@ const ViewLoanPage = () => {
                   .split("T")[0]
               : "",
           },
+          status: {
+            ...data.status,
+            nextFollowUpDate: data.status?.nextFollowUpDate
+              ? new Date(data.status.nextFollowUpDate)
+                  .toISOString()
+                  .split("T")[0]
+              : "",
+            foreclosureDetails: data.status?.foreclosureDetails
+              ? {
+                  ...data.status.foreclosureDetails,
+                  foreclosureDate: data.status.foreclosureDetails
+                    .foreclosureDate
+                    ? new Date(data.status.foreclosureDetails.foreclosureDate)
+                        .toISOString()
+                        .split("T")[0]
+                    : "",
+                }
+              : undefined,
+          },
         };
 
         setLoan(formattedData);
@@ -123,13 +142,21 @@ const ViewLoanPage = () => {
                     initialData={loan}
                     isViewOnly={true}
                     onCancel={() => router.push("/admin/loans")}
+                    emis={emis}
                   />
 
                   <div className="mt-12">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase mb-6">
                       EMI Payment Schedule
                     </h2>
-                    <EMITable emis={emis} isEditMode={false} />
+                    <EMITable
+                      emis={
+                        loan?.status?.status?.toLowerCase() === "closed"
+                          ? emis.filter((emi) => (emi.amountPaid || 0) > 0)
+                          : emis
+                      }
+                      isEditMode={false}
+                    />
                   </div>
                 </>
               )}

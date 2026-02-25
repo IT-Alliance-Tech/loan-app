@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { getUserFromToken } from "../utils/auth";
+import Logo from "./Logo";
 
 const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
@@ -22,6 +23,8 @@ const navItems = [
     subItems: [
       { name: "Pending", href: "/admin/pending-payments" },
       { name: "Partial", href: "/admin/partial-payments" },
+      { name: "Followup", href: "/admin/followup-payments" },
+      { name: "Foreclosure", href: "/admin/foreclosure-payments" },
     ],
   },
 ];
@@ -37,7 +40,9 @@ const Sidebar = () => {
       item.subItems?.some((sub) => pathname === sub.href),
     );
     if (activeSubMenu) {
-      setExpandedMenus((prev) => ({ ...prev, [activeSubMenu.name]: true }));
+      setTimeout(() => {
+        setExpandedMenus((prev) => ({ ...prev, [activeSubMenu.name]: true }));
+      }, 0);
     }
   }, [pathname]);
 
@@ -53,14 +58,10 @@ const Sidebar = () => {
     <>
       {/* DESKTOP SIDEBAR DESIGN */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0">
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-200 flex-shrink-0">
-          <div className="bg-primary px-2.5 py-1.5 rounded-lg shadow-sm">
-            <span className="text-white font-black text-base tracking-tighter">
-              ILMRS
-            </span>
-          </div>
-          <div className="h-5 w-px bg-slate-200"></div>
-          <span className="font-black text-slate-300 tracking-[0.2em] uppercase text-[8px]">
+        <div className="h-24 flex items-center gap-3 px-6 border-b border-slate-200 flex-shrink-0 bg-slate-50/30">
+          <Logo size="sm" />
+          <div className="h-8 w-px bg-slate-200"></div>
+          <span className="font-black text-slate-400 tracking-[0.2em] uppercase text-[9px]">
             Admin
           </span>
         </div>
@@ -163,6 +164,13 @@ const Sidebar = () => {
               className="flex-1 py-4 bg-slate-900 text-white text-center rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-200"
             >
               Partial
+            </Link>
+            <Link
+              href="/admin/foreclosure-payments"
+              onClick={() => toggleMenu("mobilePayments")}
+              className="flex-1 py-4 bg-red-600 text-white text-center rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-200"
+            >
+              Foreclosure
             </Link>
           </div>
         )}

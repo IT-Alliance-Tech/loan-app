@@ -69,6 +69,16 @@ export const getSeizedPending = async (params = {}) => {
   );
 };
 
+export const getFollowupLoans = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return await apiHandler(
+    `/api/loans/followups${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+    },
+  );
+};
+
 export const getPendingEmiDetails = async (id) => {
   return await apiHandler(`/api/loans/pending-details/${id}`, {
     method: "GET",
@@ -79,5 +89,39 @@ export const updatePaymentStatus = async (id, paymentStatus) => {
   return await apiHandler(`/api/loans/${id}/payment-status`, {
     method: "PATCH",
     body: JSON.stringify({ paymentStatus }),
+  });
+};
+export const getForeclosureLoans = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return await apiHandler(
+    `/api/loans/foreclosure${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+    },
+  );
+};
+export const forecloseLoan = async (id, data) => {
+  return await apiHandler(`/api/loans/${id}/foreclose`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+};
+export const getSeizedVehicles = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return await apiHandler(
+    `/api/loans/seized-vehicles${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+    },
+  );
+};
+export const updateSeizedStatus = async (
+  id,
+  seizedStatus,
+  soldDetails = null,
+) => {
+  return await apiHandler(`/api/loans/seized-vehicles/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ seizedStatus, soldDetails }),
   });
 };

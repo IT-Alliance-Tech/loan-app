@@ -72,7 +72,7 @@ const validationSchema = Yup.object().shape({
     insuranceDate: Yup.string().nullable(),
   }),
   status: Yup.object({
-    status: Yup.string().required("Status is required"),
+    // status is now automatic
   }),
 });
 
@@ -83,6 +83,7 @@ const LoanForm = ({
   isViewOnly,
   submitting,
   renderExtraActions,
+  emis = [],
 }) => {
   const { showToast } = useToast();
 
@@ -90,6 +91,9 @@ const LoanForm = ({
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [isRtoDropdownOpen, setIsRtoDropdownOpen] = useState(false);
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+
+  const [remainingPrincipalAmount, setRemainingPrincipalAmount] = useState(0);
+  const [totalCollectedAmount, setTotalCollectedAmount] = useState(0);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -166,6 +170,20 @@ const LoanForm = ({
         docChecklist: initialData?.status?.docChecklist || "",
         remarks: initialData?.status?.remarks || "",
         clientResponse: initialData?.status?.clientResponse || "",
+        nextFollowUpDate: initialData?.status?.nextFollowUpDate || "",
+        seizedStatus: initialData?.status?.seizedStatus || "",
+        seizedDate: initialData?.status?.seizedDate || "",
+        soldDetails: initialData?.status?.soldDetails || null,
+        foreclosureDetails: {
+          foreclosedBy:
+            initialData?.status?.foreclosureDetails?.foreclosedBy || "",
+          foreclosureDate:
+            initialData?.status?.foreclosureDetails?.foreclosureDate || "",
+          foreclosureAmount:
+            initialData?.status?.foreclosureDetails?.foreclosureAmount || 0,
+        },
+        updatedBy: initialData?.status?.updatedBy || null,
+        updatedAt: initialData?.status?.updatedAt || null,
       },
     },
     validationSchema,
@@ -347,6 +365,85 @@ const LoanForm = ({
     formik.values.loanTerms.tenureMonths,
   ]);
 
+  // Auto-calculate Remaining Principal Amount
+  useEffect(() => {
+    const principal = parseFloat(formik.values.loanTerms.principalAmount) || 0;
+    const tenure = parseInt(formik.values.loanTerms.tenureMonths) || 0;
+
+    if (principal > 0 && tenure > 0) {
+      const principalPerMonth = principal / tenure;
+      let remainingTenureCount = 0;
+
+      if (emis && emis.length > 0) {
+        emis.forEach((emi) => {
+          const emiAmount = parseFloat(emi.emiAmount) || 0;
+          const amountPaid = parseFloat(emi.amountPaid) || 0;
+          if (emiAmount > 0) {
+            // How much of this specific EMI's principal portion is still remaining?
+            // Since we use flat interest, we assume each month's principal part is (Principal/Tenure)
+            // and we track remaining tenure as a fraction of paid/unpaid.
+            const remainingPortion = Math.max(
+              0,
+              (emiAmount - amountPaid) / emiAmount,
+            );
+            remainingTenureCount += remainingPortion;
+          }
+        });
+      } else {
+        // If no EMIs data yet, assume full principal remains
+        remainingTenureCount = tenure;
+      }
+
+      const remainingPrincipal = principalPerMonth * remainingTenureCount;
+      setRemainingPrincipalAmount(remainingPrincipal.toFixed(2));
+    } else {
+      setRemainingPrincipalAmount(0);
+    }
+  }, [
+    formik.values.loanTerms.principalAmount,
+    formik.values.loanTerms.tenureMonths,
+    emis,
+  ]);
+
+  // Auto-calculate Total Collected Amount
+  useEffect(() => {
+    let total = 0;
+    if (emis && emis.length > 0) {
+      total = emis.reduce(
+        (sum, emi) => sum + (parseFloat(emi.amountPaid) || 0),
+        0,
+      );
+    }
+
+    // Add foreclosure amount if loan is closed
+    if (formik.values.status?.status?.toLowerCase() === "closed") {
+      total += parseFloat(
+        formik.values.status?.foreclosureDetails?.foreclosureAmount || 0,
+      );
+    }
+
+    // Add Sold Vehicle Amount if available
+    if (
+      formik.values.status?.seizedStatus === "Sold" &&
+      formik.values.status?.soldDetails?.totalAmount
+    ) {
+      total += parseFloat(formik.values.status.soldDetails.totalAmount);
+    }
+
+    setTotalCollectedAmount(
+      total.toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    );
+  }, [
+    emis,
+    formik.values.status?.status,
+    formik.values.status?.foreclosureDetails?.foreclosureAmount,
+    formik.values.status?.seizedStatus,
+    formik.values.status?.soldDetails?.totalAmount,
+  ]);
+
   const ErrorMsg = ({ name }) => {
     const meta = formik.getFieldMeta(name);
     return meta.touched && meta.error ? (
@@ -373,9 +470,31 @@ const LoanForm = ({
         <form onSubmit={formik.handleSubmit} className="space-y-8">
           {/* Basic Info */}
           <div className="space-y-4">
-            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
-              Basic Information
-            </h3>
+            <div className="flex items-center justify-between gap-3 border-b border-primary/10 pb-2">
+              <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">
+                Basic Information
+              </h3>
+              {formik.values.status?.updatedBy && (
+                <div className="flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-lg px-3 py-1">
+                  <span className="text-[8px] font-black text-primary/50 uppercase tracking-widest">
+                    Last Updated By:
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-600">
+                    {typeof formik.values.status.updatedBy === "string"
+                      ? formik.values.status.updatedBy
+                      : formik.values.status.updatedBy.name}{" "}
+                    on{" "}
+                    {new Date(
+                      formik.values.status.updatedAt,
+                    ).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -983,18 +1102,42 @@ const LoanForm = ({
                       ₹{formik.values.loanTerms.monthlyEMI || 0}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                      Total Interest Amount
-                    </label>
-                    <input
-                      type="number"
-                      name="loanTerms.totalInterestAmount"
-                      value={formik.values.loanTerms.totalInterestAmount || ""}
-                      readOnly
-                      className="bg-transparent border-b border-slate-200 text-sm font-bold text-slate-700 focus:outline-none focus:border-primary text-right w-32"
-                      placeholder="0"
-                    />
+                  <div className="text-center px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col justify-center items-center">
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                      Total Collected Amount
+                    </span>
+                    <p className="text-xl font-black text-emerald-600">
+                      ₹{totalCollectedAmount || 0}
+                    </p>
+                  </div>
+                  <div className="text-right flex flex-col items-end gap-2">
+                    <div className="flex flex-col items-end">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Total Interest Amount
+                      </label>
+                      <input
+                        type="number"
+                        name="loanTerms.totalInterestAmount"
+                        value={
+                          formik.values.loanTerms.totalInterestAmount || ""
+                        }
+                        readOnly
+                        className="bg-transparent border-b border-slate-200 text-sm font-bold text-slate-700 focus:outline-none focus:border-primary text-right w-32"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <label className="text-[10px] font-black text-primary uppercase tracking-widest block mb-1">
+                        Remaining Principal Amount
+                      </label>
+                      <input
+                        type="text"
+                        value={`₹${remainingPrincipalAmount || 0}`}
+                        readOnly
+                        className="bg-transparent border-b border-primary/20 text-sm font-black text-primary focus:outline-none text-right w-40"
+                        placeholder="₹0"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1456,45 +1599,185 @@ const LoanForm = ({
                   </div>
                 )}
               </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Status <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="status.status"
-                  value={formik.values.status.status || ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
-                  className={getFieldClass("status.status")}
-                  placeholder="Enter current status (e.g. Verified, Pending Documents, etc.)"
-                />
-                <ErrorMsg name="status.status" />
-              </div>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end pt-8 border-t border-slate-100 mt-8 gap-6 sm:gap-4">
-            <div className="flex-1 w-full sm:max-w-sm">
+            <div className="flex-1 w-full sm:max-w-xl">
               {initialData?._id && (
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-4 shadow-xl animate-in fade-in slide-in-from-left-4 duration-500">
-                  <h3 className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">
-                    Status Update (Client Response)
-                  </h3>
-                  <div className="space-y-3">
-                    <textarea
-                      name="status.clientResponse"
-                      value={formik.values.status.clientResponse || ""}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      readOnly={isViewOnly}
-                      placeholder={
-                        isViewOnly ? "No response recorded" : "Response..."
-                      }
-                      className={`w-full bg-slate-800/30 border border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-slate-600 transition-all min-h-[60px] resize-none ${isViewOnly ? "opacity-80" : ""}`}
-                    ></textarea>
+                <div className="space-y-4">
+                  {/* Sold Vehicle Statement - Only for Sold Vehicles with a sell amount */}
+                  {formik.values.status?.seizedStatus === "Sold" &&
+                    formik.values.status?.soldDetails?.sellAmount > 0 && (
+                      <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-6 shadow-sm animate-in fade-in slide-in-from-left-4 duration-500">
+                        <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          Sold Vehicle Statement
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Sell Amount
+                            </p>
+                            <p className="text-xl font-black text-emerald-700 tracking-tight">
+                              ₹
+                              {parseFloat(
+                                formik.values.status?.soldDetails?.sellAmount ||
+                                  0,
+                              ).toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Miscellaneous Amount
+                            </p>
+                            <p className="text-xl font-black text-emerald-700 tracking-tight">
+                              ₹
+                              {parseFloat(
+                                formik.values.status?.soldDetails
+                                  ?.miscellaneousAmount || 0,
+                              ).toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Total Sale Amount
+                            </p>
+                            <p className="text-2xl font-black text-emerald-600 tracking-tight">
+                              ₹
+                              {parseFloat(
+                                formik.values.status?.soldDetails
+                                  ?.totalAmount || 0,
+                              ).toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                          <div className="space-y-1 text-right">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Date of Sale
+                            </p>
+                            <p className="text-[12px] font-black text-emerald-800 uppercase tracking-tighter">
+                              {formik.values.status?.soldDetails?.soldDate
+                                ? new Date(
+                                    formik.values.status.soldDetails.soldDate,
+                                  ).toLocaleDateString("en-IN", {
+                                    day: "2-digit",
+                                    month: "long",
+                                    year: "numeric",
+                                  })
+                                : "N/A"}
+                            </p>
+                          </div>
+                          <div className="md:col-span-2 space-y-1 pt-2 border-t border-emerald-100/50">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Sale Processed By
+                            </p>
+                            <p className="text-[11px] font-black text-emerald-900 uppercase tracking-widest">
+                              {typeof formik.values.status?.soldDetails
+                                ?.soldBy === "object"
+                                ? formik.values.status.soldDetails.soldBy.name
+                                : formik.values.status?.soldDetails?.soldBy ||
+                                  "AUTHORIZED SYSTEM OFFICER"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Foreclosure Summary - Only for Closed Loans that were NOT sold */}
+                  {formik.values.status?.status?.toLowerCase() === "closed" &&
+                    formik.values.status?.foreclosureDetails
+                      ?.foreclosureAmount > 0 && (
+                      <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-6 shadow-sm animate-in fade-in slide-in-from-left-4 duration-500">
+                        <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          Settlement Summary (Account Closed)
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Closing Amount
+                            </p>
+                            <p className="text-xl font-black text-emerald-700 tracking-tight">
+                              ₹
+                              {parseFloat(
+                                formik.values.status?.foreclosureDetails
+                                  ?.foreclosureAmount || 0,
+                              ).toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Date of Settlement
+                            </p>
+                            <p className="text-[12px] font-black text-emerald-800 uppercase tracking-tighter">
+                              {formik.values.status?.foreclosureDetails
+                                ?.foreclosureDate
+                                ? new Date(
+                                    formik.values.status.foreclosureDetails
+                                      .foreclosureDate,
+                                  ).toLocaleDateString("en-IN", {
+                                    day: "2-digit",
+                                    month: "long",
+                                    year: "numeric",
+                                  })
+                                : "N/A"}
+                            </p>
+                          </div>
+                          <div className="md:col-span-2 space-y-1 pt-2 border-t border-emerald-100/50">
+                            <p className="text-[9px] font-black text-emerald-700/40 uppercase tracking-widest pl-1">
+                              Closing Processed By
+                            </p>
+                            <p className="text-[11px] font-black text-emerald-900 uppercase tracking-widest">
+                              {typeof formik.values.status?.foreclosureDetails
+                                ?.foreclosedBy === "object"
+                                ? formik.values.status.foreclosureDetails
+                                    .foreclosedBy.name
+                                : formik.values.status?.foreclosureDetails
+                                    ?.foreclosedBy ||
+                                  "AUTHORIZED SYSTEM OFFICER"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-xl animate-in fade-in slide-in-from-left-4 duration-500">
+                    <h3 className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">
+                      Status Update (Client Response)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">
+                          Message
+                        </label>
+                        <textarea
+                          name="status.clientResponse"
+                          value={formik.values.status.clientResponse || ""}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          readOnly={isViewOnly}
+                          rows={4}
+                          placeholder={
+                            isViewOnly ? "No response recorded" : "Response..."
+                          }
+                          className={`w-full bg-slate-800/30 border border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-slate-600 transition-all min-h-[120px] resize-none ${isViewOnly ? "opacity-80" : ""}`}
+                        ></textarea>
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">
+                          Follow-up Date
+                        </label>
+                        <input
+                          type="date"
+                          name="status.nextFollowUpDate"
+                          value={formik.values.status.nextFollowUpDate || ""}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          readOnly={isViewOnly}
+                          className={`w-full bg-slate-800/30 border border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all ${isViewOnly ? "opacity-80" : ""}`}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

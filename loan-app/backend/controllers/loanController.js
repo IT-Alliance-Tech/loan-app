@@ -118,6 +118,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     docChecklist: statusObj?.docChecklist,
     remarks: statusObj?.remarks,
     clientResponse: statusObj?.clientResponse,
+    nextFollowUpDate: statusObj?.nextFollowUpDate,
     createdBy: req.user._id,
   });
 
@@ -152,8 +153,14 @@ const createLoan = asyncHandler(async (req, res, next) => {
 });
 
 const getAllLoans = asyncHandler(async (req, res, next) => {
-  const { loanNumber, customerName, mobileNumber, tenureMonths, status } =
-    req.query;
+  const {
+    loanNumber,
+    customerName,
+    mobileNumber,
+    vehicleNumber,
+    tenureMonths,
+    status,
+  } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
@@ -163,6 +170,8 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
   if (customerName)
     query.customerName = { $regex: customerName, $options: "i" };
+  if (vehicleNumber)
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
   if (mobileNumber) {
     query.$or = [
       { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
@@ -171,8 +180,15 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   }
   if (tenureMonths) query.tenureMonths = tenureMonths;
   if (status) {
-    if (status === "Seized") query.isSeized = true;
-    if (status === "Active") query.isSeized = false;
+    const statusLower = status.toLowerCase();
+    if (statusLower === "seized") {
+      query.isSeized = true;
+    } else if (statusLower === "active") {
+      query.status = { $regex: /^active$/i };
+      query.isSeized = { $ne: true };
+    } else {
+      query.status = { $regex: new RegExp(`^${status}$`, "i") };
+    }
   }
 
   const total = await Loan.countDocuments(query);
@@ -193,18 +209,120 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
 });
 
 const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
-  const loan = await Loan.findOne({ loanNumber: req.params.loanNumber });
+  const loan = await Loan.findOne({ loanNumber: req.params.loanNumber })
+    .populate("createdBy", "name")
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name")
+    .populate("soldDetails.soldBy", "name");
+
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
-  sendResponse(
-    res,
-    200,
-    "success",
-    "Loan found",
-    null,
-    formatLoanResponse(loan),
+
+  // Calculate remaining principal
+  const paidEmisCount = await EMI.countDocuments({
+    loanId: loan._id,
+    status: "Paid",
+  });
+  const remainingPrincipalAmount = Math.max(
+    0,
+    loan.principalAmount -
+      paidEmisCount * (loan.principalAmount / loan.tenureMonths),
   );
+
+  const formattedLoan = formatLoanResponse(loan);
+  formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
+
+  // Aggressive recovery logic for foreclosureDetails for older loans
+  if (
+    loan.status?.toLowerCase() === "closed" &&
+    !loan.foreclosureAmount && // Trigger if 0, null, or undefined
+    !loan.soldDetails?.sellAmount // Don't trigger if it's a sold vehicle
+  ) {
+    // 1. Search for explicit foreclosure/settlement EMI (using both ID and loanNumber)
+    const foreclosureEmi = await EMI.findOne({
+      $or: [{ loanId: loan._id }, { loanNumber: loan.loanNumber }],
+      $or: [
+        { paymentMode: { $regex: /foreclosure|settlement|closed/i } },
+        { remarks: { $regex: /foreclosure|settlement|closed|final/i } },
+      ],
+    }).sort({ createdAt: -1 });
+
+    // 2. Fallback to the absolute last paid EMI
+    const targetEmi =
+      foreclosureEmi ||
+      (await EMI.findOne({
+        $or: [{ loanId: loan._id }, { loanNumber: loan.loanNumber }],
+        status: "Paid",
+      }).sort({ dueDate: -1, createdAt: -1 }));
+
+    if (targetEmi) {
+      if (!formattedLoan.status.foreclosureDetails) {
+        formattedLoan.status.foreclosureDetails = {};
+      }
+
+      if (targetEmi.remarks) {
+        // Updated regex to prioritize currency symbols/terms and exclude date-like patterns
+        const amtMatch =
+          targetEmi.remarks.match(
+            /(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i,
+          ) ||
+          targetEmi.remarks.match(/[₹]\s*([\d,.]+)/) ||
+          targetEmi.remarks.match(/(?<![\/\d])\b([\d,.]+)(?!\s*[\/\d])/); // Avoid numbers surrounded by slashes (dates)
+        if (amtMatch) {
+          formattedLoan.status.foreclosureDetails.foreclosureAmount =
+            parseFloat(amtMatch[1].replace(/,/g, ""));
+        }
+      }
+
+      if (!formattedLoan.status.foreclosureDetails.foreclosureAmount) {
+        formattedLoan.status.foreclosureDetails.foreclosureAmount =
+          targetEmi.amountPaid || targetEmi.emiAmount;
+      }
+
+      formattedLoan.status.foreclosureDetails.foreclosureDate =
+        targetEmi.paymentDate || targetEmi.createdAt;
+    }
+
+    // Final fallback for amount: check loan's own remarks
+    if (
+      !formattedLoan.status.foreclosureDetails?.foreclosureAmount &&
+      loan.remarks
+    ) {
+      const loanAmtMatch =
+        loan.remarks.match(/(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i) ||
+        loan.remarks.match(/[₹]\s*([\d,.]+)/) ||
+        loan.remarks.match(/(?<![\/\d])\b([\d,.]+)(?!\s*[\/\d])/);
+      if (loanAmtMatch) {
+        if (!formattedLoan.status.foreclosureDetails)
+          formattedLoan.status.foreclosureDetails = {};
+        formattedLoan.status.foreclosureDetails.foreclosureAmount = parseFloat(
+          loanAmtMatch[1].replace(/,/g, ""),
+        );
+      }
+    }
+
+    // Processed By Fallback: Use creator if specific's processor is unknown
+    if (
+      !formattedLoan.status.foreclosureDetails?.foreclosedBy &&
+      !loan.foreclosedBy
+    ) {
+      if (!formattedLoan.status.foreclosureDetails)
+        formattedLoan.status.foreclosureDetails = {};
+      formattedLoan.status.foreclosureDetails.foreclosedBy =
+        loan.createdBy?.name || "System";
+    }
+
+    // Ensure we ALWAYS have a date for closed loans (using updatedAt as absolute fallback)
+    if (!formattedLoan.status.foreclosureDetails?.foreclosureDate) {
+      if (!formattedLoan.status.foreclosureDetails)
+        formattedLoan.status.foreclosureDetails = {};
+      formattedLoan.status.foreclosureDetails.foreclosureDate =
+        loan.foreclosureDate || loan.updatedAt;
+    }
+  }
+
+  sendResponse(res, 200, "success", "Loan found", null, formattedLoan);
 });
 
 const getLoanById = asyncHandler(async (req, res, next) => {
@@ -214,18 +332,119 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   ) {
     return next(new ErrorHandler("Invalid Loan ID provided", 400));
   }
-  const loan = await Loan.findById(req.params.id);
+  const loan = await Loan.findById(req.params.id)
+    .populate("createdBy", "name")
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name")
+    .populate("soldDetails.soldBy", "name");
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
-  sendResponse(
-    res,
-    200,
-    "success",
-    "Loan found",
-    null,
-    formatLoanResponse(loan),
+
+  // Calculate remaining principal
+  const paidEmisCount = await EMI.countDocuments({
+    loanId: loan._id,
+    status: "Paid",
+  });
+  const remainingPrincipalAmount = Math.max(
+    0,
+    loan.principalAmount -
+      paidEmisCount * (loan.principalAmount / loan.tenureMonths),
   );
+
+  const formattedLoan = formatLoanResponse(loan);
+  formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
+
+  // Aggressive recovery logic for foreclosureDetails for older loans
+  if (
+    loan.status?.toLowerCase() === "closed" &&
+    !loan.foreclosureAmount && // Trigger if 0, null, or undefined
+    !loan.soldDetails?.sellAmount // Don't trigger if it's a sold vehicle
+  ) {
+    // 1. Search for explicit foreclosure/settlement EMI
+    const foreclosureEmi = await EMI.findOne({
+      $or: [{ loanId: loan._id }, { loanNumber: loan.loanNumber }],
+      $or: [
+        { paymentMode: { $regex: /foreclosure|settlement|closed/i } },
+        { remarks: { $regex: /foreclosure|settlement|closed|final/i } },
+      ],
+    }).sort({ createdAt: -1 });
+
+    // 2. Fallback to the absolute last paid EMI
+    const targetEmi =
+      foreclosureEmi ||
+      (await EMI.findOne({
+        $or: [{ loanId: loan._id }, { loanNumber: loan.loanNumber }],
+        status: "Paid",
+      }).sort({ dueDate: -1, createdAt: -1 }));
+
+    if (targetEmi) {
+      if (!formattedLoan.status.foreclosureDetails) {
+        formattedLoan.status.foreclosureDetails = {};
+      }
+
+      if (targetEmi.remarks) {
+        // Updated regex to prioritize currency symbols/terms and exclude date-like patterns
+        const amtMatch =
+          targetEmi.remarks.match(
+            /(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i,
+          ) ||
+          targetEmi.remarks.match(/[₹]\s*([\d,.]+)/) ||
+          targetEmi.remarks.match(/(?<![\/\d])\b([\d,.]+)(?!\s*[\/\d])/); // Avoid numbers surrounded by slashes (dates)
+        if (amtMatch) {
+          formattedLoan.status.foreclosureDetails.foreclosureAmount =
+            parseFloat(amtMatch[1].replace(/,/g, ""));
+        }
+      }
+
+      if (!formattedLoan.status.foreclosureDetails.foreclosureAmount) {
+        formattedLoan.status.foreclosureDetails.foreclosureAmount =
+          targetEmi.amountPaid || targetEmi.emiAmount;
+      }
+
+      formattedLoan.status.foreclosureDetails.foreclosureDate =
+        targetEmi.paymentDate || targetEmi.createdAt;
+    }
+
+    // Final fallback for amount: check loan's own remarks
+    if (
+      !formattedLoan.status.foreclosureDetails?.foreclosureAmount &&
+      loan.remarks
+    ) {
+      const loanAmtMatch =
+        loan.remarks.match(/(?:Amount|Settlement|₹|Rs\.?)\s*([\d,.]+)/i) ||
+        loan.remarks.match(/[₹]\s*([\d,.]+)/) ||
+        loan.remarks.match(/(?<![\/\d])\b([\d,.]+)(?!\s*[\/\d])/);
+      if (loanAmtMatch) {
+        if (!formattedLoan.status.foreclosureDetails)
+          formattedLoan.status.foreclosureDetails = {};
+        formattedLoan.status.foreclosureDetails.foreclosureAmount = parseFloat(
+          loanAmtMatch[1].replace(/,/g, ""),
+        );
+      }
+    }
+
+    // Processed By Fallback: Use creator if specific's processor is unknown
+    if (
+      !formattedLoan.status.foreclosureDetails?.foreclosedBy &&
+      !loan.foreclosedBy
+    ) {
+      if (!formattedLoan.status.foreclosureDetails)
+        formattedLoan.status.foreclosureDetails = {};
+      formattedLoan.status.foreclosureDetails.foreclosedBy =
+        loan.createdBy?.name || "System";
+    }
+
+    // Ensure we ALWAYS have a date for closed loans (using updatedAt as absolute fallback)
+    if (!formattedLoan.status.foreclosureDetails?.foreclosureDate) {
+      if (!formattedLoan.status.foreclosureDetails)
+        formattedLoan.status.foreclosureDetails = {};
+      formattedLoan.status.foreclosureDetails.foreclosureDate =
+        loan.foreclosureDate || loan.updatedAt;
+    }
+  }
+
+  sendResponse(res, 200, "success", "Loan found", null, formattedLoan);
 });
 
 const updateLoan = asyncHandler(async (req, res, next) => {
@@ -246,7 +465,11 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     vehicleInformation,
     status: statusObj,
     clientResponse: topLevelClientResponse,
+    nextFollowUpDate: topLevelNextFollowUpDate,
   } = req.body;
+
+  // Support nested foreclosureDetails in status object
+  const foreclosureDetails = statusObj?.foreclosureDetails;
 
   const currentPrincipal =
     loanTerms?.principalAmount !== undefined
@@ -305,25 +528,44 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       insuranceDate: vehicleInformation.insuranceDate,
       rtoWorkPending: vehicleInformation.rtoWorkPending,
     }),
-    // Flatten status
-    ...(statusObj && {
-      status: statusObj.status,
-      paymentStatus: statusObj.paymentStatus,
-      isSeized: statusObj.isSeized,
-      docChecklist: statusObj.docChecklist,
-      remarks: statusObj.remarks,
-      clientResponse: statusObj.clientResponse || topLevelClientResponse,
-    }),
-    ...(topLevelClientResponse !== undefined &&
-      !statusObj && { clientResponse: topLevelClientResponse }),
+    // Automatic Status Derivation
+    status: foreclosureDetails?.foreclosureDate
+      ? "Closed"
+      : statusObj?.isSeized || loan.isSeized
+        ? "Seized"
+        : "Active",
+
+    paymentStatus: statusObj?.paymentStatus || loan.paymentStatus,
+    isSeized:
+      statusObj?.isSeized !== undefined ? statusObj.isSeized : loan.isSeized,
+    docChecklist: statusObj?.docChecklist || loan.docChecklist,
+    remarks: statusObj?.remarks || loan.remarks,
+    clientResponse: statusObj?.clientResponse || topLevelClientResponse,
+    nextFollowUpDate: statusObj?.nextFollowUpDate || topLevelNextFollowUpDate,
+
+    // Flatten foreclosureDetails
+    foreclosedBy: foreclosureDetails?.foreclosedBy || loan.foreclosedBy,
+    foreclosureDate:
+      foreclosureDetails?.foreclosureDate || loan.foreclosureDate,
+    foreclosureAmount:
+      foreclosureDetails?.foreclosureAmount !== undefined &&
+      foreclosureDetails?.foreclosureAmount !== ""
+        ? foreclosureDetails.foreclosureAmount
+        : loan.foreclosureAmount,
+
     monthlyEMI,
     totalInterestAmount: calculatedTotalInterest,
+    updatedBy: req.user._id,
   };
 
   loan = await Loan.findByIdAndUpdate(req.params.id, updateData, {
     new: true,
     runValidators: true,
-  });
+  })
+    .populate("createdBy", "name")
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name")
+    .populate("soldDetails.soldBy", "name");
 
   // Synchronize EMIs if relevant terms changed
   if (loanTerms || customerDetails || (statusObj && statusObj.status)) {
@@ -409,6 +651,19 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
   }
 
   loan.isSeized = !loan.isSeized;
+
+  // Simultaneously update the status field to match isSeized
+  if (loan.isSeized) {
+    loan.status = "Seized";
+    // loan.seizedDate = new Date(); // Removed to defer countdown
+    loan.seizedStatus = "For Seizing";
+  } else {
+    // If we are un-seizing, revert to Active.
+    loan.status = "Active";
+    loan.seizedDate = undefined;
+    loan.seizedStatus = undefined;
+  }
+
   await loan.save();
 
   sendResponse(
@@ -422,8 +677,14 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
 });
 // export all values
 const getPendingPayments = asyncHandler(async (req, res, next) => {
-  const { customerName, loanNumber, vehicleNumber, mobileNumber, status } =
-    req.query;
+  const {
+    customerName,
+    loanNumber,
+    vehicleNumber,
+    mobileNumber,
+    status,
+    nextFollowUpDate,
+  } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
@@ -444,6 +705,13 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
       { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
       { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
     ];
+  }
+  if (nextFollowUpDate) {
+    const start = new Date(nextFollowUpDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(nextFollowUpDate);
+    end.setHours(23, 59, 59, 999);
+    query.nextFollowUpDate = { $gte: start, $lte: end };
   }
 
   const now = new Date();
@@ -467,10 +735,18 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
             as: "emi",
             cond: {
               $and: [
+                { $ne: ["$$emi.status", "Paid"] },
+                // If nextFollowUpDate is provided, we include ALL Pending/Partial EMIs to ensure the loan shows up
+                // If NOT provided, we strictly filter by overdue EMIs (dueDate <= now)
+                nextFollowUpDate ? true : { $lte: ["$$emi.dueDate", now] },
                 status
                   ? { $eq: ["$$emi.status", status] }
-                  : { $ne: ["$$emi.status", "Paid"] },
-                { $lte: ["$$emi.dueDate", now] },
+                  : {
+                      $in: [
+                        "$$emi.status",
+                        ["Pending", "Partially Paid", "Overdue"],
+                      ],
+                    },
               ],
             },
           },
@@ -479,10 +755,37 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     },
     {
       $match: {
-        $and: [
+        $or: [
           { $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] } },
-          // If no status is provided (Pending Page), at least one EMI must be strictly "Pending"
-          status ? {} : { "pendingEmisList.status": "Pending" },
+          // IF we are searching specifically for a follow-up date,
+          // allow the loan even if no EMIs are strictly "overdue" yet,
+          // as long as it has SOME Pending/Partial EMIs
+          {
+            $and: [
+              { nextFollowUpDate: { $exists: true, $ne: null } },
+              {
+                $expr: {
+                  $gt: [
+                    {
+                      $size: {
+                        $filter: {
+                          input: "$emis",
+                          as: "e",
+                          cond: {
+                            $in: [
+                              "$$e.status",
+                              ["Pending", "Partially Paid", "Overdue"],
+                            ],
+                          },
+                        },
+                      },
+                    },
+                    0,
+                  ],
+                },
+              },
+            ],
+          },
         ],
       },
     },
@@ -674,6 +977,489 @@ const updatePaymentStatus = asyncHandler(async (req, res, next) => {
   );
 });
 
+const getFollowupLoans = asyncHandler(async (req, res, next) => {
+  const {
+    customerName,
+    loanNumber,
+    vehicleNumber,
+    mobileNumber,
+    nextFollowUpDate,
+  } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  let query = {};
+
+  if (customerName) {
+    query.customerName = { $regex: customerName, $options: "i" };
+  }
+  if (loanNumber) {
+    query.loanNumber = { $regex: loanNumber, $options: "i" };
+  }
+  if (vehicleNumber) {
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  }
+  if (mobileNumber) {
+    query.$or = [
+      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+    ];
+  }
+
+  // Mandatory date filtering for follow-ups
+  const dateToFilter =
+    nextFollowUpDate || new Date().toISOString().split("T")[0];
+  const start = new Date(dateToFilter);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(dateToFilter);
+  end.setHours(23, 59, 59, 999);
+  query.nextFollowUpDate = { $gte: start, $lte: end };
+
+  // For followup logic, we don't care if the payment is officially "overdue" yet
+  // We just want ANY loan that has at least one Pending/Partial EMI
+  const result = await Loan.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $addFields: {
+        pendingEmisList: {
+          $filter: {
+            input: "$emis",
+            as: "emi",
+            cond: {
+              $in: ["$$emi.status", ["Pending", "Partially Paid", "Overdue"]],
+            },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        loanId: "$_id",
+        loanNumber: 1,
+        customerName: 1,
+        guarantorName: 1,
+        status: 1,
+        mobileNumbers: 1,
+        guarantorMobileNumbers: 1,
+        vehicleNumber: 1,
+        model: 1,
+        unpaidMonths: { $size: "$pendingEmisList" },
+        totalDueAmount: {
+          $reduce: {
+            input: "$pendingEmisList",
+            initialValue: 0,
+            in: { $add: ["$$value", "$$this.emiAmount"] },
+          },
+        },
+        earliestEmiId: {
+          $let: {
+            vars: {
+              firstPending: { $arrayElemAt: ["$pendingEmisList", 0] },
+            },
+            in: { $toString: "$$firstPending._id" },
+          },
+        },
+        earliestDueDate: {
+          $let: {
+            vars: {
+              sortedEmis: {
+                $sortArray: {
+                  input: "$pendingEmisList",
+                  sortBy: { dueDate: 1 },
+                },
+              },
+            },
+            in: { $arrayElemAt: ["$$sortedEmis.dueDate", 0] },
+          },
+        },
+        clientResponse: 1,
+        nextFollowUpDate: 1,
+      },
+    },
+    { $sort: { earliestDueDate: 1 } },
+    {
+      $facet: {
+        metadata: [{ $count: "total" }],
+        payments: [{ $skip: skip }, { $limit: limit }],
+      },
+    },
+  ]);
+
+  const total = result[0].metadata[0] ? result[0].metadata[0].total : 0;
+  const payments = result[0].payments;
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Follow-up loans fetched successfully",
+    null,
+    {
+      payments,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
+  );
+});
+
+const getForeclosureLoans = asyncHandler(async (req, res, next) => {
+  const { loanNumber, customerName, mobileNumber, vehicleNumber } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  const query = {};
+  if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (customerName)
+    query.customerName = { $regex: customerName, $options: "i" };
+  if (vehicleNumber)
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  if (mobileNumber) {
+    query.$or = [
+      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+    ];
+  }
+
+  const result = await Loan.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $project: {
+        loanId: "$_id",
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumbers: 1,
+        principalAmount: 1,
+        tenureMonths: 1,
+        monthlyEMI: 1,
+        status: 1,
+        paidEmis: {
+          $size: {
+            $filter: {
+              input: "$emis",
+              as: "e",
+              cond: { $eq: ["$$e.status", "Paid"] },
+            },
+          },
+        },
+        totalPaidAmount: { $sum: "$emis.amountPaid" },
+      },
+    },
+    {
+      $addFields: {
+        remainingPrincipal: {
+          $max: [
+            0,
+            {
+              $subtract: [
+                "$principalAmount",
+                {
+                  $multiply: [
+                    "$paidEmis",
+                    {
+                      $divide: [
+                        { $toDouble: "$principalAmount" },
+                        { $toInt: "$tenureMonths" },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+    {
+      $addFields: {
+        foreclosureAmount: "$remainingPrincipal",
+      },
+    },
+    { $sort: { loanNumber: 1 } },
+    {
+      $facet: {
+        loans: [{ $skip: skip }, { $limit: limit }],
+        totalCount: [{ $count: "count" }],
+      },
+    },
+  ]);
+
+  const loans = result[0].loans;
+  const total = result[0].totalCount[0]?.count || 0;
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Foreclosure loans fetched successfully",
+    null,
+    {
+      loans,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
+  );
+});
+
+const forecloseLoan = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const {
+    foreclosureChargeAmount,
+    foreclosureChargePercent,
+    miscellaneousFee,
+    od,
+    remainingPrincipal,
+    totalAmount,
+    remarks,
+  } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ErrorHandler("Invalid Loan ID", 400));
+  }
+
+  const loan = await Loan.findById(id);
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // 1. Update Loan status to Closed using findByIdAndUpdate to bypass full document validation
+  // (Prevents error if some required fields like createdBy are missing in older/test records)
+  const updatedLoan = await Loan.findByIdAndUpdate(
+    id,
+    {
+      status: "Closed",
+      paymentStatus: "Closed", // Set paymentStatus to Closed as requested
+      remarks: remarks || `Foreclosed on ${new Date().toLocaleDateString()}`,
+      foreclosedBy: req.user?._id,
+      foreclosureDate: new Date(),
+      foreclosureAmount: totalAmount,
+      // Detailed Breakdown
+      foreclosureChargeAmount,
+      foreclosureChargePercent,
+      miscellaneousFee,
+      odAmount: od, // Map 'od' from payload to 'odAmount' in schema
+      remainingPrincipal,
+    },
+    { new: true },
+  ) // Capture the updated document
+    .populate("createdBy", "name")
+    .populate("foreclosedBy", "name")
+    .populate("updatedBy", "name");
+
+  // 2. Update all pending/partial EMIs for this loan to "Paid"
+  // We mark them as Paid because the foreclosure payment covers them.
+  await EMI.updateMany(
+    {
+      loanId: id,
+      status: { $ne: "Paid" },
+    },
+    {
+      $set: {
+        status: "Paid",
+        paymentDate: new Date(),
+        paymentMode: "Foreclosure",
+        remarks: `Loan foreclosed. Total Payment: ₹${totalAmount}`,
+      },
+    },
+  );
+
+  sendResponse(res, 200, "success", "Loan foreclosed successfully", null, {
+    loan: formatLoanResponse(updatedLoan),
+  });
+});
+
+const getSeizedVehicles = asyncHandler(async (req, res, next) => {
+  const { loanNumber, customerName, vehicleNumber, mobileNumber } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  const query = { isSeized: true };
+
+  if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (customerName)
+    query.customerName = { $regex: customerName, $options: "i" };
+  if (vehicleNumber)
+    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+  if (mobileNumber) {
+    query.$or = [
+      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+    ];
+  }
+
+  const result = await Loan.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $addFields: {
+        pendingEmisList: {
+          $filter: {
+            input: "$emis",
+            as: "emi",
+            cond: { $ne: ["$$emi.status", "Paid"] },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumbers: 1,
+        vehicleNumber: 1,
+        seizedDate: 1,
+        seizedStatus: 1,
+        updatedAt: 1,
+        createdAt: 1,
+        unpaidMonths: { $size: "$pendingEmisList" },
+        totalDueAmount: {
+          $reduce: {
+            input: "$pendingEmisList",
+            initialValue: 0,
+            in: {
+              $add: [
+                "$$value",
+                {
+                  $subtract: [
+                    "$$this.emiAmount",
+                    { $ifNull: ["$$this.amountPaid", 0] },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+    { $sort: { seizedDate: -1, updatedAt: -1 } },
+    {
+      $facet: {
+        vehicles: [{ $skip: skip }, { $limit: limit }],
+        totalCount: [{ $count: "count" }],
+      },
+    },
+  ]);
+
+  const vehicles = result[0].vehicles;
+  const total = result[0].totalCount[0]?.count || 0;
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Seized vehicles fetched successfully",
+    null,
+    {
+      vehicles,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
+  );
+});
+
+const updateSeizedStatus = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { seizedStatus, soldDetails } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
+    return next(new ErrorHandler("Invalid Loan ID provided", 400));
+  }
+
+  const validStatuses = ["For Seizing", "Seized", "Sold", "Re-activate"];
+  if (!validStatuses.includes(seizedStatus)) {
+    return next(new ErrorHandler("Invalid seized status", 400));
+  }
+
+  const updateData = { seizedStatus };
+
+  // If status is changed to 'Seized', set the seizedDate to start countdown
+  if (seizedStatus === "Seized") {
+    updateData.seizedDate = new Date();
+  }
+
+  // If Sold: record sale details and close the loan
+  if (seizedStatus === "Sold") {
+    if (!soldDetails || !soldDetails.sellAmount) {
+      return next(new ErrorHandler("Please provide sale details", 400));
+    }
+    updateData.status = "Closed";
+    updateData.soldDetails = {
+      ...soldDetails,
+      soldDate: soldDetails.soldDate || new Date(),
+      soldBy: req.user._id,
+    };
+  }
+
+  // If Re-activate: un-seize the loan and revert to Active
+  if (seizedStatus === "Re-activate") {
+    updateData.isSeized = false;
+    updateData.status = "Active";
+    updateData.seizedDate = undefined;
+    updateData.soldDetails = undefined;
+  }
+
+  const loan = await Loan.findByIdAndUpdate(
+    id,
+    { $set: updateData },
+    { new: true, runValidators: false },
+  );
+
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    `Seized status updated to ${seizedStatus}`,
+    null,
+    {
+      _id: loan._id,
+      seizedStatus: loan.seizedStatus,
+      status: loan.status,
+      seizedDate: loan.seizedDate,
+    },
+  );
+});
+
 // export all values
 module.exports = {
   createLoan,
@@ -684,6 +1470,11 @@ module.exports = {
   toggleSeizedStatus,
   calculateEMIApi,
   getPendingPayments,
+  getFollowupLoans,
   getPendingEmiDetails,
   updatePaymentStatus,
+  getForeclosureLoans,
+  forecloseLoan,
+  getSeizedVehicles,
+  updateSeizedStatus,
 };

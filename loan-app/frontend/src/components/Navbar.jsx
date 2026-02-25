@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { removeToken, getUserFromToken } from "../utils/auth";
+import Logo from "./Logo";
 
 const Navbar = () => {
   const router = useRouter();
@@ -22,10 +23,11 @@ const Navbar = () => {
         <div className="flex items-center gap-4">
           <Link
             href="/admin/dashboard"
-            className="md:hidden bg-primary px-3 py-1.5 rounded-lg shadow-sm"
+            className="md:hidden flex items-center gap-2"
           >
-            <span className="text-white font-black text-xl tracking-tighter">
-              ILMRS
+            <Logo size="sm" showText={false} />
+            <span className="text-[#dc2626] font-black text-xs uppercase tracking-widest">
+              Square Finance
             </span>
           </Link>
           <div className="hidden md:block lg:hidden h-6 w-px bg-slate-200"></div>
