@@ -297,11 +297,11 @@ const FollowupPaymentsPage = () => {
                                 </span>
                               </div>
                             </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap">
+                            <td className="px-6 py-5 text-center">
                               <div className="flex items-center justify-center gap-2">
                                 <span
                                   title={item.clientResponse}
-                                  className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate max-w-[120px]"
+                                  className="text-[12px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block max-h-[100px] overflow-y-auto whitespace-normal break-words scrollbar-thin scrollbar-thumb-slate-200"
                                 >
                                   {item.clientResponse || "—"}
                                 </span>

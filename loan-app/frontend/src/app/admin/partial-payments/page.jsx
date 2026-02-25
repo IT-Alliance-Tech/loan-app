@@ -329,10 +329,10 @@ const PartialPaymentsPage = () => {
                                 )}
                               </div>
                             </td>
-                            <td className="px-6 py-5 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
+                            <td className="px-6 py-5">
+                              <div className="flex items-center">
                                 <span
-                                  className="font-bold text-slate-600 text-[11px] uppercase tracking-tight max-w-[120px] truncate block"
+                                  className="font-bold text-slate-600 text-[12px] uppercase tracking-tight max-h-[100px] overflow-y-auto whitespace-normal break-words scrollbar-thin scrollbar-thumb-slate-200"
                                   title={
                                     item.clientResponse ||
                                     item.status?.clientResponse
@@ -373,7 +373,7 @@ const PartialPaymentsPage = () => {
 
                                 return (
                                   <span
-                                    className={`text-xs font-black tracking-tight ${colorClass}`}
+                                    className={`text-[10px] font-black tracking-tight px-3 py-1.5 rounded-lg inline-block min-w-[80px] text-white ${colorClass.replace("text-", "bg-")}`}
                                   >
                                     {days > 0 ? `${days} Days` : "0 Days"}
                                   </span>

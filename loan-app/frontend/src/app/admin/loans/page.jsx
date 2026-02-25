@@ -362,10 +362,10 @@ const LoansPage = () => {
                                       : "Active"}
                                 </span>
                               </td>
-                              <td className="px-4 py-6 text-center whitespace-nowrap">
+                              <td className="px-4 py-6 text-center">
                                 <span
                                   title={loan.status.clientResponse}
-                                  className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate max-w-[100px] mx-auto"
+                                  className="text-[12px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block max-h-[100px] overflow-y-auto whitespace-normal break-words scrollbar-thin scrollbar-thumb-slate-200 mx-auto"
                                 >
                                   {loan.status.clientResponse || "—"}
                                 </span>
@@ -619,10 +619,10 @@ const LoansPage = () => {
                                       : "Active"}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <td className="px-6 py-4 text-center">
                                 <span
                                   title={loan.status.clientResponse}
-                                  className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block truncate max-w-[150px] mx-auto"
+                                  className="text-[12px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 block max-h-[100px] overflow-y-auto whitespace-normal break-words scrollbar-thin scrollbar-thumb-slate-200 mx-auto"
                                 >
                                   {loan.status.clientResponse || "—"}
                                 </span>
