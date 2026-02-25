@@ -7,20 +7,25 @@ const SoldVehicleModal = ({ isOpen, onClose, onConfirm, loan }) => {
     miscellaneousAmount: "0",
     totalAmount: 0,
   });
+  const [error, setError] = useState("");
+
+  const { sellAmount, miscellaneousAmount } = formData;
 
   useEffect(() => {
-    const sell = parseFloat(formData.sellAmount) || 0;
-    const misc = parseFloat(formData.miscellaneousAmount) || 0;
+    const sell = parseFloat(sellAmount) || 0;
+    const misc = parseFloat(miscellaneousAmount) || 0;
     setFormData((prev) => ({ ...prev, totalAmount: sell + misc }));
-  }, [formData.sellAmount, formData.miscellaneousAmount]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sellAmount, miscellaneousAmount, setFormData]);
 
   if (!isOpen) return null;
 
   const handlePay = () => {
     if (!formData.sellAmount || parseFloat(formData.sellAmount) <= 0) {
-      alert("Please enter a valid sell amount");
+      setError("Please enter a valid sell amount");
       return;
     }
+    setError("");
     setStep(2);
   };
 
@@ -57,6 +62,15 @@ const SoldVehicleModal = ({ isOpen, onClose, onConfirm, loan }) => {
 
         {/* Content */}
         <div className="p-8">
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-200">
+              <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                {error}
+              </p>
+            </div>
+          )}
+
           {step === 1 ? (
             <div className="space-y-6">
               <div className="space-y-2">
