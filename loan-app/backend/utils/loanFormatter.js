@@ -65,6 +65,17 @@ const formatLoanResponse = (loanDoc) => {
               remainingPrincipal: loan.remainingPrincipal || 0,
               createdBy: loan.createdBy,
             },
+            seizedStatus: loan.seizedStatus,
+            seizedDate: loan.seizedDate,
+            soldDetails: loan.soldDetails
+              ? {
+                  ...loan.soldDetails,
+                  soldBy:
+                    loan.soldDetails.soldBy?.name ||
+                    loan.soldDetails.soldBy ||
+                    null,
+                }
+              : null,
             createdAt: loan.createdAt,
             updatedAt: loan.updatedAt,
             updatedBy: loan.updatedBy,
@@ -77,6 +88,17 @@ const formatLoanResponse = (loanDoc) => {
             remarks: loan.remarks,
             clientResponse: loan.clientResponse,
             nextFollowUpDate: loan.nextFollowUpDate,
+            seizedStatus: loan.seizedStatus,
+            seizedDate: loan.seizedDate,
+            soldDetails: loan.soldDetails
+              ? {
+                  ...loan.soldDetails,
+                  soldBy:
+                    loan.soldDetails.soldBy?.name ||
+                    loan.soldDetails.soldBy ||
+                    null,
+                }
+              : null,
             createdBy: loan.createdBy,
             updatedBy: loan.updatedBy,
             createdAt: loan.createdAt,

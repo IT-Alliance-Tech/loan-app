@@ -9,6 +9,8 @@ import {
 } from "../../../services/loan.service";
 import Pagination from "../../../components/Pagination";
 import Link from "next/link";
+import SoldVehicleModal from "../../../components/SoldVehicleModal";
+import SuccessModal from "../../../components/SuccessModal";
 
 const SeizedVehiclesPage = () => {
   const [seizedLoans, setSeizedLoans] = useState([]);
@@ -22,8 +24,19 @@ const SeizedVehiclesPage = () => {
     vehicleNumber: "",
   });
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [isSoldModalOpen, setIsSoldModalOpen] = useState(false);
+  const [selectedLoanForSale, setSelectedLoanForSale] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   const handleSeizedStatusChange = async (loanId, newStatus) => {
+    if (newStatus === "Sold") {
+      const loan = seizedLoans.find((l) => l._id === loanId);
+      setSelectedLoanForSale(loan);
+      setIsSoldModalOpen(true);
+      return;
+    }
+
     try {
       const res = await updateSeizedStatus(loanId, newStatus);
       if (newStatus === "Re-activate") {
@@ -34,6 +47,26 @@ const SeizedVehiclesPage = () => {
           prev.map((l) => (l._id === loanId ? { ...l, ...res.data } : l)),
         );
       }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleSoldConfirm = async (soldDetails) => {
+    try {
+      const res = await updateSeizedStatus(
+        selectedLoanForSale._id,
+        "Sold",
+        soldDetails,
+      );
+      setSeizedLoans((prev) =>
+        prev.map((l) =>
+          l._id === selectedLoanForSale._id ? { ...l, ...res.data } : l,
+        ),
+      );
+      setIsSoldModalOpen(false);
+      setSuccessMessage("successfully sold the vechile");
+      setIsSuccessModalOpen(true);
     } catch (err) {
       setError(err.message);
     }
@@ -592,6 +625,21 @@ const SeizedVehiclesPage = () => {
             </div>
           </div>
         )}
+
+        {/* Sold Vehicle Modal */}
+        <SoldVehicleModal
+          isOpen={isSoldModalOpen}
+          onClose={() => setIsSoldModalOpen(false)}
+          onConfirm={handleSoldConfirm}
+          loan={selectedLoanForSale}
+        />
+
+        {/* Success Modal */}
+        <SuccessModal
+          isOpen={isSuccessModalOpen}
+          onClose={() => setIsSuccessModalOpen(false)}
+          message={successMessage}
+        />
       </div>
     </AuthGuard>
   );

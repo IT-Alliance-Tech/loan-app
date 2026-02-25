@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { getUserFromToken } from "../utils/auth";
+import Logo from "./Logo";
 
 const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
@@ -57,14 +58,10 @@ const Sidebar = () => {
     <>
       {/* DESKTOP SIDEBAR DESIGN */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0">
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-200 flex-shrink-0">
-          <div className="bg-primary px-2.5 py-1.5 rounded-lg shadow-sm">
-            <span className="text-white font-black text-base tracking-tighter">
-              ILMRS
-            </span>
-          </div>
-          <div className="h-5 w-px bg-slate-200"></div>
-          <span className="font-black text-slate-300 tracking-[0.2em] uppercase text-[8px]">
+        <div className="h-24 flex items-center gap-3 px-6 border-b border-slate-200 flex-shrink-0 bg-slate-50/30">
+          <Logo size="sm" />
+          <div className="h-8 w-px bg-slate-200"></div>
+          <span className="font-black text-slate-400 tracking-[0.2em] uppercase text-[9px]">
             Admin
           </span>
         </div>

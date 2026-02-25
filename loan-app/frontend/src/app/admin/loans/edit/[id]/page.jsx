@@ -189,7 +189,11 @@ const EditLoanPage = () => {
                       EMI Payment Schedule
                     </h2>
                     <EMITable
-                      emis={emis}
+                      emis={
+                        loan?.status?.status?.toLowerCase() === "closed"
+                          ? emis.filter((emi) => (emi.amountPaid || 0) > 0)
+                          : emis
+                      }
                       isEditMode={true}
                       onUpdateSuccess={handleEMIUpdate}
                     />

@@ -220,6 +220,25 @@ const loanSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    soldDetails: {
+      sellAmount: {
+        type: Number,
+      },
+      miscellaneousAmount: {
+        type: Number,
+        default: 0,
+      },
+      totalAmount: {
+        type: Number,
+      },
+      soldDate: {
+        type: Date,
+      },
+      soldBy: {
+        type: mongoose.Schema.Types.Mixed,
+        ref: "User",
+      },
+    },
   },
   { timestamps: true },
 );

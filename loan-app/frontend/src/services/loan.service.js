@@ -115,9 +115,13 @@ export const getSeizedVehicles = async (params = {}) => {
     },
   );
 };
-export const updateSeizedStatus = async (id, seizedStatus) => {
+export const updateSeizedStatus = async (
+  id,
+  seizedStatus,
+  soldDetails = null,
+) => {
   return await apiHandler(`/api/loans/seized-vehicles/${id}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ seizedStatus }),
+    body: JSON.stringify({ seizedStatus, soldDetails }),
   });
 };
