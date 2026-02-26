@@ -26,6 +26,9 @@ const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
 
 router.use(isAuthenticated);
 
+router.get("/health", (req, res) =>
+  res.json({ status: "ok", version: "v2-analytics-fix" }),
+);
 router.get("/rto-works", getRtoWorks);
 router.post("/rto-works", createRtoWork);
 
