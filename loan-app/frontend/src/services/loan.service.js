@@ -125,3 +125,9 @@ export const updateSeizedStatus = async (
     body: JSON.stringify({ seizedStatus, soldDetails }),
   });
 };
+
+export const getAnalyticsStats = async () => {
+  return await apiHandler("/api/loans/analytics/stats", {
+    method: "GET",
+  });
+};
