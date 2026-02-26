@@ -382,6 +382,7 @@ const SeizedVehiclesPage = () => {
                               <td className="px-6 py-5 text-center">
                                 <select
                                   value={loan.seizedStatus || "For Seizing"}
+                                  disabled={loan.seizedStatus === "Sold"}
                                   onChange={(e) =>
                                     handleSeizedStatusChange(
                                       loan._id,

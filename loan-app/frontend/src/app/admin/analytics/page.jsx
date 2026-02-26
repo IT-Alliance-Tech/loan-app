@@ -87,13 +87,13 @@ const AnalyticsPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
                 <StatsCard
                   title="Total Disbursed"
-                  value={`₹${stats?.cards?.totalLoanAmount?.toLocaleString() || "0"}`}
+                  value={`₹${stats?.cards?.totalLoanAmount?.toLocaleString("en-IN") || "0"}`}
                   icon={<DollarSign className="w-6 h-6" />}
                   color="primary"
                 />
                 <StatsCard
                   title="Total Collected"
-                  value={`₹${stats?.cards?.totalCollectedAmount?.toLocaleString() || "0"}`}
+                  value={`₹${stats?.cards?.totalCollectedAmount?.toLocaleString("en-IN") || "0"}`}
                   icon={<TrendingUp className="w-6 h-6" />}
                   color="success"
                 />
@@ -107,7 +107,7 @@ const AnalyticsPage = () => {
                   title="Active Loans"
                   value={stats?.cards?.activeLoansCount || "0"}
                   icon={<CheckCircle className="w-6 h-6" />}
-                  color="danger"
+                  color="success"
                 />
               </div>
 

@@ -1407,6 +1407,21 @@ const updateSeizedStatus = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Invalid seized status", 400));
   }
 
+  const existingLoan = await Loan.findById(id);
+  if (!existingLoan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // Once status is 'Sold', it cannot be changed back
+  if (existingLoan.seizedStatus === "Sold") {
+    return next(
+      new ErrorHandler(
+        "This vehicle has already been sold and the status cannot be changed.",
+        400,
+      ),
+    );
+  }
+
   const updateData = { seizedStatus };
 
   // If status is changed to 'Seized', set the seizedDate to start countdown

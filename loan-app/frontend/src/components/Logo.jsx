@@ -3,22 +3,22 @@ import React from "react";
 const Logo = ({ className = "", showText = true, size = "md" }) => {
   const sizeClasses = {
     sm: {
-      box: "w-10 h-10 border-[1.5px]",
-      sf: "text-lg",
-      text: "text-[6px]",
-      gap: "gap-0.5",
+      boxPadding: "px-3 py-2 border-[1.5px]",
+      sf: "text-xl",
+      text: "text-[9px]",
+      mt: "mt-1",
     },
     md: {
-      box: "w-16 h-16 border-2",
-      sf: "text-3xl",
-      text: "text-[8px]",
-      gap: "gap-1",
+      boxPadding: "px-5 py-4 border-2",
+      sf: "text-5xl",
+      text: "text-[14px]",
+      mt: "mt-1.5",
     },
     lg: {
-      box: "w-24 h-24 border-3",
-      sf: "text-5xl",
-      text: "text-[12px]",
-      gap: "gap-1.5",
+      boxPadding: "px-10 py-8 border-4",
+      sf: "text-8xl",
+      text: "text-[24px]",
+      mt: "mt-3",
     },
   };
 
@@ -26,20 +26,16 @@ const Logo = ({ className = "", showText = true, size = "md" }) => {
 
   return (
     <div
-      className={`flex flex-col items-center justify-center ${currentSize.gap} ${className}`}
+      className={`${currentSize.boxPadding} border-[#26467a] bg-white flex flex-col items-center justify-center rounded-sm ${className}`}
     >
-      <div
-        className={`${currentSize.box} border-slate-900 bg-white flex items-center justify-center overflow-hidden`}
+      <span
+        className={`${currentSize.sf} font-black text-[#26467a] leading-tight select-none`}
       >
-        <span
-          className={`${currentSize.sf} font-black text-[#1e293b] leading-none select-none`}
-        >
-          SF
-        </span>
-      </div>
+        SF
+      </span>
       {showText && (
         <span
-          className={`${currentSize.text} font-black text-[#dc2626] uppercase tracking-[0.2em] whitespace-nowrap select-none`}
+          className={`${currentSize.text} font-bold text-[#8b3a36] tracking-tight whitespace-nowrap select-none ${currentSize.mt}`}
         >
           Square Finance
         </span>
