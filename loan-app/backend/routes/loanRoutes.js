@@ -35,6 +35,7 @@ router
   .post(authorizeRoles("SUPER_ADMIN"), createLoan);
 
 router.post("/calculate-emi", calculateEMIApi);
+router.get("/analytics/stats", getAnalyticsStats);
 router.get(
   "/pending-payments",
   authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
@@ -43,7 +44,6 @@ router.get(
 router.get("/followups", getFollowupLoans);
 router.get("/foreclosure", getForeclosureLoans);
 router.get("/seized-vehicles", getSeizedVehicles);
-router.get("/analytics/stats", getAnalyticsStats);
 router.patch(
   "/seized-vehicles/:id/status",
   authorizeRoles("SUPER_ADMIN"),
