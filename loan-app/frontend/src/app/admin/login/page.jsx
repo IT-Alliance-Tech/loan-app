@@ -68,8 +68,8 @@ const LoginPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-bg px-4">
       <div className="card max-w-md w-full p-10">
         <div className="mb-8 text-center flex flex-col items-center">
-          <Logo className="mb-6" size="lg" />
-          <div className="inline-block px-3 py-1 mb-4 text-xs font-bold tracking-widest text-[#dc2626] uppercase bg-red-50 rounded-full">
+          <Logo className="mb-6" size="md" />
+          <div className="inline-block px-3 py-1 mb-4 text-xs font-bold tracking-widest text-[#b91c1c] uppercase bg-red-50 rounded-full">
             Square Finance Security
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900">

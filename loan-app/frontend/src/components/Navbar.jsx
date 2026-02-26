@@ -25,10 +25,7 @@ const Navbar = () => {
             href="/admin/dashboard"
             className="md:hidden flex items-center gap-2"
           >
-            <Logo size="sm" showText={false} />
-            <span className="text-[#dc2626] font-black text-xs uppercase tracking-widest">
-              Square Finance
-            </span>
+            <Logo size="sm" />
           </Link>
           <div className="hidden md:block lg:hidden h-6 w-px bg-slate-200"></div>
           <span className="hidden md:inline lg:hidden text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">

@@ -22,6 +22,11 @@ const AddEmployeePage = () => {
       loans: { view: false, create: false, edit: false, delete: false },
       emis: { view: false, create: false, edit: false, delete: false },
       vehicles: { view: false, create: false, edit: false, delete: false },
+      payments: { view: false, create: false, edit: false, delete: false },
+      documents: { view: false, create: false, edit: false, delete: false },
+      analytics: { view: false, create: false, edit: false, delete: false },
+      dashboard: { view: false, create: false, edit: false, delete: false },
+      // expenses: { view: false, create: false, edit: false, delete: false },
     },
   });
 
@@ -282,6 +287,11 @@ const AddEmployeePage = () => {
                         label="Seized Vehicles"
                         module="vehicles"
                       />
+                      <PermissionRow label="Payments" module="payments" />
+                      <PermissionRow label="Documents" module="documents" />
+                      <PermissionRow label="Analytics" module="analytics" />
+                      <PermissionRow label="Dashboard" module="dashboard" />
+                      {/* <PermissionRow label="Expenses" module="expenses" /> */}
                     </div>
                   </div>
 

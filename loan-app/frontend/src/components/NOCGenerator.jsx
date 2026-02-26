@@ -43,35 +43,44 @@ const NOCGenerator = ({ loan }) => {
 
       const cx = canvasW / 2;
 
-      // SF Logo Box (small, like a stamp)
-      const boxW = 50 * scale;
-      const boxH = 38 * scale;
+      // SF Logo Box (Combined with text)
+      const boxW = 100 * scale;
+      const boxH = 55 * scale;
       const boxX = cx - boxW / 2;
       const boxY = 8 * scale;
-      ctx.strokeStyle = "#1e1e1e";
-      ctx.lineWidth = 2.5 * scale;
+      ctx.strokeStyle = "#26467a";
+      ctx.lineWidth = 3 * scale;
       ctx.strokeRect(boxX, boxY, boxW, boxH);
-      ctx.font = `bold ${16 * scale}px 'Arial', sans-serif`;
-      ctx.fillStyle = "#1e1e1e";
+
+      // SF Text
+      ctx.font = `900 ${32 * scale}px 'Arial', sans-serif`;
+      ctx.fillStyle = "#26467a";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("SF", cx, boxY + boxH / 2);
+      ctx.fillText("SF", cx, boxY + boxH / 2 - 6 * scale);
 
-      // Kannada Text - BIGGER
-      ctx.font = `bold ${28 * scale}px 'Noto Sans Kannada', 'Tunga', 'Kannada MN', sans-serif`;
+      // Restore Square Finance Text below SF (inside box) for brand consistency
+      ctx.font = `bold ${8.5 * scale}px 'Arial', sans-serif`;
+      ctx.fillStyle = "#8b3a36";
+      ctx.fillText("Square Finance", cx, boxY + boxH - 10 * scale);
+
+      // English Title - SQUARE FINANCE (Prominent)
+      ctx.font = `bold ${42 * scale}px 'Arial', 'Helvetica', sans-serif`;
+      ctx.fillStyle = "#26467a";
+      ctx.textBaseline = "top";
+      ctx.fillText("SQUARE FINANCE", cx, boxY + boxH + 15 * scale);
+
+      // Kannada Text - Synchronized Size
+      ctx.font = `bold ${42 * scale}px 'Noto Sans Kannada', 'Tunga', 'Kannada MN', sans-serif`;
       ctx.fillStyle = "#1e1e1e";
       ctx.textBaseline = "top";
       ctx.fillText(
         "\u0CB8\u0CCD\u0C95\u0CCD\u0CB5\u0CC7\u0CB0\u0CCD \u0CAB\u0CC8\u0CA8\u0CBE\u0CA8\u0CCD\u0CB8\u0CCD",
         cx,
-        boxY + boxH + 8 * scale,
+        boxY + boxH + 75 * scale,
       );
 
-      // SQUARE FINANCE - MUCH BIGGER, bold italic red
-      ctx.font = `bold italic ${52 * scale}px 'Arial', 'Helvetica', sans-serif`;
-      ctx.fillStyle = "#c81e1e";
-      ctx.textBaseline = "top";
-      ctx.fillText("SQUARE FINANCE", cx, boxY + boxH + 55 * scale);
+      // Remove the separate Square Finance drawing below as it's now inside the box
 
       // Red line
       const lineY = boxY + boxH + 120 * scale;
@@ -117,7 +126,7 @@ const NOCGenerator = ({ loan }) => {
 
       y += 6;
       pdf.setFontSize(12);
-      pdf.text("SQUARE FINANCE", margin, y);
+      pdf.text("Square Finance", margin, y);
 
       y += 5;
       pdf.setFontSize(9);
@@ -174,10 +183,10 @@ const NOCGenerator = ({ loan }) => {
       pdf.setLineWidth(0.5);
       pdf.rect(margin, y, 60, 30);
 
-      // "For SQUARE FINANCE" inside box
+      // "For Square Finance" inside box
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "bold");
-      pdf.text("For SQUARE FINANCE", margin + 30, y + 27, {
+      pdf.text("For Square Finance", margin + 30, y + 27, {
         align: "center",
       });
 
