@@ -67,6 +67,15 @@ const apiHandler = async (endpoint, options = {}, isRetry = false) => {
       }
     }
 
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await response.text();
+      console.error("Non-JSON response received:", text);
+      throw new Error(
+        `Server returned non-JSON response (${response.status}). This often happens when a route is missing or the server is down.`,
+      );
+    }
+
     const result = await response.json();
 
     if (result.status !== "success") {
