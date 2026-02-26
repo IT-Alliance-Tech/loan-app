@@ -24,11 +24,13 @@ const {
 } = require("../controllers/rtoWorkController");
 const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
 
+router.get("/health", (req, res) =>
+  res.json({ status: "ok", version: "v3-no-auth-debug" }),
+);
+router.get("/analytics/stats", getAnalyticsStats);
+
 router.use(isAuthenticated);
 
-router.get("/health", (req, res) =>
-  res.json({ status: "ok", version: "v2-analytics-fix" }),
-);
 router.get("/rto-works", getRtoWorks);
 router.post("/rto-works", createRtoWork);
 
@@ -38,7 +40,6 @@ router
   .post(authorizeRoles("SUPER_ADMIN"), createLoan);
 
 router.post("/calculate-emi", calculateEMIApi);
-router.get("/analytics/stats", getAnalyticsStats);
 router.get(
   "/pending-payments",
   authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
