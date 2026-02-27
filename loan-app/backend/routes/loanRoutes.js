@@ -25,7 +25,7 @@ const {
 const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
 
 router.get("/health", (req, res) =>
-  res.json({ status: "ok", version: "v3-no-auth-debug" }),
+  res.json({ status: "ok", version: "v4-deployment-test" }),
 );
 router.get("/analytics/stats", getAnalyticsStats);
 
