@@ -111,6 +111,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     fcDate: vehicleInformation?.fcDate,
     insuranceDate: vehicleInformation?.insuranceDate,
     rtoWorkPending: vehicleInformation?.rtoWorkPending,
+    hpEntry: vehicleInformation?.hpEntry || "Not done",
 
     // status
     status: statusObj?.status,
@@ -192,13 +193,119 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   }
 
   const total = await Loan.countDocuments(query);
-  const loans = await Loan.find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+
+  // Check if we need extended data for export
+  const forExport = req.query.forExport === "true";
+
+  let loans;
+  if (forExport) {
+    // Advanced aggregation for export with repayment stats
+    loans = await Loan.aggregate([
+      { $match: query },
+      { $sort: { createdAt: -1 } },
+      // Join with EMIs
+      {
+        $lookup: {
+          from: "emis",
+          localField: "_id",
+          foreignField: "loanId",
+          as: "emis",
+        },
+      },
+      {
+        $addFields: {
+          repaymentStats: {
+            totalCollected: { $sum: "$emis.amountPaid" },
+            overdueAmount: { $sum: "$emis.overdue" },
+            paidEmisCount: {
+              $size: {
+                $filter: {
+                  input: "$emis",
+                  as: "emi",
+                  cond: { $eq: ["$$emi.status", "Paid"] },
+                },
+              },
+            },
+            remainingTenure: {
+              $size: {
+                $filter: {
+                  input: "$emis",
+                  as: "emi",
+                  cond: { $ne: ["$$emi.status", "Paid"] },
+                },
+              },
+            },
+            nextEmiDueDate: {
+              $min: {
+                $filter: {
+                  input: "$emis.dueDate",
+                  as: "date",
+                  cond: {
+                    $gt: [
+                      "$$date",
+                      {
+                        $ifNull: [
+                          {
+                            $max: {
+                              $filter: {
+                                input: "$emis",
+                                as: "e",
+                                cond: { $eq: ["$$e.status", "Paid"] },
+                              },
+                            },
+                          },
+                          new Date(0),
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      // Join with Users to get name for updatedBy
+      {
+        $lookup: {
+          from: "users",
+          localField: "updatedBy",
+          foreignField: "_id",
+          as: "updatedByInfo",
+        },
+      },
+      {
+        $addFields: {
+          updatedBy: { $arrayElemAt: ["$updatedByInfo.name", 0] },
+        },
+      },
+      // Cleanup
+      { $project: { emis: 0, updatedByInfo: 0 } },
+    ]);
+  } else {
+    loans = await Loan.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+  }
 
   sendResponse(res, 200, "success", "Loans fetched successfully", null, {
-    loans: loans.map((loan) => formatLoanResponse(loan)),
+    loans: loans.map((loan) => {
+      const formatted = formatLoanResponse(loan);
+      // If aggregation data is present, attach it
+      if (loan.repaymentStats) {
+        formatted.repaymentStats = loan.repaymentStats;
+        // Calculate remaining principal based on paid count
+        const principal = loan.principalAmount || 0;
+        const tenure = loan.tenureMonths || 1;
+        const paidCount = loan.repaymentStats.paidEmisCount || 0;
+        formatted.repaymentStats.remainingPrincipal = Math.max(
+          0,
+          principal - paidCount * (principal / tenure),
+        );
+      }
+      return formatted;
+    }),
     pagination: {
       total,
       page,
@@ -527,6 +634,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       fcDate: vehicleInformation.fcDate,
       insuranceDate: vehicleInformation.insuranceDate,
       rtoWorkPending: vehicleInformation.rtoWorkPending,
+      hpEntry: vehicleInformation.hpEntry || loan.hpEntry,
     }),
     // Automatic Status Derivation
     status: foreclosureDetails?.foreclosureDate
