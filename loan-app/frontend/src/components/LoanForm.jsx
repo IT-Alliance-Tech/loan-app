@@ -70,6 +70,7 @@ const validationSchema = Yup.object().shape({
     dealerNumber: Yup.string().nullable(),
     fcDate: Yup.string().nullable(),
     insuranceDate: Yup.string().nullable(),
+    hpEntry: Yup.string().oneOf(["Not done", "Applied", "Finished"]).nullable(),
   }),
   status: Yup.object({
     // status is now automatic
@@ -162,6 +163,7 @@ const LoanForm = ({
         )
           ? initialData.vehicleInformation.rtoWorkPending
           : [],
+        hpEntry: initialData?.vehicleInformation?.hpEntry || "Not done",
       },
       status: {
         status: initialData?.status?.status || "",
@@ -1322,6 +1324,23 @@ const LoanForm = ({
                   readOnly={isViewOnly}
                   className={getFieldClass("vehicleInformation.insuranceDate")}
                 />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  HP Entry
+                </label>
+                <select
+                  name="vehicleInformation.hpEntry"
+                  value={formik.values.vehicleInformation.hpEntry || "Not done"}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  disabled={isViewOnly}
+                  className={getFieldClass("vehicleInformation.hpEntry")}
+                >
+                  <option value="Not done">Not done</option>
+                  <option value="Applied">Applied</option>
+                  <option value="Finished">Finished</option>
+                </select>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">

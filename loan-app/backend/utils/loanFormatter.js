@@ -41,7 +41,9 @@ const formatLoanResponse = (loanDoc) => {
       fcDate: loan.fcDate,
       insuranceDate: loan.insuranceDate,
       rtoWorkPending: loan.rtoWorkPending || [],
+      hpEntry: loan.hpEntry || "Not done",
     },
+    repaymentStats: loan.repaymentStats || null,
     status:
       loan.status?.toLowerCase() === "closed"
         ? {

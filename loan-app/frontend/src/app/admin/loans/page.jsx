@@ -108,6 +108,33 @@ const LoansPage = () => {
     setIsFilterOpen(false);
   };
 
+  const handleExport = async () => {
+    try {
+      const exportParams = {
+        ...filters,
+        forExport: "true",
+        limit: 10000, // Fetch all for export
+      };
+      if (searchQuery.trim()) exportParams.loanNumber = searchQuery;
+
+      const res = await getLoans(exportParams);
+      const loansToExport = res.data?.loans || res.data || [];
+
+      if (loansToExport.length === 0) {
+        alert("No records found to export");
+        return;
+      }
+
+      await exportLoansToExcel(
+        loansToExport,
+        `Loans_Report_${new Date().toLocaleDateString("en-IN").replace(/\//g, "-")}.xlsx`,
+      );
+    } catch (err) {
+      console.error("Export failed:", err);
+      alert("Failed to export loans. Please try again.");
+    }
+  };
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-[#F8FAFC] flex">
@@ -135,7 +162,7 @@ const LoansPage = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={async () => await exportLoansToExcel(loans)}
+                    onClick={handleExport}
                     className="flex bg-slate-50 text-slate-500 border border-slate-100 px-3 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-100 transition-all items-center justify-center gap-1.5 shadow-sm"
                   >
                     <svg
