@@ -16,12 +16,18 @@ const {
   forecloseLoan,
   getSeizedVehicles,
   updateSeizedStatus,
+  getAnalyticsStats,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
   createRtoWork,
 } = require("../controllers/rtoWorkController");
 const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
+
+router.get("/health", (req, res) =>
+  res.json({ status: "ok", version: "v4-deployment-test" }),
+);
+router.get("/analytics/stats", getAnalyticsStats);
 
 router.use(isAuthenticated);
 

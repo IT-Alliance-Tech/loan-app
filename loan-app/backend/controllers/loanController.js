@@ -1407,6 +1407,21 @@ const updateSeizedStatus = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Invalid seized status", 400));
   }
 
+  const existingLoan = await Loan.findById(id);
+  if (!existingLoan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // Once status is 'Sold', it cannot be changed back
+  if (existingLoan.seizedStatus === "Sold") {
+    return next(
+      new ErrorHandler(
+        "This vehicle has already been sold and the status cannot be changed.",
+        400,
+      ),
+    );
+  }
+
   const updateData = { seizedStatus };
 
   // If status is changed to 'Seized', set the seizedDate to start countdown
@@ -1460,6 +1475,113 @@ const updateSeizedStatus = asyncHandler(async (req, res, next) => {
   );
 });
 
+const getAnalyticsStats = asyncHandler(async (req, res, next) => {
+  // 1. Total Loan Amount Disbursed (Principal sum of all loans)
+  const totalDisbursedStats = await Loan.aggregate([
+    { $group: { _id: null, total: { $sum: "$principalAmount" } } },
+  ]);
+  const totalLoanAmount = totalDisbursedStats[0]?.total || 0;
+
+  // 2. Total Collected (EMIs + Foreclosure + Sold)
+  const emiCollectedStats = await EMI.aggregate([
+    { $group: { _id: null, total: { $sum: "$amountPaid" } } },
+  ]);
+  const emiCollected = emiCollectedStats[0]?.total || 0;
+
+  const foreclosureCollectedStats = await Loan.aggregate([
+    {
+      $group: {
+        _id: null,
+        total: { $sum: { $ifNull: ["$foreclosureAmount", 0] } },
+      },
+    },
+  ]);
+  const foreclosureCollected = foreclosureCollectedStats[0]?.total || 0;
+
+  const soldCollectedStats = await Loan.aggregate([
+    {
+      $group: {
+        _id: null,
+        total: {
+          $sum: {
+            $ifNull: ["$soldDetails.totalAmount", "$soldDetails.sellAmount", 0],
+          },
+        },
+      },
+    },
+  ]);
+  const soldCollected = soldCollectedStats[0]?.total || 0;
+
+  const totalCollectedAmount =
+    emiCollected + foreclosureCollected + soldCollected;
+
+  // 3. Number of Pending and Partial Loans
+  const pendingPartialLoansCount = await Loan.countDocuments({
+    paymentStatus: { $in: ["Pending", "Partially Paid"] },
+  });
+
+  // 4. Number of Active Loans
+  const activeLoansCount = await Loan.countDocuments({
+    status: { $ne: "Closed" },
+  });
+
+  // Bar Graph: Vehicle Statistics — bucket isSeized=true vehicles
+  // Loans with null/missing seizedStatus but isSeized=true count as "For Seizing"
+  const vehicleStats = await Loan.aggregate([
+    {
+      $match: { isSeized: true },
+    },
+    {
+      $group: {
+        _id: {
+          $switch: {
+            branches: [
+              { case: { $eq: ["$seizedStatus", "Seized"] }, then: "Seized" },
+              { case: { $eq: ["$seizedStatus", "Sold"] }, then: "Sold" },
+            ],
+            default: "For Seizing",
+          },
+        },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const vehicleData = {
+    "For Seizing": 0,
+    Seized: 0,
+    Sold: 0,
+  };
+
+  vehicleStats.forEach((stat) => {
+    if (Object.prototype.hasOwnProperty.call(vehicleData, stat._id)) {
+      vehicleData[stat._id] = stat.count;
+    }
+  });
+
+  const data = {
+    cards: {
+      totalLoanAmount,
+      totalCollectedAmount,
+      pendingPartialLoansCount,
+      activeLoansCount,
+    },
+    vehicleStats: Object.keys(vehicleData).map((key) => ({
+      name: key,
+      value: vehicleData[key],
+    })),
+  };
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Analytics stats fetched successfully",
+    null,
+    data,
+  );
+});
+
 // export all values
 module.exports = {
   createLoan,
@@ -1477,4 +1599,5 @@ module.exports = {
   forecloseLoan,
   getSeizedVehicles,
   updateSeizedStatus,
+  getAnalyticsStats,
 };

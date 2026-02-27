@@ -7,6 +7,7 @@ import Logo from "./Logo";
 
 const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
+  { name: "Analytics", href: "/admin/analytics", icon: "📈" },
   { name: "Customers", href: "/admin/customers", icon: "👤" },
   { name: "Loans", href: "/admin/loans", icon: "💰" },
   {
@@ -25,6 +26,18 @@ const navItems = [
       { name: "Partial", href: "/admin/partial-payments" },
       { name: "Followup", href: "/admin/followup-payments" },
       { name: "Foreclosure", href: "/admin/foreclosure-payments" },
+    ],
+  },
+
+  {
+    name: "Generate Document",
+    icon: "📄",
+    subItems: [
+      { name: "NOC", href: "/admin/generate-document/noc" },
+      {
+        name: "Seizing Notice",
+        href: "/admin/generate-document/seizing-notice",
+      },
     ],
   },
 ];
