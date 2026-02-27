@@ -1,6 +1,12 @@
 import { getToken, setToken, removeToken } from "../utils/auth";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+
+if (!BASE_URL && typeof window !== "undefined") {
+  console.warn(
+    "NEXT_PUBLIC_API_BASE_URL is not defined. API calls may fail or use relative paths.",
+  );
+}
 
 const apiHandler = async (endpoint, options = {}, isRetry = false) => {
   const token = getToken();
@@ -21,7 +27,11 @@ const apiHandler = async (endpoint, options = {}, isRetry = false) => {
   };
 
   try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, config);
+    const url = BASE_URL.endsWith("/")
+      ? `${BASE_URL}${endpoint.startsWith("/") ? endpoint.slice(1) : endpoint}`
+      : `${BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+
+    const response = await fetch(url, config);
 
     // If unauthorized and not already retrying, attempt to refresh token
     if (response.status === 401 && !isRetry) {
