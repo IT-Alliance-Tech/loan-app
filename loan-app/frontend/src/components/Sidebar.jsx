@@ -28,9 +28,10 @@ const navItems = [
       { name: "Foreclosure", href: "/admin/foreclosure-payments" },
     ],
   },
+  { name: "Expenses", href: "/admin/expenses", icon: "🧾" },
 
   {
-    name: "Generate Document",
+    name: "Documents",
     icon: "📄",
     subItems: [
       { name: "NOC", href: "/admin/generate-document/noc" },

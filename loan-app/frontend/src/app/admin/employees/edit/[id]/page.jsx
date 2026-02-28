@@ -30,7 +30,7 @@ const EditEmployeePage = () => {
       documents: { view: false, create: false, edit: false, delete: false },
       analytics: { view: false, create: false, edit: false, delete: false },
       dashboard: { view: false, create: false, edit: false, delete: false },
-      // expenses: { view: false, create: false, edit: false, delete: false },
+      expenses: { view: false, create: false, edit: false, delete: false },
     },
   });
 
@@ -78,12 +78,12 @@ const EditEmployeePage = () => {
               edit: false,
               delete: false,
             },
-            // expenses: {
-            //   view: false,
-            //   create: false,
-            //   edit: false,
-            //   delete: false,
-            // },
+            expenses: {
+              view: false,
+              create: false,
+              edit: false,
+              delete: false,
+            },
           },
         });
       } catch (err) {
@@ -348,7 +348,7 @@ const EditEmployeePage = () => {
                       <PermissionRow label="Documents" module="documents" />
                       <PermissionRow label="Analytics" module="analytics" />
                       <PermissionRow label="Dashboard" module="dashboard" />
-                      {/* <PermissionRow label="Expenses" module="expenses" /> */}
+                      <PermissionRow label="Expenses" module="expenses" />
                     </div>
                   </div>
                 </div>
