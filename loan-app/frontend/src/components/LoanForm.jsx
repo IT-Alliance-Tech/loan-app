@@ -10,6 +10,7 @@ import {
   getRtoWorks,
   createRtoWork,
 } from "../services/loan.service";
+import { getLoanExpensesTotal } from "../services/expenseService";
 
 const validationSchema = Yup.object().shape({
   customerDetails: Yup.object({
@@ -95,6 +96,7 @@ const LoanForm = ({
 
   const [remainingPrincipalAmount, setRemainingPrincipalAmount] = useState(0);
   const [totalCollectedAmount, setTotalCollectedAmount] = useState(0);
+  const [totalExpenses, setTotalExpenses] = useState(0);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -112,6 +114,22 @@ const LoanForm = ({
     };
     fetchOptions();
   }, []);
+
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      if (initialData?._id && initialData?._id !== "undefined") {
+        try {
+          const res = await getLoanExpensesTotal(initialData._id);
+          if (res.data) {
+            setTotalExpenses(res.data.total);
+          }
+        } catch (err) {
+          console.error("Failed to fetch expenses total", err);
+        }
+      }
+    };
+    fetchExpenses();
+  }, [initialData?._id]);
 
   const formik = useFormik({
     initialValues: {
@@ -1110,6 +1128,14 @@ const LoanForm = ({
                     </span>
                     <p className="text-xl font-black text-emerald-600">
                       ₹{totalCollectedAmount || 0}
+                    </p>
+                  </div>
+                  <div className="text-center px-4 py-2 bg-orange-50 rounded-xl border border-orange-100 flex flex-col justify-center items-center">
+                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">
+                      Total Expenses
+                    </span>
+                    <p className="text-xl font-black text-orange-600">
+                      ₹{totalExpenses.toLocaleString("en-IN") || 0}
                     </p>
                   </div>
                   <div className="text-right flex flex-col items-end gap-2">
