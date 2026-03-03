@@ -11,66 +11,45 @@ const WeeklyLoanForm = ({
 }) => {
   const [formData, setFormData] = useState(initialData);
 
-  // Auto-calculations
-  useEffect(() => {
-    const amount = parseFloat(formData.disbursementAmount) || 0;
-    const totalWeeks = parseInt(formData.totalEmis) || 0;
-    const paidWeeks = parseInt(formData.paidEmis) || 0;
-    const feeRate = parseFloat(formData.processingFeeRate) || 10;
-    const eStartDate = formData.emiStartDate
-      ? new Date(formData.emiStartDate)
-      : formData.startDate
-        ? new Date(formData.startDate)
-        : null;
+  // Auto-calculations (Derived State)
+  const amount = parseFloat(formData.disbursementAmount) || 0;
+  const totalWeeks = parseInt(formData.totalEmis) || 0;
+  const paidWeeks = parseInt(formData.paidEmis) || 0;
+  const feeRate = parseFloat(formData.processingFeeRate) || 10;
+  const eStartDate = formData.emiStartDate
+    ? new Date(formData.emiStartDate)
+    : formData.startDate
+      ? new Date(formData.startDate)
+      : null;
 
-    // Processing Fee
-    const processingFee = (amount * (feeRate / 100)).toFixed(2);
+  // Processing Fee
+  const processingFee = (amount * (feeRate / 100)).toFixed(2);
 
-    // Weekly Principal Calculation (No Interest)
-    const emiAmount =
-      totalWeeks > 0 ? (amount / totalWeeks).toFixed(2) : "0.00";
+  // Weekly Principal Calculation (No Interest)
+  const emiAmount = totalWeeks > 0 ? (amount / totalWeeks).toFixed(2) : "0.00";
 
-    // Dates
-    let emiEndDate = "";
-    if (eStartDate && totalWeeks > 0) {
-      const end = new Date(eStartDate);
-      end.setDate(end.getDate() + (totalWeeks - 1) * 7);
-      emiEndDate = format(end, "yyyy-MM-dd");
-    }
+  // Dates
+  let emiEndDate = "";
+  if (eStartDate && totalWeeks > 0) {
+    const end = new Date(eStartDate);
+    end.setDate(end.getDate() + (totalWeeks - 1) * 7);
+    emiEndDate = isNaN(end.getTime()) ? "" : format(end, "yyyy-MM-dd");
+  }
 
-    const totalAmount = (parseFloat(emiAmount) * paidWeeks).toFixed(2);
-    const totalCollected = (
-      parseFloat(totalAmount) + parseFloat(processingFee)
-    ).toFixed(2);
-    const remainingEmis = totalWeeks - paidWeeks;
-    const remainingPrincipalAmount = (
-      amount -
-      (amount / totalWeeks) * paidWeeks
-    ).toFixed(2);
+  const totalAmount = (parseFloat(emiAmount) * paidWeeks).toFixed(2);
+  const totalCollected = (
+    parseFloat(totalAmount) + parseFloat(processingFee)
+  ).toFixed(2);
+  const remainingEmis = totalWeeks - paidWeeks;
+  const remainingPrincipalAmount = (
+    amount -
+    (amount / totalWeeks) * paidWeeks
+  ).toFixed(2);
 
-    const nextEmiDate = eStartDate
+  const nextEmiDate =
+    eStartDate && !isNaN(eStartDate.getTime())
       ? format(addDays(eStartDate, paidWeeks * 7), "yyyy-MM-dd")
       : "";
-
-    setFormData((prev) => ({
-      ...prev,
-      emiAmount,
-      processingFee,
-      remainingEmis,
-      totalAmount,
-      totalCollected,
-      nextEmiDate,
-      emiEndDate,
-      remainingPrincipalAmount,
-    }));
-  }, [
-    formData.disbursementAmount,
-    formData.totalEmis,
-    formData.paidEmis,
-    formData.startDate,
-    formData.emiStartDate,
-    formData.processingFeeRate,
-  ]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -95,7 +74,17 @@ const WeeklyLoanForm = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      emiAmount,
+      processingFee,
+      remainingEmis,
+      totalAmount,
+      totalCollected,
+      nextEmiDate,
+      emiEndDate,
+      remainingPrincipalAmount,
+    });
   };
 
   const isEditMode = !!formData?._id;
@@ -198,7 +187,7 @@ const WeeklyLoanForm = ({
             </label>
             <input
               type="number"
-              value={formData.processingFee || ""}
+              value={processingFee || ""}
               readOnly
               className="w-full bg-slate-100/50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-500 italic"
             />
@@ -281,7 +270,7 @@ const WeeklyLoanForm = ({
                   Remaining EMIs (Auto)
                 </label>
                 <div className="w-full bg-slate-100/50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-500">
-                  {formData.remainingEmis}
+                  {remainingEmis}
                 </div>
               </div>
               <div className="space-y-2">
@@ -289,7 +278,7 @@ const WeeklyLoanForm = ({
                   Total Paid Amount (Auto)
                 </label>
                 <div className="w-full bg-slate-100/50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-500">
-                  {formData.totalAmount}
+                  {totalAmount}
                 </div>
               </div>
               <div className="space-y-2">
@@ -297,7 +286,7 @@ const WeeklyLoanForm = ({
                   Next EMI Date (Auto)
                 </label>
                 <div className="w-full bg-slate-100/50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-500">
-                  {formData.nextEmiDate}
+                  {nextEmiDate}
                 </div>
               </div>
               <div className="space-y-2">
@@ -319,7 +308,7 @@ const WeeklyLoanForm = ({
                   Weekly EMI
                 </span>
                 <p className="text-2xl font-black text-primary">
-                  ₹{formData.emiAmount || 0}
+                  ₹{emiAmount || 0}
                 </p>
               </div>
 
@@ -328,7 +317,7 @@ const WeeklyLoanForm = ({
                   Total Collected Amount
                 </span>
                 <p className="text-2xl font-black text-emerald-600">
-                  ₹{formData.totalCollected || 0}
+                  ₹{totalCollected || 0}
                 </p>
               </div>
 
@@ -338,7 +327,7 @@ const WeeklyLoanForm = ({
                     Remaining Principal Amount
                   </label>
                   <p className="text-xl font-black text-primary">
-                    ₹{formData.remainingPrincipalAmount || 0}
+                    ₹{remainingPrincipalAmount || 0}
                   </p>
                 </div>
               </div>
