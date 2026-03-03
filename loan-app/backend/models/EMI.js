@@ -4,8 +4,14 @@ const emiSchema = new mongoose.Schema(
   {
     loanId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Loan",
+      refPath: "loanModel",
       required: true,
+    },
+    loanModel: {
+      type: String,
+      required: true,
+      enum: ["Loan", "WeeklyLoan"],
+      default: "Loan",
     },
     loanNumber: {
       type: String,

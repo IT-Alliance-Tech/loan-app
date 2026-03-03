@@ -261,6 +261,27 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     { new: true, runValidators: true },
   ).populate("updatedBy", "name");
 
+  // Sync with WeeklyLoan if applicable
+  if (emi.loanModel === "WeeklyLoan") {
+    try {
+      const WeeklyLoan = require("../models/WeeklyLoan");
+      const allEmis = await EMI.find({
+        loanId: emi.loanId,
+        loanModel: "WeeklyLoan",
+      });
+      const paidEmisCount = allEmis.filter((e) => e.status === "Paid").length;
+
+      // We use findOne and save to trigger pre-save hooks for calculations
+      const weeklyLoan = await WeeklyLoan.findById(emi.loanId);
+      if (weeklyLoan) {
+        weeklyLoan.paidEmis = paidEmisCount;
+        await weeklyLoan.save();
+      }
+    } catch (err) {
+      console.error("Error syncing WeeklyLoan EMIs:", err);
+    }
+  }
+
   sendResponse(res, 200, "success", "EMI updated successfully", null, emi);
 });
 
