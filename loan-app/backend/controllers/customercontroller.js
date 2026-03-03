@@ -208,10 +208,10 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       if (group.date && group.payments) {
         group.payments.forEach((p) => {
           const amount = parseFloat(p.amount);
-          if (amount > 0 && p.mode) {
+          if (amount > 0) {
             emi.paymentHistory.push({
               amount: amount,
-              mode: p.mode,
+              mode: p.mode || "CASH",
               date: new Date(group.date),
             });
           }
@@ -225,13 +225,10 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     (acc, curr) => acc + curr.amount,
     0,
   );
-  const modesFromHistory = [
-    ...new Set(emi.paymentHistory.map((p) => p.mode).filter(Boolean)),
-  ].join(", ");
-
   // Final values
-  newAmountPaid = totalPaidFromHistory;
+  const newAmountPaid = totalPaidFromHistory;
   const totalEmiAmount = parseFloat(emi.emiAmount);
+  let newStatus;
 
   if (newAmountPaid >= totalEmiAmount) {
     newStatus = "Paid";
@@ -241,25 +238,22 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     newStatus = "Pending";
   }
 
-  emi = await EMI.findByIdAndUpdate(
-    id,
-    {
-      amountPaid: newAmountPaid,
-      paymentMode: modesFromHistory || emi.paymentMode,
-      paymentDate:
-        paymentDate ||
-        emi.paymentDate ||
-        (emi.paymentHistory.length > 0
-          ? emi.paymentHistory[emi.paymentHistory.length - 1].date
-          : null),
-      overdue: overdue !== undefined ? overdue : emi.overdue,
-      status: newStatus,
-      remarks: remarks || emi.remarks,
-      paymentHistory: emi.paymentHistory,
-      updatedBy: req.user._id,
-    },
-    { new: true, runValidators: true },
-  ).populate("updatedBy", "name");
+  // Update properties on the document directly
+  emi.amountPaid = newAmountPaid;
+  emi.paymentMode = modesFromHistory || emi.paymentMode;
+  emi.paymentDate =
+    paymentDate ||
+    (emi.paymentHistory.length > 0
+      ? emi.paymentHistory[emi.paymentHistory.length - 1].date
+      : emi.paymentDate);
+  emi.overdue = overdue !== undefined ? overdue : emi.overdue;
+  emi.status = newStatus;
+  emi.remarks = remarks || emi.remarks;
+  emi.updatedBy = req.user._id;
+
+  // Use save() instead of findByIdAndUpdate for reliability with Mongoose arrays
+  await emi.save();
+  await emi.populate("updatedBy", "name");
 
   // Sync with WeeklyLoan if applicable
   if (emi.loanModel === "WeeklyLoan") {

@@ -171,31 +171,27 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
 
   const remainingBalance = Math.max(
     0,
-    (selectedEmi?.emiAmount || 0) -
-      (selectedEmi?.amountPaid || 0) -
-      calculateTotalPaidNow(),
+    (selectedEmi?.emiAmount || 0) - calculateTotalPaidNow(),
   );
 
   const handleSaveEMI = async (e) => {
     e.preventDefault();
     setUpdating(true);
 
-    const totalAddedAmount = calculateTotalPaidNow();
-    const allModes = [
-      ...new Set(
-        dateGroups
-          .flatMap((g) => g.payments.map((p) => p.mode))
-          .filter(Boolean),
-      ),
-    ].join(", ");
-    const latestDate = dateGroups[dateGroups.length - 1]?.date;
-
     try {
+      // Filter out payments with no amount before sending
+      const sanitizedDateGroups = dateGroups
+        .map((group) => ({
+          ...group,
+          payments: group.payments.filter(
+            (p) => p.amount && parseFloat(p.amount) > 0,
+          ),
+        }))
+        .filter((group) => group.payments.length > 0);
+
       const payload = {
         ...editData,
-        addedAmount: totalAddedAmount,
-        paymentMode: allModes,
-        paymentDate: latestDate,
+        dateGroups: sanitizedDateGroups,
       };
 
       await updateEMI(selectedEmi._id, payload);
@@ -422,21 +418,70 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
                                   status: emi.status || "Pending",
                                   remarks: emi.remarks || "",
                                 });
-                                setDateGroups([
-                                  {
-                                    id: Date.now(),
-                                    date: new Date()
+
+                                if (
+                                  emi.paymentHistory &&
+                                  emi.paymentHistory.length > 0
+                                ) {
+                                  const groups = {};
+                                  emi.paymentHistory.forEach((p) => {
+                                    const dateKey = new Date(p.date)
                                       .toISOString()
-                                      .split("T")[0],
-                                    payments: [
-                                      {
-                                        id: Date.now() + 1,
-                                        mode: "",
-                                        amount: "",
-                                      },
-                                    ],
-                                  },
-                                ]);
+                                      .split("T")[0];
+                                    if (!groups[dateKey]) {
+                                      groups[dateKey] = {
+                                        id: Math.random(),
+                                        date: dateKey,
+                                        payments: [],
+                                      };
+                                    }
+                                    groups[dateKey].payments.push({
+                                      id: Math.random(),
+                                      mode: p.mode,
+                                      amount: p.amount,
+                                    });
+                                  });
+                                  setDateGroups(Object.values(groups));
+                                } else if (emi.amountPaid > 0) {
+                                  setDateGroups([
+                                    {
+                                      id: Date.now(),
+                                      date: emi.paymentDate
+                                        ? new Date(emi.paymentDate)
+                                            .toISOString()
+                                            .split("T")[0]
+                                        : new Date()
+                                            .toISOString()
+                                            .split("T")[0],
+                                      payments: [
+                                        {
+                                          id: Date.now() + 1,
+                                          mode:
+                                            (emi.paymentMode || "").split(
+                                              ", ",
+                                            )[0] || "CASH",
+                                          amount: emi.amountPaid,
+                                        },
+                                      ],
+                                    },
+                                  ]);
+                                } else {
+                                  setDateGroups([
+                                    {
+                                      id: Date.now(),
+                                      date: new Date()
+                                        .toISOString()
+                                        .split("T")[0],
+                                      payments: [
+                                        {
+                                          id: Date.now() + 1,
+                                          mode: "CASH",
+                                          amount: "",
+                                        },
+                                      ],
+                                    },
+                                  ]);
+                                }
                                 setShowModal(true);
                               }}
                               className="w-full bg-primary hover:bg-blue-700 text-white rounded-xl py-2.5 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2 mt-2"

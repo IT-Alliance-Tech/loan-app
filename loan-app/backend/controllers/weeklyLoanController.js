@@ -136,9 +136,11 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
 exports.getWeeklyLoanEMIs = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  let emis = await EMI.find({ loanId: id, loanModel: "WeeklyLoan" }).sort({
-    emiNumber: 1,
-  });
+  let emis = await EMI.find({ loanId: id, loanModel: "WeeklyLoan" })
+    .sort({
+      emiNumber: 1,
+    })
+    .populate("updatedBy", "name");
 
   // Lazy generation for existing records that don't have EMIs
   if (emis.length === 0) {
@@ -686,6 +688,20 @@ exports.getWeeklyPendingEmiDetails = asyncHandler(async (req, res, next) => {
     },
     { $unwind: "$loan" },
     {
+      $lookup: {
+        from: "users",
+        localField: "updatedBy",
+        foreignField: "_id",
+        as: "updatedUserInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$updatedUserInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
       $project: {
         _id: 1,
         loanId: "$loan._id",
@@ -697,9 +713,14 @@ exports.getWeeklyPendingEmiDetails = asyncHandler(async (req, res, next) => {
         amountPaid: "$amountPaid",
         status: "$status",
         dueDate: "$dueDate",
+        paymentHistory: 1,
+        paymentDate: 1,
+        paymentMode: 1,
         remarks: "$remarks",
         clientResponse: "$loan.clientResponse",
         emiNumber: 1,
+        updatedAt: 1,
+        updatedBy: { $ifNull: ["$updatedUserInfo.name", "$updatedBy"] },
       },
     },
   ]);
