@@ -11,6 +11,15 @@ const navItems = [
   { name: "Customers", href: "/admin/customers", icon: "👤" },
   { name: "Loans", href: "/admin/loans", icon: "💰" },
   {
+    name: "Weekly Loans",
+    href: "/admin/weekly-loans",
+    icon: "📅",
+    subItems: [
+      { name: "Pending", href: "/admin/weekly-loans/pending" },
+      { name: "Followups", href: "/admin/weekly-loans/followups" },
+    ],
+  },
+  {
     name: "Employees",
     href: "/admin/employees",
     icon: "👥",
@@ -90,32 +99,43 @@ const Sidebar = () => {
                 );
                 return (
                   <div key={item.name} className="space-y-1">
-                    <button
-                      onClick={() => toggleMenu(item.name)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                        isAnySubActive
-                          ? "text-primary bg-primary/5"
-                          : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-center group">
+                      <Link
+                        href={item.href || "#"}
+                        className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-l-xl text-xs font-black uppercase tracking-widest transition-all ${
+                          isAnySubActive ||
+                          (item.href && pathname === item.href)
+                            ? "text-primary bg-primary/5"
+                            : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                        }`}
+                      >
                         <span className="text-base">{item.icon}</span>
                         {item.name}
-                      </div>
-                      <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                      </Link>
+                      <button
+                        onClick={() => toggleMenu(item.name)}
+                        className={`px-3 py-3 rounded-r-xl transition-all ${
+                          isAnySubActive ||
+                          (item.href && pathname === item.href)
+                            ? "text-primary bg-primary/5"
+                            : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                        }`}
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="3"
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
+                        <svg
+                          className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="3"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
 
                     {isExpanded && (
                       <div className="ml-4 pl-4 border-l-2 border-slate-100 space-y-1 animate-in slide-in-from-top-2 duration-200">

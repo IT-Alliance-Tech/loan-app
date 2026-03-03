@@ -69,7 +69,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
         {
           id: Date.now(),
           date: new Date().toISOString().split("T")[0],
-          payments: [{ id: Date.now() + 1, mode: "", amount: "" }],
+          payments: [{ id: Date.now() + 1, mode: "CASH", amount: "" }],
         },
       ]);
     }
@@ -169,9 +169,19 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
     const latestDate = dateGroups[dateGroups.length - 1]?.date;
 
     try {
+      // Filter out payments with no amount before sending
+      const sanitizedDateGroups = dateGroups
+        .map((group) => ({
+          ...group,
+          payments: group.payments.filter(
+            (p) => p.amount && parseFloat(p.amount) > 0,
+          ),
+        }))
+        .filter((group) => group.payments.length > 0);
+
       await updateEMI(editingEmi._id, {
         ...editData,
-        dateGroups: dateGroups, // Send the full date groups to backend
+        dateGroups: sanitizedDateGroups, // Send the full date groups to backend
       });
       setShowModal(false);
       setEditingEmi(null);
@@ -465,7 +475,6 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                                   }
                                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300"
                                   placeholder="0.00"
-                                  required
                                 />
                               </div>
                               {group.payments.length > 1 && (
