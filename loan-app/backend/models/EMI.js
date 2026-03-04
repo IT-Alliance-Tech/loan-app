@@ -10,7 +10,7 @@ const emiSchema = new mongoose.Schema(
     loanModel: {
       type: String,
       required: true,
-      enum: ["Loan", "WeeklyLoan"],
+      enum: ["Loan", "WeeklyLoan", "DailyLoan"],
       default: "Loan",
     },
     loanNumber: {

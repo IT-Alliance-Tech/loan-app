@@ -228,6 +228,9 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   // Final values
   const newAmountPaid = totalPaidFromHistory;
   const totalEmiAmount = parseFloat(emi.emiAmount);
+  const modesFromHistory = [...new Set(emi.paymentHistory.map((p) => p.mode))]
+    .filter(Boolean)
+    .join(", ");
   let newStatus;
 
   if (newAmountPaid >= totalEmiAmount) {
@@ -265,7 +268,6 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       });
       const paidEmisCount = allEmis.filter((e) => e.status === "Paid").length;
 
-      // We use findOne and save to trigger pre-save hooks for calculations
       const weeklyLoan = await WeeklyLoan.findById(emi.loanId);
       if (weeklyLoan) {
         weeklyLoan.paidEmis = paidEmisCount;
@@ -273,6 +275,26 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       }
     } catch (err) {
       console.error("Error syncing WeeklyLoan EMIs:", err);
+    }
+  }
+
+  // Sync with DailyLoan if applicable
+  if (emi.loanModel === "DailyLoan") {
+    try {
+      const DailyLoan = require("../models/DailyLoan");
+      const allEmis = await EMI.find({
+        loanId: emi.loanId,
+        loanModel: "DailyLoan",
+      });
+      const paidEmisCount = allEmis.filter((e) => e.status === "Paid").length;
+
+      const dailyLoan = await DailyLoan.findById(emi.loanId);
+      if (dailyLoan) {
+        dailyLoan.paidEmis = paidEmisCount;
+        await dailyLoan.save();
+      }
+    } catch (err) {
+      console.error("Error syncing DailyLoan EMIs:", err);
     }
   }
 

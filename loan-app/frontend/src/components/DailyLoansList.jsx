@@ -1,17 +1,17 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import {
-  getWeeklyLoans,
-  deleteWeeklyLoan,
-} from "../services/weeklyLoan.service";
+import { useRouter } from "next/navigation";
+import { getDailyLoans, deleteDailyLoan } from "../services/dailyLoan.service";
 import { useToast } from "../context/ToastContext";
 import { format } from "date-fns";
 import TableActionMenu from "./TableActionMenu";
 import Pagination from "./Pagination";
 import { exportLoansToExcel } from "../utils/excelExport";
 
-const WeeklyLoansList = ({ type, title }) => {
+const DailyLoansList = ({ type, title }) => {
+  const router = useRouter();
+  const { showToast } = useToast();
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -19,7 +19,6 @@ const WeeklyLoansList = ({ type, title }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [limit] = useState(10);
-  const { showToast } = useToast();
 
   const fetchLoans = async () => {
     setLoading(true);
@@ -39,16 +38,16 @@ const WeeklyLoansList = ({ type, title }) => {
         params.searchQuery = searchQuery;
       }
 
-      const response = await getWeeklyLoans(params);
-      const { weeklyLoans, total, pagination } = response.data;
+      const response = await getDailyLoans(params);
+      const { dailyLoans, total, pagination } = response.data;
 
-      setLoans(weeklyLoans);
+      setLoans(dailyLoans);
       setTotalRecords(total);
       if (pagination) {
         setTotalPages(pagination.totalPages);
       }
     } catch (err) {
-      showToast(err.message || "Failed to fetch weekly loans", "error");
+      showToast(err.message || "Failed to fetch daily loans", "error");
     } finally {
       setLoading(false);
     }
@@ -66,10 +65,10 @@ const WeeklyLoansList = ({ type, title }) => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this weekly loan?")) {
+    if (window.confirm("Are you sure you want to delete this daily loan?")) {
       try {
-        await deleteWeeklyLoan(id);
-        showToast("Weekly loan deleted", "success");
+        await deleteDailyLoan(id);
+        showToast("Daily loan deleted", "success");
         fetchLoans();
       } catch (err) {
         showToast(err.message || "Failed to delete", "error");
@@ -80,7 +79,7 @@ const WeeklyLoansList = ({ type, title }) => {
   const handleExport = async () => {
     try {
       showToast("Preparing export data...", "info");
-      // Fetch all loans for export
+      // Fetch all loans for export (ignoring pagination limits by setting a high limit)
       const params = {
         limit: 1000,
       };
@@ -95,32 +94,29 @@ const WeeklyLoansList = ({ type, title }) => {
         params.searchQuery = searchQuery;
       }
 
-      const response = await getWeeklyLoans(params);
-      const allLoans = response.data.weeklyLoans;
+      const response = await getDailyLoans(params);
+      const allLoans = response.data.dailyLoans;
 
       if (!allLoans || allLoans.length === 0) {
         showToast("No data to export", "error");
         return;
       }
 
-      await exportLoansToExcel(allLoans, "WEEKLY");
-      showToast("Weekly loans exported successfully", "success");
+      await exportLoansToExcel(allLoans, "DAILY");
+      showToast("Daily loans exported successfully", "success");
     } catch (err) {
       console.error("Export error:", err);
-      showToast("Failed to export weekly loans", "error");
+      showToast("Failed to export daily loans", "error");
     }
   };
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header matching standard Loans page */}
+      {/* Header matching Weekly style */}
       <div className="flex justify-between items-start mb-6 sm:mb-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase">
-            {title ||
-              (type === "pending"
-                ? "Pending Weekly Loans"
-                : "Weekly Loan Followups")}
+            {title || "Daily Loan Management"}
           </h1>
           <p className="text-slate-400 font-bold text-[9px] sm:text-sm uppercase tracking-[0.15em] mt-1.5">
             {totalRecords} RECORDS FOUND
@@ -147,7 +143,7 @@ const WeeklyLoansList = ({ type, title }) => {
             Export
           </button>
           <Link
-            href="/admin/weekly-loans/add"
+            href="/admin/daily-loans/add"
             className="bg-[#2463EB] text-white px-4 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wide shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
           >
             <span className="text-lg leading-none">+</span> Add New
@@ -155,14 +151,14 @@ const WeeklyLoansList = ({ type, title }) => {
         </div>
       </div>
 
-      {/* Search Bar matching standard Loans page exactly */}
+      {/* Search Bar matching Weekly style */}
       <div className="flex items-center gap-3 mb-8">
         <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center h-[46px]">
           <div className="flex-1 flex items-center px-4">
             <div className="text-slate-300 text-lg">🔍</div>
             <input
               type="text"
-              placeholder="SEARCH BY LOAN NUMBER (E.G. LN-001)"
+              placeholder="SEARCH BY LOAN NUMBER, CUSTOMER OR MOBILE..."
               className="w-full px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none placeholder:text-slate-300 placeholder:font-black uppercase bg-transparent"
               value={searchQuery}
               onChange={(e) => {
@@ -218,12 +214,7 @@ const WeeklyLoansList = ({ type, title }) => {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Tenure
                 </th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                  Total Collected
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                  Next EMI Date
-                </th>
+
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Status
                 </th>
@@ -236,7 +227,7 @@ const WeeklyLoansList = ({ type, title }) => {
               {loading ? (
                 <tr>
                   <td
-                    colSpan="9"
+                    colSpan="7"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
                     Loading records...
@@ -245,7 +236,7 @@ const WeeklyLoansList = ({ type, title }) => {
               ) : loans.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="9"
+                    colSpan="7"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
                     No records found
@@ -259,7 +250,7 @@ const WeeklyLoansList = ({ type, title }) => {
                   >
                     <td className="px-6 py-5 whitespace-nowrap">
                       <Link
-                        href={`/admin/weekly-loans/${loan._id}`}
+                        href={`/admin/daily-loans/${loan._id}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
                       >
                         {loan.loanNumber}
@@ -275,24 +266,22 @@ const WeeklyLoansList = ({ type, title }) => {
                         {loan.mobileNumber}
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-center whitespace-nowrap font-black text-primary text-xs">
-                      ₹{loan.emiAmount?.toLocaleString()}
+                    <td className="px-6 py-5 text-center whitespace-nowrap">
+                      <div className="flex flex-col items-center">
+                        <span className="font-black text-primary text-xs">
+                          ₹{loan.emiAmount?.toFixed(2)}
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">
+                          Per Day
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-black">
-                        {loan.totalEmis}W
+                        {loan.totalEmis}D
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-center whitespace-nowrap font-black text-green-600 text-xs">
-                      ₹{loan.totalCollected?.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-5 text-center whitespace-nowrap">
-                      <span className="text-[10px] font-black text-slate-900 tracking-tight uppercase">
-                        {loan.nextEmiDate
-                          ? format(new Date(loan.nextEmiDate), "dd MMM yyyy")
-                          : "N/A"}
-                      </span>
-                    </td>
+
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${
@@ -310,7 +299,7 @@ const WeeklyLoansList = ({ type, title }) => {
                       <div className="flex justify-center items-center gap-3">
                         <button
                           onClick={() =>
-                            (window.location.href = `/admin/weekly-loans/${loan._id}`)
+                            router.push(`/admin/daily-loans/${loan._id}`)
                           }
                           className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-primary border border-slate-100 transition-all"
                         >
@@ -336,7 +325,7 @@ const WeeklyLoansList = ({ type, title }) => {
                         </button>
                         <button
                           onClick={() =>
-                            (window.location.href = `/admin/weekly-loans/edit/${loan._id}`)
+                            router.push(`/admin/daily-loans/edit/${loan._id}`)
                           }
                           className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-primary border border-slate-100 transition-all"
                         >
@@ -364,7 +353,6 @@ const WeeklyLoansList = ({ type, title }) => {
         </div>
       </div>
 
-      {/* Pagination matching Monthly style */}
       {!loading && loans.length > 0 && (
         <Pagination
           currentPage={currentPage}
@@ -378,4 +366,4 @@ const WeeklyLoansList = ({ type, title }) => {
   );
 };
 
-export default WeeklyLoansList;
+export default DailyLoansList;
