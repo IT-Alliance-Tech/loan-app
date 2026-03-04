@@ -20,6 +20,15 @@ const navItems = [
     ],
   },
   {
+    name: "Daily Loans",
+    href: "/admin/daily-loans",
+    icon: "☀️",
+    subItems: [
+      { name: "Pending", href: "/admin/daily-loans/pending" },
+      { name: "Followups", href: "/admin/daily-loans/followups" },
+    ],
+  },
+  {
     name: "Employees",
     href: "/admin/employees",
     icon: "👥",
