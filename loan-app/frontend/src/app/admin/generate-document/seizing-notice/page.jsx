@@ -8,6 +8,7 @@ import { getEMIsByLoanId } from "../../../../services/customer";
 import { useToast } from "../../../../context/ToastContext";
 import SeizingNoticeGenerator from "../../../../components/SeizingNoticeGenerator";
 import { format } from "date-fns";
+import { getUserFromToken } from "../../../../utils/auth";
 
 const SeizingNoticePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -15,7 +16,9 @@ const SeizingNoticePage = () => {
   const [pendingEmis, setPendingEmis] = useState([]);
   const [bearerName, setBearerName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSeal, setShowSeal] = useState(false);
   const { showToast } = useToast();
+  const user = getUserFromToken();
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -302,12 +305,41 @@ const SeizingNoticePage = () => {
                     </div>
                   </div>
 
+                  {/* Seal Toggle - Super Admin Only */}
+                  {user?.role === "SUPER_ADMIN" && (
+                    <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-xl">
+                          ✍️
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                            Add Seal & Signature
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                            Officially stamp this document
+                          </p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={showSeal}
+                          onChange={(e) => setShowSeal(e.target.checked)}
+                        />
+                        <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="flex justify-center">
                     <SeizingNoticeGenerator
                       loan={loan}
                       bearerName={bearerName}
                       pendingEmis={pendingEmis}
+                      showSeal={showSeal}
                     />
                   </div>
                 </div>

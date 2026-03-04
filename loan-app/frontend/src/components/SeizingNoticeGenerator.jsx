@@ -4,7 +4,12 @@ import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 import "@fontsource/noto-sans-kannada/700.css";
 
-const SeizingNoticeGenerator = ({ loan, bearerName, pendingEmis }) => {
+const SeizingNoticeGenerator = ({
+  loan,
+  bearerName,
+  pendingEmis,
+  showSeal,
+}) => {
   const [generating, setGenerating] = useState(false);
 
   const generatePDF = async () => {
@@ -92,11 +97,7 @@ const SeizingNoticeGenerator = ({ loan, bearerName, pendingEmis }) => {
       ctx.font = `bold ${42 * scale}px 'Noto Sans Kannada', 'Tunga', 'Kannada MN', sans-serif`;
       ctx.fillStyle = "#1e1e1e";
       ctx.textBaseline = "top";
-      ctx.fillText(
-        "\u0CB8\u0CCD\u0C95\u0CCD\u0CB5\u0CC7\u0CB0\u0CCD \u0CAB\u0CC8\u0CA8\u0CBE\u0CA8\u0CCD\u0CB8\u0CCD",
-        cx,
-        boxY + boxH + 75 * scale,
-      );
+      ctx.fillText("ಸ್ಕ್ವೇರ್ ಫೈನಾನ್ಸ್", cx, boxY + boxH + 75 * scale);
 
       // Remove the separate Square Finance drawing below as it's now inside the box
 
@@ -216,9 +217,31 @@ const SeizingNoticeGenerator = ({ loan, bearerName, pendingEmis }) => {
 
       // ---- SIGNATURE ----
       y += 30;
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(12);
-      pdf.text("For Square Finance", margin, y);
+
+      // Conditionally add seal and signature
+      if (showSeal) {
+        try {
+          // Position seal where the signature would be
+          pdf.addImage(
+            "/assets/images/seal-sign.png",
+            "PNG",
+            margin,
+            y - 15,
+            50,
+            25,
+          );
+          y += 10; // Add some space after seal
+        } catch (e) {
+          console.error("Failed to add seal image", e);
+          pdf.setFont("helvetica", "bold");
+          pdf.setFontSize(12);
+          pdf.text("For Square Finance", margin, y);
+        }
+      } else {
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(12);
+        pdf.text("For Square Finance", margin, y);
+      }
 
       // ---- FOOTER ----
       const footerY = 280;

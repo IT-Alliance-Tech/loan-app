@@ -22,39 +22,42 @@ const EditDailyLoanPage = () => {
   const [loanData, setLoanData] = useState(null);
   const [emis, setEmis] = useState([]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [loanRes, emiRes] = await Promise.all([
-          getDailyLoanById(id),
-          getDailyLoanEMIs(id),
-        ]);
+  const fetchData = React.useCallback(async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      const [loanRes, emiRes] = await Promise.all([
+        getDailyLoanById(id),
+        getDailyLoanEMIs(id),
+      ]);
 
-        if (loanRes.data) {
-          const loan = loanRes.data;
-          setLoanData({
-            ...loan,
-            startDate: loan.startDate ? loan.startDate.split("T")[0] : "",
-            emiStartDate: loan.emiStartDate
-              ? loan.emiStartDate.split("T")[0]
-              : "",
-            nextFollowUpDate: loan.nextFollowUpDate
-              ? loan.nextFollowUpDate.split("T")[0]
-              : "",
-          });
-        }
-        if (emiRes.data) {
-          setEmis(emiRes.data);
-        }
-      } catch (err) {
-        showToast(err.message || "Failed to fetch loan details", "error");
-        router.push("/admin/daily-loans");
-      } finally {
-        setLoading(false);
+      if (loanRes.data) {
+        const loan = loanRes.data;
+        setLoanData({
+          ...loan,
+          startDate: loan.startDate ? loan.startDate.split("T")[0] : "",
+          emiStartDate: loan.emiStartDate
+            ? loan.emiStartDate.split("T")[0]
+            : "",
+          nextFollowUpDate: loan.nextFollowUpDate
+            ? loan.nextFollowUpDate.split("T")[0]
+            : "",
+        });
       }
-    };
-    if (id) fetchData();
+      if (emiRes.data) {
+        setEmis(emiRes.data);
+      }
+    } catch (err) {
+      showToast(err.message || "Failed to fetch loan details", "error");
+      router.push("/admin/daily-loans");
+    } finally {
+      setLoading(false);
+    }
   }, [id, router, showToast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSubmit = async (formData) => {
     setSubmitting(true);
