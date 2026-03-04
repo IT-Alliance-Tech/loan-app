@@ -98,7 +98,7 @@ const ViewDailyLoanPage = ({ params: paramsPromise }) => {
                     </h2>
                     <EMITable
                       emis={emis}
-                      isEditMode={true}
+                      isEditMode={false}
                       onUpdateSuccess={fetchData}
                     />
                   </div>

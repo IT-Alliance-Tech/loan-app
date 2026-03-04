@@ -1584,17 +1584,49 @@ const updateSeizedStatus = asyncHandler(async (req, res, next) => {
 });
 
 const getAnalyticsStats = asyncHandler(async (req, res, next) => {
-  // 1. Total Loan Amount Disbursed (Principal sum of all loans)
-  const totalDisbursedStats = await Loan.aggregate([
-    { $group: { _id: null, total: { $sum: "$principalAmount" } } },
+  // 1. Total Loan Amount Disbursed (Principal sum of all loans + Daily/Weekly)
+  const [loanStats, dailyLoanStats, weeklyLoanStats] = await Promise.all([
+    Loan.aggregate([
+      { $group: { _id: null, total: { $sum: "$principalAmount" } } },
+    ]),
+    mongoose
+      .model("DailyLoan")
+      .aggregate([
+        { $group: { _id: null, total: { $sum: "$disbursementAmount" } } },
+      ]),
+    mongoose
+      .model("WeeklyLoan")
+      .aggregate([
+        { $group: { _id: null, total: { $sum: "$disbursementAmount" } } },
+      ]),
   ]);
-  const totalLoanAmount = totalDisbursedStats[0]?.total || 0;
 
-  // 2. Total Collected (EMIs + Foreclosure + Sold)
-  const emiCollectedStats = await EMI.aggregate([
-    { $group: { _id: null, total: { $sum: "$amountPaid" } } },
-  ]);
+  const totalLoanAmount =
+    (loanStats[0]?.total || 0) +
+    (dailyLoanStats[0]?.total || 0) +
+    (weeklyLoanStats[0]?.total || 0);
+
+  // 2. Total Collected (EMIs + Foreclosure + Sold + Daily/Weekly Payments)
+  const [emiCollectedStats, dailyCollectedStats, weeklyCollectedStats] =
+    await Promise.all([
+      EMI.aggregate([
+        { $group: { _id: null, total: { $sum: "$amountPaid" } } },
+      ]),
+      mongoose
+        .model("DailyLoan")
+        .aggregate([
+          { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+        ]),
+      mongoose
+        .model("WeeklyLoan")
+        .aggregate([
+          { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+        ]),
+    ]);
+
   const emiCollected = emiCollectedStats[0]?.total || 0;
+  const dailyCollected = dailyCollectedStats[0]?.total || 0;
+  const weeklyCollected = weeklyCollectedStats[0]?.total || 0;
 
   const foreclosureCollectedStats = await Loan.aggregate([
     {
@@ -1621,20 +1653,57 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
   const soldCollected = soldCollectedStats[0]?.total || 0;
 
   const totalCollectedAmount =
-    emiCollected + foreclosureCollected + soldCollected;
+    emiCollected +
+    dailyCollected +
+    weeklyCollected +
+    foreclosureCollected +
+    soldCollected;
 
-  // 3. Number of Pending and Partial Loans
-  const pendingPartialLoansCount = await Loan.countDocuments({
-    paymentStatus: { $in: ["Pending", "Partially Paid"] },
-  });
+  // 3. Status Breakdown for Loans (Main, Daily, Weekly)
+  const [
+    mainPending,
+    mainPartial,
+    dailyPending,
+    dailyPartial,
+    weeklyPending,
+    weeklyPartial,
+    activeLoansCount,
+  ] = await Promise.all([
+    Loan.countDocuments({ paymentStatus: "Pending" }),
+    Loan.countDocuments({ paymentStatus: "Partially Paid" }),
+    mongoose
+      .model("DailyLoan")
+      .countDocuments({ paidEmis: 0, status: "Active" }),
+    mongoose.model("DailyLoan").countDocuments({
+      paidEmis: { $gt: 0 },
+      remainingEmis: { $gt: 0 },
+      status: "Active",
+    }),
+    mongoose
+      .model("WeeklyLoan")
+      .countDocuments({ paidEmis: 0, status: "Active" }),
+    mongoose.model("WeeklyLoan").countDocuments({
+      paidEmis: { $gt: 0 },
+      remainingEmis: { $gt: 0 },
+      status: "Active",
+    }),
+    Promise.all([
+      Loan.countDocuments({ status: { $ne: "Closed" } }),
+      mongoose.model("DailyLoan").countDocuments({ status: "Active" }),
+      mongoose.model("WeeklyLoan").countDocuments({ status: "Active" }),
+    ]).then((counts) => counts.reduce((a, b) => a + b, 0)),
+  ]);
 
-  // 4. Number of Active Loans
-  const activeLoansCount = await Loan.countDocuments({
-    status: { $ne: "Closed" },
-  });
+  const pendingLoansCount = mainPending + dailyPending + weeklyPending;
+  const partialLoansCount = mainPartial + dailyPartial + weeklyPartial;
+
+  // 4. Expenses Total
+  const expenseStats = await mongoose
+    .model("Expense")
+    .aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]);
+  const totalExpenses = expenseStats[0]?.total || 0;
 
   // Bar Graph: Vehicle Statistics — bucket isSeized=true vehicles
-  // Loans with null/missing seizedStatus but isSeized=true count as "For Seizing"
   const vehicleStats = await Loan.aggregate([
     {
       $match: { isSeized: true },
@@ -1671,8 +1740,10 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     cards: {
       totalLoanAmount,
       totalCollectedAmount,
-      pendingPartialLoansCount,
+      pendingLoansCount,
+      partialLoansCount,
       activeLoansCount,
+      totalExpenses,
     },
     vehicleStats: Object.keys(vehicleData).map((key) => ({
       name: key,

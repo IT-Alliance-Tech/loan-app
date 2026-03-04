@@ -8,10 +8,12 @@ import VehicleStatsChart from "../../../components/analytics/VehicleStatsChart";
 import { getAnalyticsStats } from "../../../services/loan.service";
 import {
   TrendingUp,
-  DollarSign,
+  IndianRupee,
   Clock,
   CheckCircle,
   BarChart2,
+  Wallet,
+  AlertCircle,
 } from "lucide-react";
 
 const AnalyticsPage = () => {
@@ -84,11 +86,11 @@ const AnalyticsPage = () => {
               )}
 
               {/* Stats Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                 <StatsCard
                   title="Total Disbursed"
                   value={`₹${stats?.cards?.totalLoanAmount?.toLocaleString("en-IN") || "0"}`}
-                  icon={<DollarSign className="w-6 h-6" />}
+                  icon={<IndianRupee className="w-6 h-6" />}
                   color="primary"
                 />
                 <StatsCard
@@ -98,8 +100,20 @@ const AnalyticsPage = () => {
                   color="success"
                 />
                 <StatsCard
-                  title="Pending/Partial"
-                  value={stats?.cards?.pendingPartialLoansCount || "0"}
+                  title="Total Expenses"
+                  value={`₹${stats?.cards?.totalExpenses?.toLocaleString("en-IN") || "0"}`}
+                  icon={<Wallet className="w-6 h-6" />}
+                  color="danger"
+                />
+                <StatsCard
+                  title="Pending Payments"
+                  value={stats?.cards?.pendingLoansCount || "0"}
+                  icon={<AlertCircle className="w-6 h-6" />}
+                  color="danger"
+                />
+                <StatsCard
+                  title="Partial Payments"
+                  value={stats?.cards?.partialLoansCount || "0"}
                   icon={<Clock className="w-6 h-6" />}
                   color="warning"
                 />
