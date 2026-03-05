@@ -114,7 +114,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     hpEntry: vehicleInformation?.hpEntry || "Not done",
 
     // status
-    status: statusObj?.status,
+    status: statusObj?.status || "Active",
     paymentStatus: statusObj?.paymentStatus || "Pending",
     docChecklist: statusObj?.docChecklist,
     remarks: statusObj?.remarks,
