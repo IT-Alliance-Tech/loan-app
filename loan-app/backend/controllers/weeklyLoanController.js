@@ -21,6 +21,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     clientResponse,
     processingFeeRate,
     emiStartDate,
+    status,
   } = req.body;
 
   if (
