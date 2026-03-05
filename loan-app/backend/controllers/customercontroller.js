@@ -218,6 +218,13 @@ const updateEMI = asyncHandler(async (req, res, next) => {
         });
       }
     });
+  } else if (addedAmount && parseFloat(addedAmount) > 0) {
+    // Fallback/Legacy support: Add a single payment if dateGroups is missing but addedAmount is present
+    emi.paymentHistory.push({
+      amount: parseFloat(addedAmount),
+      mode: paymentMode || "CASH",
+      date: paymentDate ? new Date(paymentDate) : new Date(),
+    });
   }
 
   // Recalculate amountPaid and paymentMode from full history
@@ -238,12 +245,13 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   } else if (newAmountPaid > 0) {
     newStatus = "Partially Paid";
   } else {
-    newStatus = "Pending";
+    // Only set to Pending if it's currently NOT Overdue or if we want to reset it
+    newStatus = overdue > 0 ? "Overdue" : "Pending";
   }
 
   // Update properties on the document directly
   emi.amountPaid = newAmountPaid;
-  emi.paymentMode = modesFromHistory || emi.paymentMode;
+  emi.paymentMode = modesFromHistory || emi.paymentMode || "CASH";
   emi.paymentDate =
     paymentDate ||
     (emi.paymentHistory.length > 0
@@ -295,6 +303,36 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       }
     } catch (err) {
       console.error("Error syncing DailyLoan EMIs:", err);
+    }
+  }
+
+  // Sync with main Loan if applicable
+  if (emi.loanModel === "Loan" || !emi.loanModel) {
+    try {
+      const Loan = require("../models/Loan");
+      const allEmis = await EMI.find({
+        loanId: emi.loanId,
+        loanModel: "Loan",
+      });
+
+      const isAllPaid = allEmis.every((e) => e.status === "Paid");
+      const isAnyPaid = allEmis.some(
+        (e) => e.status === "Paid" || e.status === "Partially Paid",
+      );
+
+      const loan = await Loan.findById(emi.loanId);
+      if (loan) {
+        if (isAllPaid) {
+          loan.paymentStatus = "Paid";
+        } else if (isAnyPaid) {
+          loan.paymentStatus = "Partially Paid";
+        } else {
+          loan.paymentStatus = "Pending";
+        }
+        await loan.save();
+      }
+    } catch (err) {
+      console.error("Error syncing main Loan EMIs:", err);
     }
   }
 
