@@ -139,10 +139,8 @@ const PendingPaymentsPage = () => {
     <AuthGuard>
       <div className="min-h-screen bg-[#F8FAFC] flex">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0 pb-20 sm:pb-0">
-          <div className="hidden lg:block">
-            <Navbar />
-          </div>
+        <div className="flex-1 flex flex-col min-w-0">
+          <Navbar />
           <main className="py-8 px-4 sm:px-8">
             <div className="max-w-7xl mx-auto">
               <div className="flex justify-between items-start mb-2 sm:mb-8">
@@ -398,9 +396,9 @@ const PendingPaymentsPage = () => {
                                           `/admin/pending-payments/view/${item.earliestEmiId}`,
                                         );
                                       } else {
-                                        console.error(
-                                          "Payment ID is undefined",
-                                          item,
+                                        showToast(
+                                          "No pending EMI found for this loan",
+                                          "error",
                                         );
                                       }
                                     },

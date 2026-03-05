@@ -295,18 +295,44 @@ const AddEmployeePage = () => {
                     </div>
                   </div>
 
-                  <div className="flex gap-4 mt-8">
+                  <div className="flex gap-4 mt-10">
                     <button
                       onClick={handleBack}
-                      className="flex-1 bg-slate-100 text-slate-500 p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-200 transition-all"
+                      className="flex-1 bg-white border border-slate-200 text-slate-400 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
                     >
-                      Previous/Back
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2.5"
+                          d="M15 19l-7-7 7-7"
+                        />
+                      </svg>
+                      Previous
                     </button>
                     <button
                       onClick={handleNext}
-                      className="flex-[2] bg-primary text-white p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-200 hover:bg-blue-700 transform active:scale-[0.98] transition-all"
+                      className="flex-[2] bg-primary text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-blue-100 ring-4 ring-primary/5 hover:bg-blue-700 transform active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"
                     >
-                      Next: Finalize Review
+                      Finalize Review
+                      <svg
+                        className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2.5"
+                          d="M13 7l5 5m0 0l-5 5m5-5H6"
+                        />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -396,9 +422,28 @@ const AddEmployeePage = () => {
                     <button
                       onClick={handleSubmit}
                       disabled={submitting}
-                      className="flex-[2] bg-emerald-600 text-white p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-200 hover:bg-emerald-700 transform active:scale-[0.98] transition-all disabled:opacity-50"
+                      className="flex-[2] bg-emerald-600 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-emerald-100 ring-4 ring-emerald-500/10 hover:bg-emerald-700 transform active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-3 group"
                     >
-                      {submitting ? "Committing..." : "Finalize Authorization"}
+                      {submitting ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <>
+                          Finalize Authorization
+                          <svg
+                            className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2.5"
+                              d="M13 7l5 5m0 0l-5 5m5-5H6"
+                            />
+                          </svg>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

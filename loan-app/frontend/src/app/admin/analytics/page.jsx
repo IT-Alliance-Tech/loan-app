@@ -64,7 +64,7 @@ const AnalyticsPage = () => {
     <AuthGuard>
       <div className="min-h-screen bg-[#F8FAFC] flex">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0 pb-20 sm:pb-0">
+        <div className="flex-1 flex flex-col min-w-0">
           <Navbar />
           <main className="py-8 px-4 sm:px-8">
             <div className="max-w-6xl mx-auto">

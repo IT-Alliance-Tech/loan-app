@@ -8,10 +8,13 @@ import { format } from "date-fns";
 import TableActionMenu from "./TableActionMenu";
 import Pagination from "./Pagination";
 import { exportLoansToExcel } from "../utils/excelExport";
+import { getUserFromToken } from "../utils/auth";
 
 const DailyLoansList = ({ type, title }) => {
   const router = useRouter();
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -195,8 +198,187 @@ const DailyLoansList = ({ type, title }) => {
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-100/50 overflow-hidden">
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-100 pb-1">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
+        {/* MOBILE VIEW */}
+        <div className="md:hidden">
+          <div className="overflow-x-auto scrollbar-none">
+            <table className="w-full text-left border-collapse min-w-[1000px]">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-200">
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                    LOAN NO
+                  </th>
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                    CUSTOMER NAME
+                  </th>
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                    MOBILE
+                  </th>
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                    GUARANTOR
+                  </th>
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                    GUAR. MOBILE
+                  </th>
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                    EMI
+                  </th>
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                    TENURE
+                  </th>
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                    STATUS
+                  </th>
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap sticky right-0 bg-slate-50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                    ACTIONS
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan="9"
+                      className="px-4 py-12 text-center text-slate-400 font-bold text-[10px] uppercase tracking-widest"
+                    >
+                      Loading...
+                    </td>
+                  </tr>
+                ) : loans.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="9"
+                      className="px-4 py-12 text-center text-slate-400 font-bold text-[10px] uppercase tracking-widest"
+                    >
+                      No records
+                    </td>
+                  </tr>
+                ) : (
+                  loans.map((loan) => (
+                    <tr
+                      key={loan._id}
+                      className="active:bg-slate-50 transition-colors group"
+                    >
+                      <td className="px-4 py-5 whitespace-nowrap">
+                        <Link
+                          href={`/admin/daily-loans/${loan._id}`}
+                          className="text-[10px] font-black text-primary uppercase tracking-tighter bg-blue-50 px-2 py-1 rounded-md"
+                        >
+                          {loan.loanNumber}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-5 whitespace-nowrap">
+                        <span className="font-black text-slate-900 text-xs uppercase tracking-tighter">
+                          {loan.customerName}
+                        </span>
+                      </td>
+                      <td className="px-4 py-5 whitespace-nowrap">
+                        <span className="text-slate-600 font-bold text-[10px]">
+                          {loan.mobileNumber}
+                        </span>
+                      </td>
+                      <td className="px-4 py-5 whitespace-nowrap">
+                        <span className="font-black text-slate-900 text-xs uppercase tracking-tighter">
+                          {loan.guarantorName || "—"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-5 whitespace-nowrap">
+                        <span className="text-slate-600 font-bold text-[10px]">
+                          {loan.guarantorMobile || "—"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-5 text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center">
+                          <span className="font-black text-primary text-[11px]">
+                            ₹{loan.emiAmount}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-5 text-center whitespace-nowrap">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-black">
+                          {loan.totalEmis}D
+                        </span>
+                      </td>
+                      <td className="px-4 py-5 text-center whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase border ${
+                            loan.status === "Active"
+                              ? "bg-green-100 text-green-600 border-green-200"
+                              : loan.status === "Closed"
+                                ? "bg-slate-100 text-slate-500 border-slate-200"
+                                : "bg-orange-100 text-orange-600 border-orange-200"
+                          }`}
+                        >
+                          {loan.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                        <div className="flex justify-center items-center gap-2">
+                          <button
+                            onClick={() =>
+                              router.push(`/admin/daily-loans/${loan._id}`)
+                            }
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 border border-slate-100"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                          </button>
+                          {isSuperAdmin && (
+                            <button
+                              onClick={() =>
+                                router.push(
+                                  `/admin/daily-loans/edit/${loan._id}`,
+                                )
+                              }
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 border border-slate-100"
+                            >
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="py-3 bg-slate-50/50 border-t border-slate-100 text-center text-[9px] font-bold text-slate-400 italic">
+            Swipe horizontally for all details
+          </div>
+        </div>
+
+        {/* DESKTOP VIEW */}
+        <div className="hidden md:block overflow-x-auto scrollbar-thin scrollbar-thumb-slate-100 pb-1">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
@@ -208,13 +390,15 @@ const DailyLoansList = ({ type, title }) => {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                   Mobile
                 </th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                  Guarantor
+                </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   EMI
                 </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Tenure
                 </th>
-
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Status
                 </th>
@@ -227,7 +411,7 @@ const DailyLoansList = ({ type, title }) => {
               {loading ? (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="8"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
                     Loading records...
@@ -236,7 +420,7 @@ const DailyLoansList = ({ type, title }) => {
               ) : loans.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="8"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
                     No records found
@@ -264,6 +448,11 @@ const DailyLoansList = ({ type, title }) => {
                     <td className="px-6 py-5 whitespace-nowrap">
                       <span className="text-slate-600 font-bold text-xs tracking-widest">
                         {loan.mobileNumber}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap">
+                      <span className="font-extrabold text-slate-800 text-xs uppercase tracking-tight">
+                        {loan.guarantorName || "—"}
                       </span>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
@@ -323,26 +512,28 @@ const DailyLoansList = ({ type, title }) => {
                             />
                           </svg>
                         </button>
-                        <button
-                          onClick={() =>
-                            router.push(`/admin/daily-loans/edit/${loan._id}`)
-                          }
-                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-primary border border-slate-100 transition-all"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() =>
+                              router.push(`/admin/daily-loans/edit/${loan._id}`)
+                            }
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-primary border border-slate-100 transition-all"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

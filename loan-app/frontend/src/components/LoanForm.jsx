@@ -1114,7 +1114,76 @@ const LoanForm = ({
                 />
               </div>
               <div className="md:col-span-3">
-                <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex justify-between items-center">
+                {/* MOBILE VIEW SUMMARY */}
+                <div className="md:hidden space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Monthly EMI */}
+                    <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10">
+                      <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">
+                        Monthly EMI
+                      </span>
+                      <p className="text-lg font-black text-primary">
+                        ₹{formik.values.loanTerms.monthlyEMI || 0}
+                      </p>
+                    </div>
+                    {/* Total Collected */}
+                    <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
+                      <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block mb-1">
+                        Collected
+                      </span>
+                      <p className="text-lg font-black text-emerald-600">
+                        ₹{totalCollectedAmount || 0}
+                      </p>
+                    </div>
+                    {/* Total Expenses */}
+                    <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100">
+                      <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest block mb-1">
+                        Expenses
+                      </span>
+                      <p className="text-lg font-black text-orange-600">
+                        ₹{totalExpenses.toLocaleString("en-IN") || 0}
+                      </p>
+                    </div>
+                    {/* Total Interest */}
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Total Interest
+                      </span>
+                      <p className="text-lg font-black text-slate-700">
+                        ₹{formik.values.loanTerms.totalInterestAmount || 0}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Remaining Principal */}
+                  <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex justify-between items-center group active:scale-[0.98] transition-all">
+                    <div>
+                      <span className="text-[10px] font-black text-primary uppercase tracking-widest block mb-1">
+                        Remaining Principal Amount
+                      </span>
+                      <p className="text-xl font-black text-primary">
+                        ₹{remainingPrincipalAmount || 0}
+                      </p>
+                    </div>
+                    <div className="bg-primary/10 p-2.5 rounded-full">
+                      <svg
+                        className="w-5 h-5 text-primary"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2.5"
+                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DESKTOP VIEW SUMMARY */}
+                <div className="hidden md:flex bg-primary/5 p-4 rounded-2xl border border-primary/10 justify-between items-center">
                   <div>
                     <span className="text-[10px] font-black text-primary uppercase tracking-widest">
                       Monthly EMI

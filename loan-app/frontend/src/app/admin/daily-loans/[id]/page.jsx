@@ -60,9 +60,7 @@ const ViewDailyLoanPage = ({ params: paramsPromise }) => {
       <div className="flex min-h-screen bg-[#F8FAFC]">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="hidden lg:block">
-            <Navbar />
-          </div>
+          <Navbar />
           <main className="flex-1 py-8 px-4 sm:px-8">
             <div className="max-w-5xl mx-auto">
               <div className="mb-8 text-center flex flex-col items-center">
