@@ -20,6 +20,7 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     clientResponse,
     processingFeeRate,
     emiStartDate,
+    status,
   } = req.body;
 
   if (
@@ -86,7 +87,7 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     nextFollowUpDate: nextFollowUpDate ? new Date(nextFollowUpDate) : null,
     remarks,
     clientResponse,
-    status: "Active",
+    status: status || "Active",
     createdBy: req.user._id,
   });
 
