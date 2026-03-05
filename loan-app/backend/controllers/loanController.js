@@ -826,7 +826,12 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
   now.setHours(23, 59, 59, 999);
 
   const result = await Loan.aggregate([
-    { $match: query },
+    {
+      $match: {
+        ...query,
+        status: { $ne: "Closed" },
+      },
+    },
     {
       $lookup: {
         from: "emis",
@@ -923,26 +928,35 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         },
         earliestDueDate: { $min: "$pendingEmisList.dueDate" },
         earliestEmiId: {
-          $arrayElemAt: [
-            {
-              $map: {
-                input: {
-                  $filter: {
-                    input: "$pendingEmisList",
-                    as: "e",
-                    cond: {
-                      $eq: [
-                        "$$e.dueDate",
-                        { $min: "$pendingEmisList.dueDate" },
-                      ],
+          $let: {
+            vars: {
+              // Try to get from overdue list first
+              overdueEmi: { $arrayElemAt: ["$pendingEmisList", 0] },
+              // Fallback to any pending emi in the full list
+              anyPendingEmi: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: "$emis",
+                      as: "e",
+                      cond: {
+                        $in: [
+                          "$$e.status",
+                          ["Pending", "Partially Paid", "Overdue"],
+                        ],
+                      },
                     },
                   },
-                },
-                in: "$$this._id",
+                  0,
+                ],
               },
             },
-            0,
-          ],
+            in: {
+              $toString: {
+                $ifNull: ["$$overdueEmi._id", "$$anyPendingEmi._id"],
+              },
+            },
+          },
         },
         clientResponse: 1,
         paymentStatus: 1,
@@ -1127,7 +1141,12 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
   // For followup logic, we don't care if the payment is officially "overdue" yet
   // We just want ANY loan that has at least one Pending/Partial EMI
   const result = await Loan.aggregate([
-    { $match: query },
+    {
+      $match: {
+        ...query,
+        status: { $ne: "Closed" },
+      },
+    },
     {
       $lookup: {
         from: "emis",
@@ -1173,7 +1192,7 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
             vars: {
               firstPending: { $arrayElemAt: ["$pendingEmisList", 0] },
             },
-            in: { $toString: "$$firstPending._id" },
+            in: { $toString: { $ifNull: ["$$firstPending._id", null] } },
           },
         },
         earliestDueDate: {

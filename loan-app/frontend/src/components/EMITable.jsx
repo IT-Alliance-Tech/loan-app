@@ -258,7 +258,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                 Last Updated
               </th>
               {isEditMode && (
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+                <th className="sticky right-0 bg-slate-50 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                   Actions
                 </th>
               )}
@@ -268,7 +268,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
             {emis.map((emi, index) => (
               <tr
                 key={emi._id}
-                className="hover:bg-slate-50/50 transition-colors"
+                className="group hover:bg-slate-50/50 transition-colors"
               >
                 <td className="px-6 py-4 text-xs font-bold text-slate-900">
                   {emi.emiNumber}
@@ -348,7 +348,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   )}
                 </td>
                 {isEditMode && (
-                  <td className="px-6 py-4">
+                  <td className="sticky right-0 bg-white group-hover:bg-slate-50 group-active:bg-slate-50 px-6 py-4 z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                     <div className="flex justify-center">
                       <button
                         onClick={() => handleEditClick(emi)}

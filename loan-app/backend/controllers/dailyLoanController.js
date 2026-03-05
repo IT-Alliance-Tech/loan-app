@@ -380,7 +380,12 @@ exports.getDailyPendingPayments = asyncHandler(async (req, res, next) => {
   now.setHours(23, 59, 59, 999);
 
   const result = await DailyLoan.aggregate([
-    { $match: query },
+    {
+      $match: {
+        ...query,
+        status: { $ne: "Closed" },
+      },
+    },
     {
       $lookup: {
         from: "emis",
@@ -522,7 +527,12 @@ exports.getDailyFollowupLoans = asyncHandler(async (req, res, next) => {
   query.nextFollowUpDate = { $gte: start, $lte: end };
 
   const result = await DailyLoan.aggregate([
-    { $match: query },
+    {
+      $match: {
+        ...query,
+        status: { $ne: "Closed" },
+      },
+    },
     {
       $lookup: {
         from: "emis",
