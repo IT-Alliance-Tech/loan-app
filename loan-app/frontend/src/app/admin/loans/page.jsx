@@ -108,14 +108,39 @@ const LoansPage = () => {
     setIsFilterOpen(false);
   };
 
+  const handleExport = async () => {
+    try {
+      const exportParams = {
+        ...filters,
+        forExport: "true",
+        limit: 10000, // Fetch all for export
+      };
+      if (searchQuery.trim()) exportParams.loanNumber = searchQuery;
+
+      const res = await getLoans(exportParams);
+      const loansToExport = res.data?.loans || res.data || [];
+
+      if (loansToExport.length === 0) {
+        alert("No records found to export");
+        return;
+      }
+
+      await exportLoansToExcel(
+        loansToExport,
+        `Loans_Report_${new Date().toLocaleDateString("en-IN").replace(/\//g, "-")}.xlsx`,
+      );
+    } catch (err) {
+      console.error("Export failed:", err);
+      alert("Failed to export loans. Please try again.");
+    }
+  };
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-[#F8FAFC] flex">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0 pb-20 sm:pb-0">
-          <div className="hidden lg:block">
-            <Navbar />
-          </div>
+        <div className="flex-1 flex flex-col min-w-0">
+          <Navbar />
           <main className="py-8 px-4 sm:px-8">
             <div className="max-w-6xl mx-auto">
               {error && (
@@ -135,7 +160,7 @@ const LoansPage = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={async () => await exportLoansToExcel(loans)}
+                    onClick={handleExport}
                     className="flex bg-slate-50 text-slate-500 border border-slate-100 px-3 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-100 transition-all items-center justify-center gap-1.5 shadow-sm"
                   >
                     <svg
@@ -211,7 +236,7 @@ const LoansPage = () => {
               <div className="md:hidden mb-8">
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
                   <div className="overflow-x-auto scrollbar-none">
-                    <table className="w-full text-left border-collapse min-w-[600px]">
+                    <table className="w-full text-left border-collapse min-w-[1000px]">
                       <thead>
                         <tr className="bg-slate-50/30 border-b border-slate-100 uppercase">
                           <th className="w-[80px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
@@ -219,6 +244,15 @@ const LoansPage = () => {
                           </th>
                           <th className="px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
                             CUSTOMER NAME
+                          </th>
+                          <th className="w-[120px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
+                            MOBILE
+                          </th>
+                          <th className="px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
+                            GUARANTOR
+                          </th>
+                          <th className="w-[120px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
+                            GUAR. MOBILE
                           </th>
                           <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             EMI
@@ -232,7 +266,7 @@ const LoansPage = () => {
                           <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             CLIENT RESPONSE
                           </th>
-                          <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
+                          <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap sticky right-0 bg-slate-50/50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                             ACTIONS
                           </th>
                         </tr>
@@ -241,7 +275,7 @@ const LoansPage = () => {
                         {loading ? (
                           <tr>
                             <td
-                              colSpan="6"
+                              colSpan="10"
                               className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase"
                             >
                               Loading records...
@@ -250,7 +284,7 @@ const LoansPage = () => {
                         ) : loans.length === 0 ? (
                           <tr>
                             <td
-                              colSpan="6"
+                              colSpan="10"
                               className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase"
                             >
                               No records
@@ -260,7 +294,7 @@ const LoansPage = () => {
                           loans.map((loan) => (
                             <tr
                               key={loan._id}
-                              className="active:bg-slate-50 transition-colors"
+                              className="active:bg-slate-50 transition-colors group"
                             >
                               <td className="px-4 py-6 whitespace-nowrap">
                                 <Link
@@ -271,62 +305,66 @@ const LoansPage = () => {
                                 </Link>
                               </td>
                               <td className="px-4 py-6">
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-slate-700 text-base leading-tight">
-                                    {loan.customerDetails?.customerName}
-                                  </span>
-                                  <div className="flex flex-col gap-0.5 mt-1">
-                                    {(
-                                      loan.customerDetails?.mobileNumbers || []
-                                    ).map((num, idx) => (
-                                      <button
-                                        key={idx}
-                                        onClick={(e) => {
-                                          const rect =
-                                            e.currentTarget.getBoundingClientRect();
-                                          setActiveContactMenu({
-                                            number: num,
-                                            name: loan.customerDetails
-                                              ?.customerName,
-                                            type: "Applicant",
-                                            x: rect.left,
-                                            y: rect.bottom,
-                                          });
-                                        }}
-                                        className="text-[10px] font-bold text-slate-400 tracking-tight hover:text-primary transition-colors text-left"
-                                      >
-                                        {num}
-                                      </button>
-                                    ))}
-                                    <div className="mt-1 flex flex-col pt-1 border-t border-slate-100">
-                                      <span className="text-[8px] font-black text-primary uppercase">
-                                        G: {loan.customerDetails?.guarantorName}
-                                      </span>
-                                      {(
-                                        loan.customerDetails
-                                          ?.guarantorMobileNumbers || []
-                                      ).map((num, idx) => (
-                                        <button
-                                          key={idx}
-                                          onClick={(e) => {
-                                            const rect =
-                                              e.currentTarget.getBoundingClientRect();
-                                            setActiveContactMenu({
-                                              number: num,
-                                              name: loan.customerDetails
-                                                ?.guarantorName,
-                                              type: "Guarantor",
-                                              x: rect.left,
-                                              y: rect.bottom,
-                                            });
-                                          }}
-                                          className="text-[9px] font-bold text-slate-400 opacity-70 hover:opacity-100 hover:text-primary transition-all text-left"
-                                        >
-                                          {num}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
+                                <span className="font-bold text-slate-700 text-base leading-tight">
+                                  {loan.customerDetails?.customerName}
+                                </span>
+                              </td>
+                              <td className="px-4 py-6">
+                                <div className="flex flex-col gap-0.5">
+                                  {(
+                                    loan.customerDetails?.mobileNumbers || []
+                                  ).map((num, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={(e) => {
+                                        const rect =
+                                          e.currentTarget.getBoundingClientRect();
+                                        setActiveContactMenu({
+                                          number: num,
+                                          name: loan.customerDetails
+                                            ?.customerName,
+                                          type: "Applicant",
+                                          x: rect.left,
+                                          y: rect.bottom,
+                                        });
+                                      }}
+                                      className="text-xs font-bold text-slate-400 tracking-tight hover:text-primary transition-colors text-left"
+                                    >
+                                      {num}
+                                    </button>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-4 py-6">
+                                <span className="text-sm font-bold text-slate-700 whitespace-nowrap">
+                                  {loan.customerDetails?.guarantorName || "—"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-6">
+                                <div className="flex flex-col gap-0.5">
+                                  {(
+                                    loan.customerDetails
+                                      ?.guarantorMobileNumbers || []
+                                  ).map((num, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={(e) => {
+                                        const rect =
+                                          e.currentTarget.getBoundingClientRect();
+                                        setActiveContactMenu({
+                                          number: num,
+                                          name: loan.customerDetails
+                                            ?.guarantorName,
+                                          type: "Guarantor",
+                                          x: rect.left,
+                                          y: rect.bottom,
+                                        });
+                                      }}
+                                      className="text-[10px] font-bold text-slate-400 opacity-70 hover:opacity-100 hover:text-primary transition-all text-left"
+                                    >
+                                      {num}
+                                    </button>
+                                  ))}
                                 </div>
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap text-[#2463EB] font-black text-base">
@@ -370,7 +408,7 @@ const LoansPage = () => {
                                   {loan.status.clientResponse || "—"}
                                 </span>
                               </td>
-                              <td className="px-4 py-6 text-center whitespace-nowrap">
+                              <td className="px-4 py-6 text-center whitespace-nowrap sticky right-0 bg-white group-active:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                                 <div className="flex justify-center items-center gap-4">
                                   <button
                                     onClick={() => {
@@ -864,121 +902,6 @@ const LoansPage = () => {
             </div>
           </div>
         )}
-      </div>
-
-      {/* MOBILE BOTTOM NAVIGATION */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around items-center h-20 px-4 z-[90] shadow-[0_-5px_20px_rgba(0,0,0,0.02)]">
-        <button
-          onClick={() => router.push("/admin/dashboard")}
-          className="flex flex-col items-center gap-1.5 text-slate-400"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 012 2H4V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-            />
-          </svg>
-          <span className="text-[10px] font-bold uppercase tracking-tighter">
-            Dashboard
-          </span>
-        </button>
-        <button
-          onClick={() => router.push("/admin/customers")}
-          className="flex flex-col items-center gap-1.5 text-slate-400"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-            />
-          </svg>
-          <span className="text-[10px] font-bold uppercase tracking-tighter">
-            Customers
-          </span>
-        </button>
-        <button
-          onClick={() => router.push("/admin/loans")}
-          className="flex flex-col items-center gap-1.5 text-primary"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-            />
-          </svg>
-          <span className="text-[10px] font-bold uppercase tracking-tighter text-blue-600">
-            Loans
-          </span>
-        </button>
-        <button
-          onClick={() => router.push("/admin/emi-details")}
-          className="flex flex-col items-center gap-1.5 text-slate-400"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-          <span className="text-[10px] font-bold uppercase tracking-tighter">
-            EMI
-          </span>
-        </button>
-        <button
-          onClick={() => router.push("/admin/seized-vehicles")}
-          className="flex flex-col items-center gap-1.5 text-slate-400"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 011-1h2.342a1 1 0 01.832.445l2.036 3.054a1 1 0 00.832.445H21v-1a1 1 0 00-1-1h-1m-5 1v-5a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16"
-            />
-          </svg>
-          <span className="text-[10px] font-bold uppercase tracking-tighter">
-            Seized
-          </span>
-        </button>
       </div>
 
       {/* Contact Action Menu */}

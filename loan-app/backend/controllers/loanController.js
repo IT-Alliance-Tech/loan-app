@@ -111,9 +111,10 @@ const createLoan = asyncHandler(async (req, res, next) => {
     fcDate: vehicleInformation?.fcDate,
     insuranceDate: vehicleInformation?.insuranceDate,
     rtoWorkPending: vehicleInformation?.rtoWorkPending,
+    hpEntry: vehicleInformation?.hpEntry || "Not done",
 
     // status
-    status: statusObj?.status,
+    status: statusObj?.status || "Active",
     paymentStatus: statusObj?.paymentStatus || "Pending",
     docChecklist: statusObj?.docChecklist,
     remarks: statusObj?.remarks,
@@ -192,13 +193,119 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   }
 
   const total = await Loan.countDocuments(query);
-  const loans = await Loan.find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+
+  // Check if we need extended data for export
+  const forExport = req.query.forExport === "true";
+
+  let loans;
+  if (forExport) {
+    // Advanced aggregation for export with repayment stats
+    loans = await Loan.aggregate([
+      { $match: query },
+      { $sort: { createdAt: -1 } },
+      // Join with EMIs
+      {
+        $lookup: {
+          from: "emis",
+          localField: "_id",
+          foreignField: "loanId",
+          as: "emis",
+        },
+      },
+      {
+        $addFields: {
+          repaymentStats: {
+            totalCollected: { $sum: "$emis.amountPaid" },
+            overdueAmount: { $sum: "$emis.overdue" },
+            paidEmisCount: {
+              $size: {
+                $filter: {
+                  input: "$emis",
+                  as: "emi",
+                  cond: { $eq: ["$$emi.status", "Paid"] },
+                },
+              },
+            },
+            remainingTenure: {
+              $size: {
+                $filter: {
+                  input: "$emis",
+                  as: "emi",
+                  cond: { $ne: ["$$emi.status", "Paid"] },
+                },
+              },
+            },
+            nextEmiDueDate: {
+              $min: {
+                $filter: {
+                  input: "$emis.dueDate",
+                  as: "date",
+                  cond: {
+                    $gt: [
+                      "$$date",
+                      {
+                        $ifNull: [
+                          {
+                            $max: {
+                              $filter: {
+                                input: "$emis",
+                                as: "e",
+                                cond: { $eq: ["$$e.status", "Paid"] },
+                              },
+                            },
+                          },
+                          new Date(0),
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      // Join with Users to get name for updatedBy
+      {
+        $lookup: {
+          from: "users",
+          localField: "updatedBy",
+          foreignField: "_id",
+          as: "updatedByInfo",
+        },
+      },
+      {
+        $addFields: {
+          updatedBy: { $arrayElemAt: ["$updatedByInfo.name", 0] },
+        },
+      },
+      // Cleanup
+      { $project: { emis: 0, updatedByInfo: 0 } },
+    ]);
+  } else {
+    loans = await Loan.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+  }
 
   sendResponse(res, 200, "success", "Loans fetched successfully", null, {
-    loans: loans.map((loan) => formatLoanResponse(loan)),
+    loans: loans.map((loan) => {
+      const formatted = formatLoanResponse(loan);
+      // If aggregation data is present, attach it
+      if (loan.repaymentStats) {
+        formatted.repaymentStats = loan.repaymentStats;
+        // Calculate remaining principal based on paid count
+        const principal = loan.principalAmount || 0;
+        const tenure = loan.tenureMonths || 1;
+        const paidCount = loan.repaymentStats.paidEmisCount || 0;
+        formatted.repaymentStats.remainingPrincipal = Math.max(
+          0,
+          principal - paidCount * (principal / tenure),
+        );
+      }
+      return formatted;
+    }),
     pagination: {
       total,
       page,
@@ -527,6 +634,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       fcDate: vehicleInformation.fcDate,
       insuranceDate: vehicleInformation.insuranceDate,
       rtoWorkPending: vehicleInformation.rtoWorkPending,
+      hpEntry: vehicleInformation.hpEntry || loan.hpEntry,
     }),
     // Automatic Status Derivation
     status: foreclosureDetails?.foreclosureDate
@@ -718,7 +826,12 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
   now.setHours(23, 59, 59, 999);
 
   const result = await Loan.aggregate([
-    { $match: query },
+    {
+      $match: {
+        ...query,
+        status: { $ne: "Closed" },
+      },
+    },
     {
       $lookup: {
         from: "emis",
@@ -815,26 +928,35 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         },
         earliestDueDate: { $min: "$pendingEmisList.dueDate" },
         earliestEmiId: {
-          $arrayElemAt: [
-            {
-              $map: {
-                input: {
-                  $filter: {
-                    input: "$pendingEmisList",
-                    as: "e",
-                    cond: {
-                      $eq: [
-                        "$$e.dueDate",
-                        { $min: "$pendingEmisList.dueDate" },
-                      ],
+          $let: {
+            vars: {
+              // Try to get from overdue list first
+              overdueEmi: { $arrayElemAt: ["$pendingEmisList", 0] },
+              // Fallback to any pending emi in the full list
+              anyPendingEmi: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: "$emis",
+                      as: "e",
+                      cond: {
+                        $in: [
+                          "$$e.status",
+                          ["Pending", "Partially Paid", "Overdue"],
+                        ],
+                      },
                     },
                   },
-                },
-                in: "$$this._id",
+                  0,
+                ],
               },
             },
-            0,
-          ],
+            in: {
+              $toString: {
+                $ifNull: ["$$overdueEmi._id", "$$anyPendingEmi._id"],
+              },
+            },
+          },
         },
         clientResponse: 1,
         paymentStatus: 1,
@@ -1019,7 +1141,12 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
   // For followup logic, we don't care if the payment is officially "overdue" yet
   // We just want ANY loan that has at least one Pending/Partial EMI
   const result = await Loan.aggregate([
-    { $match: query },
+    {
+      $match: {
+        ...query,
+        status: { $ne: "Closed" },
+      },
+    },
     {
       $lookup: {
         from: "emis",
@@ -1065,7 +1192,7 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
             vars: {
               firstPending: { $arrayElemAt: ["$pendingEmisList", 0] },
             },
-            in: { $toString: "$$firstPending._id" },
+            in: { $toString: { $ifNull: ["$$firstPending._id", null] } },
           },
         },
         earliestDueDate: {
@@ -1476,17 +1603,49 @@ const updateSeizedStatus = asyncHandler(async (req, res, next) => {
 });
 
 const getAnalyticsStats = asyncHandler(async (req, res, next) => {
-  // 1. Total Loan Amount Disbursed (Principal sum of all loans)
-  const totalDisbursedStats = await Loan.aggregate([
-    { $group: { _id: null, total: { $sum: "$principalAmount" } } },
+  // 1. Total Loan Amount Disbursed (Principal sum of all loans + Daily/Weekly)
+  const [loanStats, dailyLoanStats, weeklyLoanStats] = await Promise.all([
+    Loan.aggregate([
+      { $group: { _id: null, total: { $sum: "$principalAmount" } } },
+    ]),
+    mongoose
+      .model("DailyLoan")
+      .aggregate([
+        { $group: { _id: null, total: { $sum: "$disbursementAmount" } } },
+      ]),
+    mongoose
+      .model("WeeklyLoan")
+      .aggregate([
+        { $group: { _id: null, total: { $sum: "$disbursementAmount" } } },
+      ]),
   ]);
-  const totalLoanAmount = totalDisbursedStats[0]?.total || 0;
 
-  // 2. Total Collected (EMIs + Foreclosure + Sold)
-  const emiCollectedStats = await EMI.aggregate([
-    { $group: { _id: null, total: { $sum: "$amountPaid" } } },
-  ]);
+  const totalLoanAmount =
+    (loanStats[0]?.total || 0) +
+    (dailyLoanStats[0]?.total || 0) +
+    (weeklyLoanStats[0]?.total || 0);
+
+  // 2. Total Collected (EMIs + Foreclosure + Sold + Daily/Weekly Payments)
+  const [emiCollectedStats, dailyCollectedStats, weeklyCollectedStats] =
+    await Promise.all([
+      EMI.aggregate([
+        { $group: { _id: null, total: { $sum: "$amountPaid" } } },
+      ]),
+      mongoose
+        .model("DailyLoan")
+        .aggregate([
+          { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+        ]),
+      mongoose
+        .model("WeeklyLoan")
+        .aggregate([
+          { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+        ]),
+    ]);
+
   const emiCollected = emiCollectedStats[0]?.total || 0;
+  const dailyCollected = dailyCollectedStats[0]?.total || 0;
+  const weeklyCollected = weeklyCollectedStats[0]?.total || 0;
 
   const foreclosureCollectedStats = await Loan.aggregate([
     {
@@ -1513,20 +1672,57 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
   const soldCollected = soldCollectedStats[0]?.total || 0;
 
   const totalCollectedAmount =
-    emiCollected + foreclosureCollected + soldCollected;
+    emiCollected +
+    dailyCollected +
+    weeklyCollected +
+    foreclosureCollected +
+    soldCollected;
 
-  // 3. Number of Pending and Partial Loans
-  const pendingPartialLoansCount = await Loan.countDocuments({
-    paymentStatus: { $in: ["Pending", "Partially Paid"] },
-  });
+  // 3. Status Breakdown for Loans (Main, Daily, Weekly)
+  const [
+    mainPending,
+    mainPartial,
+    dailyPending,
+    dailyPartial,
+    weeklyPending,
+    weeklyPartial,
+    activeLoansCount,
+  ] = await Promise.all([
+    Loan.countDocuments({ paymentStatus: "Pending" }),
+    Loan.countDocuments({ paymentStatus: "Partially Paid" }),
+    mongoose
+      .model("DailyLoan")
+      .countDocuments({ paidEmis: 0, status: "Active" }),
+    mongoose.model("DailyLoan").countDocuments({
+      paidEmis: { $gt: 0 },
+      remainingEmis: { $gt: 0 },
+      status: "Active",
+    }),
+    mongoose
+      .model("WeeklyLoan")
+      .countDocuments({ paidEmis: 0, status: "Active" }),
+    mongoose.model("WeeklyLoan").countDocuments({
+      paidEmis: { $gt: 0 },
+      remainingEmis: { $gt: 0 },
+      status: "Active",
+    }),
+    Promise.all([
+      Loan.countDocuments({ status: { $ne: "Closed" } }),
+      mongoose.model("DailyLoan").countDocuments({ status: "Active" }),
+      mongoose.model("WeeklyLoan").countDocuments({ status: "Active" }),
+    ]).then((counts) => counts.reduce((a, b) => a + b, 0)),
+  ]);
 
-  // 4. Number of Active Loans
-  const activeLoansCount = await Loan.countDocuments({
-    status: { $ne: "Closed" },
-  });
+  const pendingLoansCount = mainPending + dailyPending + weeklyPending;
+  const partialLoansCount = mainPartial + dailyPartial + weeklyPartial;
+
+  // 4. Expenses Total
+  const expenseStats = await mongoose
+    .model("Expense")
+    .aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]);
+  const totalExpenses = expenseStats[0]?.total || 0;
 
   // Bar Graph: Vehicle Statistics — bucket isSeized=true vehicles
-  // Loans with null/missing seizedStatus but isSeized=true count as "For Seizing"
   const vehicleStats = await Loan.aggregate([
     {
       $match: { isSeized: true },
@@ -1563,8 +1759,10 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     cards: {
       totalLoanAmount,
       totalCollectedAmount,
-      pendingPartialLoansCount,
+      pendingLoansCount,
+      partialLoansCount,
       activeLoansCount,
+      totalExpenses,
     },
     vehicleStats: Object.keys(vehicleData).map((key) => ({
       name: key,

@@ -9,10 +9,22 @@ const userRoutes = require("./routes/userroutes");
 const loanRoutes = require("./routes/loanRoutes");
 const customerRoutes = require("./routes/customerroutes");
 const emiUtilityRoutes = require("./routes/emiUtilityRoutes");
+const expenseRoutes = require("./routes/expenseRoutes");
+const weeklyLoanRoutes = require("./routes/weeklyLoanRoutes");
+const dailyLoanRoutes = require("./routes/dailyLoanRoutes");
 
 dotenv.config();
 
 const app = express();
+
+// Health Check & Root
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok", message: "Server is healthy" });
+});
+
+app.get("/", (req, res) => {
+  res.status(200).send("Loan App Backend is running");
+});
 
 // Trust proxy for secure cookies in production
 app.set("trust proxy", 1);
@@ -51,6 +63,9 @@ app.use("/api/users", userRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/emi-utility", emiUtilityRoutes);
+app.use("/api/expenses", expenseRoutes);
+app.use("/api/weekly-loans", weeklyLoanRoutes);
+app.use("/api/daily-loans", dailyLoanRoutes);
 
 // Error Middleware
 app.use(errorMiddleware);

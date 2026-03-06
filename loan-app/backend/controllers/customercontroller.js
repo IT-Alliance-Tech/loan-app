@@ -208,15 +208,22 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       if (group.date && group.payments) {
         group.payments.forEach((p) => {
           const amount = parseFloat(p.amount);
-          if (amount > 0 && p.mode) {
+          if (amount > 0) {
             emi.paymentHistory.push({
               amount: amount,
-              mode: p.mode,
+              mode: p.mode || "CASH",
               date: new Date(group.date),
             });
           }
         });
       }
+    });
+  } else if (addedAmount && parseFloat(addedAmount) > 0) {
+    // Fallback/Legacy support: Add a single payment if dateGroups is missing but addedAmount is present
+    emi.paymentHistory.push({
+      amount: parseFloat(addedAmount),
+      mode: paymentMode || "CASH",
+      date: paymentDate ? new Date(paymentDate) : new Date(),
     });
   }
 
@@ -225,41 +232,109 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     (acc, curr) => acc + curr.amount,
     0,
   );
-  const modesFromHistory = [
-    ...new Set(emi.paymentHistory.map((p) => p.mode).filter(Boolean)),
-  ].join(", ");
-
   // Final values
-  newAmountPaid = totalPaidFromHistory;
+  const newAmountPaid = totalPaidFromHistory;
   const totalEmiAmount = parseFloat(emi.emiAmount);
+  const modesFromHistory = [...new Set(emi.paymentHistory.map((p) => p.mode))]
+    .filter(Boolean)
+    .join(", ");
+  let newStatus;
 
   if (newAmountPaid >= totalEmiAmount) {
     newStatus = "Paid";
   } else if (newAmountPaid > 0) {
     newStatus = "Partially Paid";
   } else {
-    newStatus = "Pending";
+    // Only set to Pending if it's currently NOT Overdue or if we want to reset it
+    newStatus = overdue > 0 ? "Overdue" : "Pending";
   }
 
-  emi = await EMI.findByIdAndUpdate(
-    id,
-    {
-      amountPaid: newAmountPaid,
-      paymentMode: modesFromHistory || emi.paymentMode,
-      paymentDate:
-        paymentDate ||
-        emi.paymentDate ||
-        (emi.paymentHistory.length > 0
-          ? emi.paymentHistory[emi.paymentHistory.length - 1].date
-          : null),
-      overdue: overdue !== undefined ? overdue : emi.overdue,
-      status: newStatus,
-      remarks: remarks || emi.remarks,
-      paymentHistory: emi.paymentHistory,
-      updatedBy: req.user._id,
-    },
-    { new: true, runValidators: true },
-  ).populate("updatedBy", "name");
+  // Update properties on the document directly
+  emi.amountPaid = newAmountPaid;
+  emi.paymentMode = modesFromHistory || emi.paymentMode || "CASH";
+  emi.paymentDate =
+    paymentDate ||
+    (emi.paymentHistory.length > 0
+      ? emi.paymentHistory[emi.paymentHistory.length - 1].date
+      : emi.paymentDate);
+  emi.overdue = overdue !== undefined ? overdue : emi.overdue;
+  emi.status = newStatus;
+  emi.remarks = remarks || emi.remarks;
+  emi.updatedBy = req.user._id;
+
+  // Use save() instead of findByIdAndUpdate for reliability with Mongoose arrays
+  await emi.save();
+  await emi.populate("updatedBy", "name");
+
+  // Sync with WeeklyLoan if applicable
+  if (emi.loanModel === "WeeklyLoan") {
+    try {
+      const WeeklyLoan = require("../models/WeeklyLoan");
+      const allEmis = await EMI.find({
+        loanId: emi.loanId,
+        loanModel: "WeeklyLoan",
+      });
+      const paidEmisCount = allEmis.filter((e) => e.status === "Paid").length;
+
+      const weeklyLoan = await WeeklyLoan.findById(emi.loanId);
+      if (weeklyLoan) {
+        weeklyLoan.paidEmis = paidEmisCount;
+        await weeklyLoan.save();
+      }
+    } catch (err) {
+      console.error("Error syncing WeeklyLoan EMIs:", err);
+    }
+  }
+
+  // Sync with DailyLoan if applicable
+  if (emi.loanModel === "DailyLoan") {
+    try {
+      const DailyLoan = require("../models/DailyLoan");
+      const allEmis = await EMI.find({
+        loanId: emi.loanId,
+        loanModel: "DailyLoan",
+      });
+      const paidEmisCount = allEmis.filter((e) => e.status === "Paid").length;
+
+      const dailyLoan = await DailyLoan.findById(emi.loanId);
+      if (dailyLoan) {
+        dailyLoan.paidEmis = paidEmisCount;
+        await dailyLoan.save();
+      }
+    } catch (err) {
+      console.error("Error syncing DailyLoan EMIs:", err);
+    }
+  }
+
+  // Sync with main Loan if applicable
+  if (emi.loanModel === "Loan" || !emi.loanModel) {
+    try {
+      const Loan = require("../models/Loan");
+      const allEmis = await EMI.find({
+        loanId: emi.loanId,
+        loanModel: "Loan",
+      });
+
+      const isAllPaid = allEmis.every((e) => e.status === "Paid");
+      const isAnyPaid = allEmis.some(
+        (e) => e.status === "Paid" || e.status === "Partially Paid",
+      );
+
+      const loan = await Loan.findById(emi.loanId);
+      if (loan) {
+        if (isAllPaid) {
+          loan.paymentStatus = "Paid";
+        } else if (isAnyPaid) {
+          loan.paymentStatus = "Partially Paid";
+        } else {
+          loan.paymentStatus = "Pending";
+        }
+        await loan.save();
+      }
+    } catch (err) {
+      console.error("Error syncing main Loan EMIs:", err);
+    }
+  }
 
   sendResponse(res, 200, "success", "EMI updated successfully", null, emi);
 });

@@ -30,7 +30,7 @@ const EditEmployeePage = () => {
       documents: { view: false, create: false, edit: false, delete: false },
       analytics: { view: false, create: false, edit: false, delete: false },
       dashboard: { view: false, create: false, edit: false, delete: false },
-      // expenses: { view: false, create: false, edit: false, delete: false },
+      expenses: { view: false, create: false, edit: false, delete: false },
     },
   });
 
@@ -78,12 +78,12 @@ const EditEmployeePage = () => {
               edit: false,
               delete: false,
             },
-            // expenses: {
-            //   view: false,
-            //   create: false,
-            //   edit: false,
-            //   delete: false,
-            // },
+            expenses: {
+              view: false,
+              create: false,
+              edit: false,
+              delete: false,
+            },
           },
         });
       } catch (err) {
@@ -348,7 +348,7 @@ const EditEmployeePage = () => {
                       <PermissionRow label="Documents" module="documents" />
                       <PermissionRow label="Analytics" module="analytics" />
                       <PermissionRow label="Dashboard" module="dashboard" />
-                      {/* <PermissionRow label="Expenses" module="expenses" /> */}
+                      <PermissionRow label="Expenses" module="expenses" />
                     </div>
                   </div>
                 </div>
@@ -356,11 +356,28 @@ const EditEmployeePage = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full bg-primary text-white p-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-200 hover:bg-blue-700 transform active:scale-[0.98] transition-all disabled:opacity-50"
+                  className="w-full bg-primary text-white py-5 rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-blue-100 ring-4 ring-primary/5 hover:bg-blue-700 transform active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-3 group"
                 >
-                  {submitting
-                    ? "Applying Changes..."
-                    : "Update Operator Registry"}
+                  {submitting ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <>
+                      Update Operator Registry
+                      <svg
+                        className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2.5"
+                          d="M13 7l5 5m0 0l-5 5m5-5H6"
+                        />
+                      </svg>
+                    </>
+                  )}
                 </button>
               </form>
             </div>

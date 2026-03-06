@@ -143,6 +143,12 @@ const loanSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    hpEntry: {
+      type: String,
+      enum: ["Not done", "Applied", "Finished"],
+      default: "Not done",
+      trim: true,
+    },
     isSeized: {
       type: Boolean,
       default: false,
