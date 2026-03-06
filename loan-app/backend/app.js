@@ -58,6 +58,11 @@ app.use("/api/expenses", expenseRoutes);
 app.use("/api/weekly-loans", weeklyLoanRoutes);
 app.use("/api/daily-loans", dailyLoanRoutes);
 
+// Health Check
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok", message: "Server is healthy" });
+});
+
 // Error Middleware
 app.use(errorMiddleware);
 
