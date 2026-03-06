@@ -17,6 +17,15 @@ dotenv.config();
 
 const app = express();
 
+// Health Check & Root
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok", message: "Server is healthy" });
+});
+
+app.get("/", (req, res) => {
+  res.status(200).send("Loan App Backend is running");
+});
+
 // Trust proxy for secure cookies in production
 app.set("trust proxy", 1);
 
@@ -57,11 +66,6 @@ app.use("/api/emi-utility", emiUtilityRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/weekly-loans", weeklyLoanRoutes);
 app.use("/api/daily-loans", dailyLoanRoutes);
-
-// Health Check
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "ok", message: "Server is healthy" });
-});
 
 // Error Middleware
 app.use(errorMiddleware);
