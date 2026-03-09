@@ -22,7 +22,11 @@ const {
   getRtoWorks,
   createRtoWork,
 } = require("../controllers/rtoWorkController");
-const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
+const {
+  isAuthenticated,
+  authorizeRoles,
+  authorizePermissions,
+} = require("../middlewares/auth");
 
 router.get("/health", (req, res) =>
   res.json({ status: "ok", version: "v4-deployment-test" }),
@@ -50,7 +54,8 @@ router.get("/foreclosure", getForeclosureLoans);
 router.get("/seized-vehicles", getSeizedVehicles);
 router.patch(
   "/seized-vehicles/:id/status",
-  authorizeRoles("SUPER_ADMIN", "ADMIN"),
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("loans.edit"),
   updateSeizedStatus,
 );
 router.get(
@@ -60,7 +65,8 @@ router.get(
 );
 router.patch(
   "/:id/payment-status",
-  authorizeRoles("SUPER_ADMIN", "ADMIN"),
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("loans.edit"),
   updatePaymentStatus,
 );
 
@@ -74,11 +80,16 @@ router.post(
 router
   .route("/:id")
   .get(getLoanById)
-  .put(authorizeRoles("SUPER_ADMIN", "ADMIN"), updateLoan);
+  .put(
+    authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+    authorizePermissions("loans.edit"),
+    updateLoan,
+  );
 
 router.patch(
   "/:id/seized",
-  authorizeRoles("SUPER_ADMIN", "ADMIN"),
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("loans.edit"),
   toggleSeizedStatus,
 );
 
