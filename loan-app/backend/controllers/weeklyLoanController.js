@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 const WeeklyLoan = require("../models/WeeklyLoan");
 const EMI = require("../models/EMI");
+const ClosedLoan = require("../models/ClosedLoan");
+const Followup = require("../models/Followup");
 const ErrorHandler = require("../utils/ErrorHandler");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
@@ -220,7 +222,9 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
 
 // Get Single Weekly Loan
 exports.getWeeklyLoanById = asyncHandler(async (req, res, next) => {
-  const weeklyLoan = await WeeklyLoan.findById(req.params.id);
+  const weeklyLoan = await WeeklyLoan.findById(req.params.id)
+    .populate("closureDetails")
+    .populate("followupHistory");
 
   if (!weeklyLoan) {
     return next(new ErrorHandler("Weekly loan not found", 404));
@@ -329,6 +333,41 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     new: true,
     runValidators: true,
   });
+
+  // Handle ClosedLoan and Followup records
+  if (updateData.status === "Closed") {
+    await ClosedLoan.findOneAndUpdate(
+      { loanId: weeklyLoan._id },
+      {
+        loanId: weeklyLoan._id,
+        loanModel: "WeeklyLoan",
+        closureType: "Foreclosure",
+        closureDate: new Date(),
+        amount: weeklyLoan.totalCollected || 0,
+        processedBy: req.user._id,
+        remarks: `Auto-created via WeeklyLoan sync. ${weeklyLoan.remarks || ""}`,
+      },
+      { upsert: true, new: true },
+    );
+  }
+
+  if (clientResponse || nextFollowUpDate) {
+    await Followup.create({
+      loanId: weeklyLoan._id,
+      loanModel: "WeeklyLoan",
+      loanType: "Weekly",
+      followupDate: new Date(),
+      clientResponse: clientResponse || weeklyLoan.clientResponse,
+      remarks: weeklyLoan.remarks,
+      nextFollowupDate: nextFollowUpDate,
+      followedUpBy: req.user._id,
+    });
+  }
+
+  // Refetch to include virtuals
+  weeklyLoan = await WeeklyLoan.findById(weeklyLoan._id)
+    .populate("closureDetails")
+    .populate("followupHistory");
 
   // Synchronize EMIs if date or principal changed
   if (
@@ -691,6 +730,14 @@ exports.getWeeklyPendingEmiDetails = asyncHandler(async (req, res, next) => {
     { $sort: { dueDate: 1 } },
     {
       $lookup: {
+        from: "payments",
+        localField: "_id",
+        foreignField: "emiId",
+        as: "paymentRecords",
+      },
+    },
+    {
+      $lookup: {
         from: "weeklyloans", // Collection name for WeeklyLoan model
         localField: "loanId",
         foreignField: "_id",
@@ -730,8 +777,11 @@ exports.getWeeklyPendingEmiDetails = asyncHandler(async (req, res, next) => {
         remarks: "$remarks",
         clientResponse: "$loan.clientResponse",
         emiNumber: 1,
+        overdue: "$overdue",
+        paymentHistory: "$paymentHistory",
         updatedAt: 1,
         updatedBy: { $ifNull: ["$updatedUserInfo.name", "$updatedBy"] },
+        paymentRecords: 1,
       },
     },
   ]);

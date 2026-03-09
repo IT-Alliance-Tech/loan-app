@@ -2,10 +2,41 @@
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
+import StatsCard from "../../../components/analytics/StatsCard";
 import { getUserFromToken } from "../../../utils/auth";
+import { useState, useEffect } from "react";
+import { getAnalyticsStats } from "../../../services/loan.service";
+import {
+  ShieldCheck,
+  UserCheck,
+  Users,
+  IndianRupee,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+  BarChart3,
+} from "lucide-react";
 
 const DashboardPage = () => {
   const user = getUserFromToken();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await getAnalyticsStats();
+        if (res.data) {
+          setStats(res.data);
+        }
+      } catch (err) {
+        console.error("Dashboard stats fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   return (
     <AuthGuard>
@@ -81,20 +112,71 @@ const DashboardPage = () => {
                 </div>
               </div>
 
-              {/* Placeholder Content */}
-              <div className="bg-white rounded-3xl border-2 border-dashed border-slate-200 p-12 text-center">
-                <div className="max-w-md mx-auto">
-                  <div className="inline-flex p-4 bg-slate-50 rounded-2xl mb-6 text-3xl">
-                    📊
+              {/* Employee Management Counts - NEW SECTION */}
+              <div className="mb-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="h-px bg-slate-200 flex-1"></div>
+                  <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.4em] whitespace-nowrap">
+                    Human Capital Modules
+                  </h2>
+                  <div className="h-px bg-slate-200 flex-1"></div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-amber-200 transition-colors">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Authority
+                      </span>
+                    </div>
+                    <div className="text-3xl font-black text-slate-900 mb-1">
+                      {loading
+                        ? "..."
+                        : stats?.cards?.userCounts?.SUPER_ADMIN || "0"}
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">
+                      Super Admins
+                    </div>
                   </div>
-                  <h4 className="text-lg font-black text-slate-900 uppercase tracking-widest mb-3">
-                    Analytics Ready
-                  </h4>
-                  <p className="text-sm font-medium text-secondary leading-relaxed">
-                    The statistical engine is awaiting data synchronization.
-                    Once active, real-time loan distributions and EMI metrics
-                    will be displayed here.
-                  </p>
+
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-200 transition-colors">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
+                        <UserCheck className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Management
+                      </span>
+                    </div>
+                    <div className="text-3xl font-black text-slate-900 mb-1">
+                      {loading ? "..." : stats?.cards?.userCounts?.ADMIN || "0"}
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">
+                      Administrators
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-colors">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+                        <Users className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Operations
+                      </span>
+                    </div>
+                    <div className="text-3xl font-black text-slate-900 mb-1">
+                      {loading
+                        ? "..."
+                        : stats?.cards?.userCounts?.EMPLOYEE || "0"}
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">
+                      Personnel
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

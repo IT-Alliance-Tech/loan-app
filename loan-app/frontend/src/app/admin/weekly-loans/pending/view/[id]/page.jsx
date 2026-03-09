@@ -585,6 +585,7 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
                                 >
                                   <PaymentModeSelector
                                     value={payment.mode}
+                                    allowMultiple={false}
                                     onChange={(val) =>
                                       handlePaymentChange(
                                         group.id,

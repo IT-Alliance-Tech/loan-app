@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["SUPER_ADMIN", "EMPLOYEE"],
+      enum: ["SUPER_ADMIN", "ADMIN", "EMPLOYEE"],
       default: "EMPLOYEE",
     },
     isActive: {
@@ -32,6 +32,18 @@ const userSchema = new mongoose.Schema(
     },
     permissions: {
       loans: {
+        view: { type: Boolean, default: false },
+        create: { type: Boolean, default: false },
+        edit: { type: Boolean, default: false },
+        delete: { type: Boolean, default: false },
+      },
+      weeklyLoans: {
+        view: { type: Boolean, default: false },
+        create: { type: Boolean, default: false },
+        edit: { type: Boolean, default: false },
+        delete: { type: Boolean, default: false },
+      },
+      dailyLoans: {
         view: { type: Boolean, default: false },
         create: { type: Boolean, default: false },
         edit: { type: Boolean, default: false },

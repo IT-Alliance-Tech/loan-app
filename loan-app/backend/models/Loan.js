@@ -246,7 +246,34 @@ const loanSchema = new mongoose.Schema(
       },
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
 );
+
+// Virtual for Seized Vehicle details
+loanSchema.virtual("seizedDetails", {
+  ref: "SeizedVehicle",
+  localField: "_id",
+  foreignField: "loanId",
+  justOne: true,
+});
+
+// Virtual for Closure details
+loanSchema.virtual("closureDetails", {
+  ref: "ClosedLoan",
+  localField: "_id",
+  foreignField: "loanId",
+  justOne: true,
+});
+
+// Virtual for Follow-up history
+loanSchema.virtual("followupHistory", {
+  ref: "Followup",
+  localField: "_id",
+  foreignField: "loanId",
+});
 
 module.exports = mongoose.model("Loan", loanSchema);
