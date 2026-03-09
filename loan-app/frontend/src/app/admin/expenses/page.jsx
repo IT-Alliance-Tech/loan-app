@@ -13,6 +13,7 @@ const ExpensesPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterOfficeOnly, setFilterOfficeOnly] = useState(false);
 
   const fetchExpenses = async () => {
     setLoading(true);
@@ -47,12 +48,29 @@ const ExpensesPage = () => {
                     Track and manage operational expenditures
                   </p>
                 </div>
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="bg-primary text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center gap-2"
-                >
-                  <span className="text-lg">+</span> Add Expense
-                </button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
+                    <input
+                      type="checkbox"
+                      id="filterOffice"
+                      checked={filterOfficeOnly}
+                      onChange={(e) => setFilterOfficeOnly(e.target.checked)}
+                      className="w-4 h-4 text-primary bg-slate-50 border-slate-200 rounded focus:ring-primary/20 transition-all cursor-pointer"
+                    />
+                    <label
+                      htmlFor="filterOffice"
+                      className="text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer select-none"
+                    >
+                      Office Expenses Only
+                    </label>
+                  </div>
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="bg-primary text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center gap-2"
+                  >
+                    <span className="text-lg">+</span> Add Expense
+                  </button>
+                </div>
               </div>
 
               <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
@@ -99,38 +117,45 @@ const ExpensesPage = () => {
                           </td>
                         </tr>
                       ) : (
-                        expenses.map((expense) => (
-                          <tr
-                            key={expense._id}
-                            className="hover:bg-blue-50/80 transition-all cursor-default"
-                          >
-                            <td className="px-6 py-5">
-                              <span className="font-bold text-slate-700 text-xs">
-                                {format(new Date(expense.date), "dd MMM yyyy")}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5">
-                              <span className="px-3 py-1 bg-blue-50 text-primary text-[10px] font-black rounded-lg border border-blue-100 uppercase">
-                                {expense.loanNumber}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5">
-                              <span className="font-black text-slate-900 text-[10px] uppercase tracking-wider">
-                                {expense.vehicleNumber || "N/A"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5">
-                              <p className="text-slate-500 font-medium text-xs max-w-xs">
-                                {expense.particulars}
-                              </p>
-                            </td>
-                            <td className="px-6 py-5 text-right">
-                              <span className="font-black text-slate-900 text-xs">
-                                ₹{expense.amount.toLocaleString()}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
+                        expenses
+                          .filter((expense) =>
+                            filterOfficeOnly ? expense.isOfficeExpense : true,
+                          )
+                          .map((expense) => (
+                            <tr
+                              key={expense._id}
+                              className="hover:bg-blue-50/80 transition-all cursor-default"
+                            >
+                              <td className="px-6 py-5">
+                                <span className="font-bold text-slate-700 text-xs">
+                                  {format(
+                                    new Date(expense.date),
+                                    "dd MMM yyyy",
+                                  )}
+                                </span>
+                              </td>
+                              <td className="px-6 py-5">
+                                <span className="px-3 py-1 bg-blue-50 text-primary text-[10px] font-black rounded-lg border border-blue-100 uppercase">
+                                  {expense.loanNumber}
+                                </span>
+                              </td>
+                              <td className="px-6 py-5">
+                                <span className="font-black text-slate-900 text-[10px] uppercase tracking-wider">
+                                  {expense.vehicleNumber || "N/A"}
+                                </span>
+                              </td>
+                              <td className="px-6 py-5">
+                                <p className="text-slate-500 font-medium text-xs max-w-xs">
+                                  {expense.particulars}
+                                </p>
+                              </td>
+                              <td className="px-6 py-5 text-right">
+                                <span className="font-black text-slate-900 text-xs">
+                                  ₹{expense.amount.toLocaleString()}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
                       )}
                     </tbody>
                   </table>
