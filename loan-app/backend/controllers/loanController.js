@@ -1,6 +1,9 @@
 const mongoose = require("mongoose");
 const Loan = require("../models/Loan");
 const EMI = require("../models/EMI");
+const SeizedVehicle = require("../models/SeizedVehicle");
+const ClosedLoan = require("../models/ClosedLoan");
+const Followup = require("../models/Followup");
 const ErrorHandler = require("../utils/ErrorHandler");
 const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
@@ -315,12 +318,21 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   });
 });
 
-const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
-  const loan = await Loan.findOne({ loanNumber: req.params.loanNumber })
+const populateLoanDetails = (query) => {
+  return query
     .populate("createdBy", "name")
     .populate("foreclosedBy", "name")
     .populate("updatedBy", "name")
-    .populate("soldDetails.soldBy", "name");
+    .populate("soldDetails.soldBy", "name")
+    .populate("seizedDetails")
+    .populate("closureDetails")
+    .populate("followupHistory");
+};
+
+const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
+  const loan = await populateLoanDetails(
+    Loan.findOne({ loanNumber: req.params.loanNumber }),
+  );
 
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
@@ -439,11 +451,7 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   ) {
     return next(new ErrorHandler("Invalid Loan ID provided", 400));
   }
-  const loan = await Loan.findById(req.params.id)
-    .populate("createdBy", "name")
-    .populate("foreclosedBy", "name")
-    .populate("updatedBy", "name")
-    .populate("soldDetails.soldBy", "name");
+  const loan = await populateLoanDetails(Loan.findById(req.params.id));
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
@@ -669,11 +677,66 @@ const updateLoan = asyncHandler(async (req, res, next) => {
   loan = await Loan.findByIdAndUpdate(req.params.id, updateData, {
     new: true,
     runValidators: true,
-  })
-    .populate("createdBy", "name")
-    .populate("foreclosedBy", "name")
-    .populate("updatedBy", "name")
-    .populate("soldDetails.soldBy", "name");
+  });
+
+  // Handle SeizedVehicle, ClosedLoan, and Followup records after update
+  if (updateData.status === "Seized" || updateData.isSeized) {
+    await SeizedVehicle.findOneAndUpdate(
+      { loanId: loan._id },
+      {
+        loanId: loan._id,
+        loanModel: "Loan",
+        seizedDate: loan.seizedDate || new Date(),
+        status: loan.seizedStatus || "For Seizing",
+        remarks: `Auto-created/updated via Loan sync. ${loan.remarks || ""}`,
+        createdBy: req.user._id,
+      },
+      { upsert: true, new: true },
+    );
+  }
+
+  if (
+    updateData.status === "Closed" &&
+    (updateData.foreclosureDate || loan.foreclosureDate)
+  ) {
+    await ClosedLoan.findOneAndUpdate(
+      { loanId: loan._id },
+      {
+        loanId: loan._id,
+        loanModel: "Loan",
+        closureType: loan.soldDetails?.sellAmount ? "Sold" : "Foreclosure",
+        closureDate: loan.foreclosureDate || new Date(),
+        amount: loan.foreclosureAmount || 0,
+        processedBy: loan.foreclosedBy || req.user._id,
+        soldDetails: loan.soldDetails,
+        remarks: `Auto-created/updated via Loan sync. ${loan.remarks || ""}`,
+      },
+      { upsert: true, new: true },
+    );
+  }
+
+  if (
+    topLevelClientResponse ||
+    topLevelNextFollowUpDate ||
+    statusObj?.clientResponse
+  ) {
+    await Followup.create({
+      loanId: loan._id,
+      loanModel: "Loan",
+      loanType: "Monthly",
+      followupDate: new Date(),
+      clientResponse:
+        topLevelClientResponse ||
+        statusObj?.clientResponse ||
+        loan.clientResponse,
+      remarks: loan.remarks,
+      nextFollowupDate: topLevelNextFollowUpDate || statusObj?.nextFollowUpDate,
+      followedUpBy: req.user._id,
+    });
+  }
+
+  // Refetch to include virtuals
+  loan = await populateLoanDetails(Loan.findById(loan._id));
 
   // Synchronize EMIs if relevant terms changed
   if (loanTerms || customerDetails || (statusObj && statusObj.status)) {
@@ -773,6 +836,27 @@ const toggleSeizedStatus = asyncHandler(async (req, res, next) => {
   }
 
   await loan.save();
+
+  if (loan.isSeized) {
+    await SeizedVehicle.findOneAndUpdate(
+      { loanId: loan._id },
+      {
+        loanId: loan._id,
+        loanModel: "Loan",
+        seizedDate: new Date(),
+        status: "For Seizing",
+        remarks: "Status toggled to Seized",
+        createdBy: req.user._id,
+      },
+      { upsert: true, new: true },
+    );
+  } else {
+    // If un-seizing, we could update the SeizedVehicle status to Re-activate or delete it
+    await SeizedVehicle.findOneAndUpdate(
+      { loanId: loan._id },
+      { status: "Re-activate", remarks: "Status toggled back to Active" },
+    );
+  }
 
   sendResponse(
     res,
@@ -1023,6 +1107,14 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
     { $sort: { dueDate: 1 } },
     {
       $lookup: {
+        from: "payments",
+        localField: "_id",
+        foreignField: "emiId",
+        as: "paymentRecords",
+      },
+    },
+    {
+      $lookup: {
         from: "loans",
         localField: "loanId",
         foreignField: "_id",
@@ -1050,9 +1142,12 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
         amountPaid: "$amountPaid",
         status: "$status",
         dueDate: "$dueDate",
+        overdue: "$overdue",
         remarks: "$remarks",
+        paymentHistory: "$paymentHistory",
         clientResponse: "$loan.clientResponse",
         emiNumber: 1,
+        paymentRecords: 1,
       },
     },
   ]);
@@ -1291,6 +1386,7 @@ const getForeclosureLoans = asyncHandler(async (req, res, next) => {
           },
         },
         totalPaidAmount: { $sum: "$emis.amountPaid" },
+        clientResponse: 1,
       },
     },
     {
@@ -1489,6 +1585,7 @@ const getSeizedVehicles = asyncHandler(async (req, res, next) => {
             },
           },
         },
+        clientResponse: 1,
       },
     },
     { $sort: { seizedDate: -1, updatedAt: -1 } },
@@ -1755,6 +1852,28 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     }
   });
 
+  // 5. User Counts by Role
+  const userStats = await mongoose.model("User").aggregate([
+    {
+      $group: {
+        _id: "$role",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const userData = {
+    SUPER_ADMIN: 0,
+    ADMIN: 0,
+    EMPLOYEE: 0,
+  };
+
+  userStats.forEach((stat) => {
+    if (Object.prototype.hasOwnProperty.call(userData, stat._id)) {
+      userData[stat._id] = stat.count;
+    }
+  });
+
   const data = {
     cards: {
       totalLoanAmount,
@@ -1763,6 +1882,7 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
       partialLoansCount,
       activeLoansCount,
       totalExpenses,
+      userCounts: userData,
     },
     vehicleStats: Object.keys(vehicleData).map((key) => ({
       name: key,

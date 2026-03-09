@@ -14,6 +14,9 @@ import {
   BarChart2,
   Wallet,
   AlertCircle,
+  UserCheck,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 
 const AnalyticsPage = () => {
@@ -121,6 +124,31 @@ const AnalyticsPage = () => {
                   title="Active Loans"
                   value={stats?.cards?.activeLoansCount || "0"}
                   icon={<CheckCircle className="w-6 h-6" />}
+                  color="success"
+                />
+
+                {/* Employee Management Section */}
+                <div className="lg:col-span-3 mt-4 mb-2">
+                  <h2 className="text-sm font-black text-slate-500 uppercase tracking-[0.3em]">
+                    Employee Management
+                  </h2>
+                </div>
+                <StatsCard
+                  title="Super Admins"
+                  value={stats?.cards?.userCounts?.SUPER_ADMIN || "0"}
+                  icon={<ShieldCheck className="w-6 h-6 text-amber-600" />}
+                  color="warning"
+                />
+                <StatsCard
+                  title="Administrators"
+                  value={stats?.cards?.userCounts?.ADMIN || "0"}
+                  icon={<UserCheck className="w-6 h-6 text-blue-600" />}
+                  color="primary"
+                />
+                <StatsCard
+                  title="Employees"
+                  value={stats?.cards?.userCounts?.EMPLOYEE || "0"}
+                  icon={<Users className="w-6 h-6 text-emerald-600" />}
                   color="success"
                 />
               </div>

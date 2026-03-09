@@ -1,40 +1,67 @@
+"use client";
+
 export const getToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("token");
   }
   return null;
 };
 
 export const setToken = (token) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('token', token);
+  if (typeof window !== "undefined") {
+    localStorage.setItem("token", token);
   }
 };
 
 export const removeToken = () => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('token');
-  }
-};
-
-export const getUserFromToken = () => {
-  const token = getToken();
-  if (!token) return null;
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  } catch {
-    return null;
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("token");
   }
 };
 
 export const isAuthenticated = () => {
-  return !!getToken();
+  const token = getToken();
+  if (!token) return false;
+
+  try {
+    // Basic JWT check - check if expired
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const expiry = payload.exp * 1000;
+    return Date.now() < expiry;
+  } catch (e) {
+    return false;
+  }
+};
+
+export const getUser = () => {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload;
+  } catch (e) {
+    return null;
+  }
+};
+
+export const getUserFromToken = getUser;
+
+export const hasPermission = (permissionPath) => {
+  const user = getUser();
+  if (!user || !user.permissions) return false;
+  if (user.role === "SUPER_ADMIN") return true;
+
+  const parts = permissionPath.split(".");
+  let current = user.permissions;
+
+  for (const part of parts) {
+    if (current && typeof current === "object" && part in current) {
+      current = current[part];
+    } else {
+      return false;
+    }
+  }
+
+  return current === true;
 };

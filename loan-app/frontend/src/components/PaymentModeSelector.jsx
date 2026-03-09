@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 
-const PaymentModeSelector = ({ value, onChange, label = "Payment Mode" }) => {
+const PaymentModeSelector = ({
+  value,
+  onChange,
+  label = "Payment Mode",
+  allowMultiple = false,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -28,10 +33,15 @@ const PaymentModeSelector = ({ value, onChange, label = "Payment Mode" }) => {
 
   const toggleMode = (mode) => {
     let newModes;
-    if (selectedModes.includes(mode)) {
-      newModes = selectedModes.filter((m) => m !== mode);
+    if (allowMultiple) {
+      if (selectedModes.includes(mode)) {
+        newModes = selectedModes.filter((m) => m !== mode);
+      } else {
+        newModes = [...selectedModes, mode];
+      }
     } else {
-      newModes = [...selectedModes, mode];
+      newModes = [mode];
+      setIsOpen(false);
     }
     onChange(newModes.join(", "));
   };

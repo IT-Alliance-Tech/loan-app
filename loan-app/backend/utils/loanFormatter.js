@@ -81,6 +81,7 @@ const formatLoanResponse = (loanDoc) => {
             createdAt: loan.createdAt,
             updatedAt: loan.updatedAt,
             updatedBy: loan.updatedBy,
+            clientResponse: loan.clientResponse,
           }
         : {
             status: loan.status,

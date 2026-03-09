@@ -105,8 +105,35 @@ const weeklyLoanSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
 );
+
+// Virtual for Seized Vehicle details
+weeklyLoanSchema.virtual("seizedDetails", {
+  ref: "SeizedVehicle",
+  localField: "_id",
+  foreignField: "loanId",
+  justOne: true,
+});
+
+// Virtual for Closure details
+weeklyLoanSchema.virtual("closureDetails", {
+  ref: "ClosedLoan",
+  localField: "_id",
+  foreignField: "loanId",
+  justOne: true,
+});
+
+// Virtual for Follow-up history
+weeklyLoanSchema.virtual("followupHistory", {
+  ref: "Followup",
+  localField: "_id",
+  foreignField: "loanId",
+});
 
 // Pre-save middleware to handle calculations if needed, though we'll likely do them in the controller
 weeklyLoanSchema.pre("save", async function () {

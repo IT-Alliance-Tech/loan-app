@@ -72,7 +72,18 @@ const emiSchema = new mongoose.Schema(
       ref: "User",
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
 );
+
+// Virtual for individual payment records
+emiSchema.virtual("paymentRecords", {
+  ref: "Payment",
+  localField: "_id",
+  foreignField: "emiId",
+});
 
 module.exports = mongoose.model("EMI", emiSchema);
