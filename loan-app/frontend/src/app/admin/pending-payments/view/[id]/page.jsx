@@ -326,7 +326,7 @@ const LoanPendingViewPage = () => {
                               </button>
                             ))
                           ) : (
-                            <p className="text-slate-300">N/A</p>
+                            <p className="text-slate-300">-</p>
                           )}
                         </div>
                       </div>
@@ -360,7 +360,9 @@ const LoanPendingViewPage = () => {
                           Engine No
                         </span>
                         <p className="text-xs font-black text-slate-800 uppercase">
-                          {loan.engineNumber || "N/A"}
+                          {!loan.engineNumber || loan.engineNumber === "N/A"
+                            ? "-"
+                            : loan.engineNumber}
                         </p>
                       </div>
                       <div>
@@ -368,7 +370,9 @@ const LoanPendingViewPage = () => {
                           Chassis No
                         </span>
                         <p className="text-xs font-black text-slate-800 uppercase">
-                          {loan.chassisNumber || "N/A"}
+                          {!loan.chassisNumber || loan.chassisNumber === "N/A"
+                            ? "-"
+                            : loan.chassisNumber}
                         </p>
                       </div>
                     </div>

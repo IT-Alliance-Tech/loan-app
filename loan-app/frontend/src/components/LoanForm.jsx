@@ -1779,7 +1779,7 @@ const LoanForm = ({
                                     month: "long",
                                     year: "numeric",
                                   })
-                                : "N/A"}
+                                : "-"}
                             </p>
                           </div>
                           <div className="md:col-span-2 space-y-1 pt-2 border-t border-emerald-100/50">
@@ -1835,7 +1835,7 @@ const LoanForm = ({
                                     month: "long",
                                     year: "numeric",
                                   })
-                                : "N/A"}
+                                : "-"}
                             </p>
                           </div>
                           <div className="md:col-span-2 space-y-1 pt-2 border-t border-emerald-100/50">
@@ -1928,7 +1928,9 @@ const LoanForm = ({
                 {activeContactMenu.type}
               </p>
               <p className="text-xs font-bold text-slate-900 truncate">
-                {activeContactMenu.name || "N/A"}
+                {!activeContactMenu.name || activeContactMenu.name === "N/A"
+                  ? "-"
+                  : activeContactMenu.name}
               </p>
               <p className="text-[10px] font-medium text-slate-500">
                 {activeContactMenu.number}
