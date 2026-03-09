@@ -58,7 +58,11 @@ const PaymentModeSelector = ({
         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 flex items-center justify-between hover:border-slate-300 transition-all cursor-pointer min-h-[46px]"
       >
         <span className="truncate">
-          {selectedModes.length > 0 ? selectedModes.join(", ") : "Select Mode"}
+          {selectedModes.length > 0
+            ? allowMultiple
+              ? selectedModes.join(", ")
+              : selectedModes[0]
+            : "Select Mode"}
         </span>
         <span
           className={`transition-transform duration-200 text-[10px] text-slate-400 ${isOpen ? "rotate-180" : ""}`}
