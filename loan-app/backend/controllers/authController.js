@@ -6,7 +6,13 @@ const sendResponse = require("../utils/response");
 
 const generateTokens = (user) => {
   const accessToken = jwt.sign(
-    { id: user._id, email: user.email, role: user.role, name: user.name },
+    {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+      permissions: user.permissions,
+    },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRE || "24h" },
   );
@@ -33,13 +39,23 @@ const login = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Invalid email or password", 401));
   }
 
-  if (user.role === "SUPER_ADMIN") {
-    if (!accessKey || accessKey !== process.env.SUPER_ADMIN_ACCESS_KEY) {
-      return next(new ErrorHandler("Invalid Super Admin access key", 403));
+  if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") {
+    const validAccessKey =
+      user.accessKey ||
+      (user.role === "SUPER_ADMIN" ? process.env.SUPER_ADMIN_ACCESS_KEY : null);
+
+    if (!accessKey || accessKey !== validAccessKey) {
+      return next(
+        new ErrorHandler(
+          `Invalid ${user.role.replace("_", " ")} access key`,
+          403,
+        ),
+      );
     }
   }
 
   if (!user.isActive) {
+    return next(new ErrorHandler("This account has been deactivated", 403));
   }
 
   const { accessToken, refreshToken } = generateTokens(user);
@@ -60,7 +76,13 @@ const login = asyncHandler(async (req, res, next) => {
 
   return sendResponse(res, 200, "success", "Login successful", null, {
     token: accessToken,
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      permissions: user.permissions,
+    },
   });
 });
 

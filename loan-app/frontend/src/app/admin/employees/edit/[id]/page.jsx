@@ -24,6 +24,8 @@ const EditEmployeePage = () => {
     accessKey: "",
     permissions: {
       loans: { view: false, create: false, edit: false, delete: false },
+      weeklyLoans: { view: false, create: false, edit: false, delete: false },
+      dailyLoans: { view: false, create: false, edit: false, delete: false },
       emis: { view: false, create: false, edit: false, delete: false },
       vehicles: { view: false, create: false, edit: false, delete: false },
       payments: { view: false, create: false, edit: false, delete: false },
@@ -47,6 +49,18 @@ const EditEmployeePage = () => {
           password: "",
           permissions: permissions || {
             loans: { view: false, create: false, edit: false, delete: false },
+            weeklyLoans: {
+              view: false,
+              create: false,
+              edit: false,
+              delete: false,
+            },
+            dailyLoans: {
+              view: false,
+              create: false,
+              edit: false,
+              delete: false,
+            },
             emis: { view: false, create: false, edit: false, delete: false },
             vehicles: {
               view: false,
@@ -262,6 +276,7 @@ const EditEmployeePage = () => {
                         onChange={handleChange}
                       >
                         <option value="EMPLOYEE">OPERATOR (EMPLOYEE)</option>
+                        <option value="ADMIN">MANAGER (ADMIN)</option>
                         <option value="SUPER_ADMIN">ADMINISTRATOR</option>
                       </select>
                     </div>
@@ -338,7 +353,12 @@ const EditEmployeePage = () => {
                     </div>
 
                     <div className="divide-y divide-slate-50">
-                      <PermissionRow label="Loans" module="loans" />
+                      <PermissionRow label="Loans (Main)" module="loans" />
+                      <PermissionRow
+                        label="Weekly Loans"
+                        module="weeklyLoans"
+                      />
+                      <PermissionRow label="Daily Loans" module="dailyLoans" />
                       <PermissionRow label="EMIs" module="emis" />
                       <PermissionRow
                         label="Seized Vehicles"

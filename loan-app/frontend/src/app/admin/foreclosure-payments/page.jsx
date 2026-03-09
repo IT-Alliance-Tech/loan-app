@@ -220,8 +220,21 @@ const ForeclosurePage = () => {
                         </p>
                       </td>
                     </tr>
+                    {/* Row 2: Client Response */}
+                    <tr className="border-b border-slate-100">
+                      <td colSpan="3" className="p-5">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+                          Previous Client Response
+                        </label>
+                        <p className="text-sm font-bold text-slate-600 bg-slate-50 p-4 rounded-2xl border border-slate-100 italic">
+                          {selectedLoan?.status?.clientResponse ||
+                            selectedLoan?.clientResponse ||
+                            "—"}
+                        </p>
+                      </td>
+                    </tr>
 
-                    {/* Row 2: Vehicle & Finance */}
+                    {/* Row 3: Vehicle & Finance */}
                     <tr className="border-b border-slate-100">
                       <td className="p-5">
                         <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">

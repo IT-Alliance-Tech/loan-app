@@ -20,6 +20,8 @@ const AddEmployeePage = () => {
     accessKey: "",
     permissions: {
       loans: { view: false, create: false, edit: false, delete: false },
+      weeklyLoans: { view: false, create: false, edit: false, delete: false },
+      dailyLoans: { view: false, create: false, edit: false, delete: false },
       emis: { view: false, create: false, edit: false, delete: false },
       vehicles: { view: false, create: false, edit: false, delete: false },
       payments: { view: false, create: false, edit: false, delete: false },
@@ -195,6 +197,7 @@ const AddEmployeePage = () => {
                         onChange={handleChange}
                       >
                         <option value="EMPLOYEE">OPERATOR (EMPLOYEE)</option>
+                        <option value="ADMIN">MANAGER (ADMIN)</option>
                         <option value="SUPER_ADMIN">ADMINISTRATOR</option>
                       </select>
                     </div>
@@ -281,7 +284,12 @@ const AddEmployeePage = () => {
                     </div>
 
                     <div className="divide-y divide-slate-50">
-                      <PermissionRow label="Loans" module="loans" />
+                      <PermissionRow label="Loans (Main)" module="loans" />
+                      <PermissionRow
+                        label="Weekly Loans"
+                        module="weeklyLoans"
+                      />
+                      <PermissionRow label="Daily Loans" module="dailyLoans" />
                       <PermissionRow label="EMIs" module="emis" />
                       <PermissionRow
                         label="Seized Vehicles"
@@ -355,7 +363,9 @@ const AddEmployeePage = () => {
                           Registry Type
                         </p>
                         <span className="inline-flex px-4 py-1.5 bg-blue-50 text-primary text-[10px] font-black uppercase rounded-xl border border-blue-100">
-                          {formData.role}
+                          {formData.role === "ADMIN"
+                            ? "MANAGER"
+                            : formData.role}
                         </span>
                       </div>
                     </div>

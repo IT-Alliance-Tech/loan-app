@@ -21,6 +21,8 @@ const createEmployee = asyncHandler(async (req, res, next) => {
     accessKey,
     permissions: permissions || {
       loans: { view: false, create: false, edit: false, delete: false },
+      weeklyLoans: { view: false, create: false, edit: false, delete: false },
+      dailyLoans: { view: false, create: false, edit: false, delete: false },
       emis: { view: false, create: false, edit: false, delete: false },
       vehicles: { view: false, create: false, edit: false, delete: false },
       payments: { view: false, create: false, edit: false, delete: false },

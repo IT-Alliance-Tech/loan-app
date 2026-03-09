@@ -22,13 +22,13 @@ router.get("/pending-details/:id", getWeeklyPendingEmiDetails);
 router
   .route("/")
   .get(getAllWeeklyLoans)
-  .post(authorizeRoles("SUPER_ADMIN"), createWeeklyLoan);
+  .post(authorizeRoles("SUPER_ADMIN", "ADMIN"), createWeeklyLoan);
 
 router
   .route("/:id")
   .get(getWeeklyLoanById)
-  .put(authorizeRoles("SUPER_ADMIN"), updateWeeklyLoan)
-  .delete(authorizeRoles("SUPER_ADMIN"), deleteWeeklyLoan);
+  .put(authorizeRoles("SUPER_ADMIN", "ADMIN"), updateWeeklyLoan)
+  .delete(authorizeRoles("SUPER_ADMIN", "ADMIN"), deleteWeeklyLoan);
 
 router.get("/emis/:id", getWeeklyLoanEMIs);
 

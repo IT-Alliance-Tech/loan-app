@@ -37,12 +37,12 @@ router.post("/rto-works", createRtoWork);
 router
   .route("/")
   .get(getAllLoans)
-  .post(authorizeRoles("SUPER_ADMIN"), createLoan);
+  .post(authorizeRoles("SUPER_ADMIN", "ADMIN"), createLoan);
 
 router.post("/calculate-emi", calculateEMIApi);
 router.get(
   "/pending-payments",
-  authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
   getPendingPayments,
 );
 router.get("/followups", getFollowupLoans);
@@ -50,28 +50,36 @@ router.get("/foreclosure", getForeclosureLoans);
 router.get("/seized-vehicles", getSeizedVehicles);
 router.patch(
   "/seized-vehicles/:id/status",
-  authorizeRoles("SUPER_ADMIN"),
+  authorizeRoles("SUPER_ADMIN", "ADMIN"),
   updateSeizedStatus,
 );
 router.get(
   "/pending-details/:id",
-  authorizeRoles("SUPER_ADMIN", "EMPLOYEE"),
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
   getPendingEmiDetails,
 );
 router.patch(
   "/:id/payment-status",
-  authorizeRoles("SUPER_ADMIN"),
+  authorizeRoles("SUPER_ADMIN", "ADMIN"),
   updatePaymentStatus,
 );
 
 router.get("/search/:loanNumber", getLoanByLoanNumber);
-router.post("/:id/foreclose", authorizeRoles("SUPER_ADMIN"), forecloseLoan);
+router.post(
+  "/:id/foreclose",
+  authorizeRoles("SUPER_ADMIN", "ADMIN"),
+  forecloseLoan,
+);
 
 router
   .route("/:id")
   .get(getLoanById)
-  .put(authorizeRoles("SUPER_ADMIN"), updateLoan);
+  .put(authorizeRoles("SUPER_ADMIN", "ADMIN"), updateLoan);
 
-router.patch("/:id/seized", authorizeRoles("SUPER_ADMIN"), toggleSeizedStatus);
+router.patch(
+  "/:id/seized",
+  authorizeRoles("SUPER_ADMIN", "ADMIN"),
+  toggleSeizedStatus,
+);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Loan = require("../models/Loan");
 const EMI = require("../models/EMI");
+const Payment = require("../models/Payment");
 const ErrorHandler = require("../utils/ErrorHandler");
 const { formatLoanResponse } = require("../utils/loanFormatter");
 const asyncHandler = require("../utils/asyncHandler");
@@ -227,6 +228,63 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     });
   }
 
+  // CREATE PAYMENT RECORDS FOR NEW PAYMENTS
+  // Since updateEMI can replace history via dateGroups or add via addedAmount,
+  // we check what's new. For simplicity in this refactor, if dateGroups is provided,
+  // we ensure the Payment collection matches the history.
+  // In a more robust implementation, we'd track exactly what was added.
+  if (dateGroups && Array.isArray(dateGroups)) {
+    // Delete existing payment records for this EMI to sync with the new history
+    await Payment.deleteMany({ emiId: emi._id });
+
+    const paymentRecords = [];
+    dateGroups.forEach((group) => {
+      if (group.date && group.payments) {
+        group.payments.forEach((p) => {
+          const amount = parseFloat(p.amount);
+          if (amount > 0) {
+            paymentRecords.push({
+              emiId: emi._id,
+              loanId: emi.loanId,
+              loanModel: emi.loanModel,
+              amount: amount,
+              mode: p.mode || "CASH",
+              paymentDate: new Date(group.date),
+              paymentType:
+                emi.loanModel === "DailyLoan"
+                  ? "Daily"
+                  : emi.loanModel === "WeeklyLoan"
+                    ? "Weekly"
+                    : "Monthly",
+              status: "Success",
+              collectedBy: req.user._id,
+            });
+          }
+        });
+      }
+    });
+    if (paymentRecords.length > 0) {
+      await Payment.insertMany(paymentRecords);
+    }
+  } else if (addedAmount && parseFloat(addedAmount) > 0) {
+    await Payment.create({
+      emiId: emi._id,
+      loanId: emi.loanId,
+      loanModel: emi.loanModel,
+      amount: parseFloat(addedAmount),
+      mode: paymentMode || "CASH",
+      paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+      paymentType:
+        emi.loanModel === "DailyLoan"
+          ? "Daily"
+          : emi.loanModel === "WeeklyLoan"
+            ? "Weekly"
+            : "Monthly",
+      status: "Success",
+      collectedBy: req.user._id,
+    });
+  }
+
   // Recalculate amountPaid and paymentMode from full history
   const totalPaidFromHistory = emi.paymentHistory.reduce(
     (acc, curr) => acc + curr.amount,
@@ -387,6 +445,14 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
     { $limit: limit },
     {
       $lookup: {
+        from: "payments",
+        localField: "_id",
+        foreignField: "emiId",
+        as: "paymentRecords",
+      },
+    },
+    {
+      $lookup: {
         from: "loans",
         localField: "loanId",
         foreignField: "_id",
@@ -413,6 +479,8 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
         guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
         guarantorName: "$loan.guarantorName",
         updatedBy: 1,
+        paymentRecords: 1,
+        paymentHistory: 1,
       },
     },
     {
@@ -449,6 +517,8 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
         mobileNumbers: 1,
         guarantorMobileNumbers: 1,
         guarantorName: 1,
+        paymentRecords: 1,
+        paymentHistory: 1,
       },
     },
   ]);
@@ -473,7 +543,8 @@ const getEMIsByLoanId = asyncHandler(async (req, res, next) => {
     .sort({
       emiNumber: 1,
     })
-    .populate("updatedBy", "name");
+    .populate("updatedBy", "name")
+    .populate("paymentRecords");
   sendResponse(res, 200, "success", "EMIs fetched successfully", null, emis);
 });
 

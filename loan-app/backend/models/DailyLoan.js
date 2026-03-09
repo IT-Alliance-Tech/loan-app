@@ -105,8 +105,35 @@ const dailyLoanSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
 );
+
+// Virtual for Seized Vehicle details
+dailyLoanSchema.virtual("seizedDetails", {
+  ref: "SeizedVehicle",
+  localField: "_id",
+  foreignField: "loanId",
+  justOne: true,
+});
+
+// Virtual for Closure details
+dailyLoanSchema.virtual("closureDetails", {
+  ref: "ClosedLoan",
+  localField: "_id",
+  foreignField: "loanId",
+  justOne: true,
+});
+
+// Virtual for Follow-up history
+dailyLoanSchema.virtual("followupHistory", {
+  ref: "Followup",
+  localField: "_id",
+  foreignField: "loanId",
+});
 
 // Pre-save middleware to handle calculations
 dailyLoanSchema.pre("save", async function () {

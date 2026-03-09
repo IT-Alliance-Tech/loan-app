@@ -172,9 +172,7 @@ const LoanPendingViewPage = () => {
 
   const remainingBalance = Math.max(
     0,
-    (selectedEmi?.emiAmount || 0) -
-      (selectedEmi?.amountPaid || 0) -
-      calculateTotalPaidNow(),
+    (selectedEmi?.emiAmount || 0) - calculateTotalPaidNow(),
   );
 
   const handleSaveEMI = async (e) => {
@@ -558,13 +556,23 @@ const LoanPendingViewPage = () => {
                                     remarks: emi.remarks || "",
                                   });
 
-                                  if (
-                                    emi.paymentHistory &&
-                                    emi.paymentHistory.length > 0
-                                  ) {
+                                  const sourceHistory =
+                                    emi.paymentRecords &&
+                                    emi.paymentRecords.length > 0
+                                      ? emi.paymentRecords.map((r) => ({
+                                          amount: r.amount,
+                                          mode: r.mode,
+                                          date: r.paymentDate,
+                                        }))
+                                      : emi.paymentHistory &&
+                                          emi.paymentHistory.length > 0
+                                        ? emi.paymentHistory
+                                        : [];
+
+                                  if (sourceHistory.length > 0) {
                                     // Group history by date
                                     const groups = {};
-                                    emi.paymentHistory.forEach((p) => {
+                                    sourceHistory.forEach((p) => {
                                       const dateKey = new Date(p.date)
                                         .toISOString()
                                         .split("T")[0];
@@ -733,6 +741,7 @@ const LoanPendingViewPage = () => {
                                   <div className="relative">
                                     <PaymentModeSelector
                                       value={payment.mode}
+                                      allowMultiple={false}
                                       onChange={(val) =>
                                         handlePaymentChange(
                                           group.id,
