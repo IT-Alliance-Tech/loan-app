@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -20,6 +20,18 @@ const validationSchema = Yup.object().shape({
   startDate: Yup.string().required("Disbursement date is required"),
   emiStartDate: Yup.string().required("EMI start date is required"),
 });
+
+const ErrorMsg = ({ name, touched, errors }) => {
+  const [section, field] = name.includes(".") ? name.split(".") : [null, name];
+  const isTouched = section ? touched[section]?.[field] : touched[field];
+  const error = section ? errors[section]?.[field] : errors[field];
+
+  return isTouched && error ? (
+    <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
+      {error}
+    </p>
+  ) : null;
+};
 
 const DailyLoanForm = ({
   initialData,
@@ -100,20 +112,6 @@ const DailyLoanForm = ({
 
   const isEditMode = !!values?._id;
 
-  const ErrorMsg = ({ name }) => {
-    const [section, field] = name.includes(".")
-      ? name.split(".")
-      : [null, name];
-    const isTouched = section ? touched[section]?.[field] : touched[field];
-    const error = section ? errors[section]?.[field] : errors[field];
-
-    return isTouched && error ? (
-      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
-        {error}
-      </p>
-    ) : null;
-  };
-
   const getFieldClass = (name) => {
     const [section, field] = name.includes(".")
       ? name.split(".")
@@ -158,7 +156,7 @@ const DailyLoanForm = ({
               className={getFieldClass("loanNumber")}
               placeholder="Enter Loan Number"
             />
-            <ErrorMsg name="loanNumber" />
+            <ErrorMsg touched={touched} errors={errors} name="loanNumber" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -174,7 +172,7 @@ const DailyLoanForm = ({
               className={getFieldClass("customerName")}
               placeholder="Enter Customer Name"
             />
-            <ErrorMsg name="customerName" />
+            <ErrorMsg touched={touched} errors={errors} name="customerName" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -194,7 +192,7 @@ const DailyLoanForm = ({
               className={getFieldClass("mobileNumber")}
               placeholder="10-digit Number"
             />
-            <ErrorMsg name="mobileNumber" />
+            <ErrorMsg touched={touched} errors={errors} name="mobileNumber" />
           </div>
         </div>
       </div>
@@ -218,7 +216,11 @@ const DailyLoanForm = ({
               disabled={isViewOnly}
               className={getFieldClass("disbursementAmount")}
             />
-            <ErrorMsg name="disbursementAmount" />
+            <ErrorMsg
+              touched={touched}
+              errors={errors}
+              name="disbursementAmount"
+            />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -233,7 +235,11 @@ const DailyLoanForm = ({
               disabled={isViewOnly}
               className={getFieldClass("processingFeeRate")}
             />
-            <ErrorMsg name="processingFeeRate" />
+            <ErrorMsg
+              touched={touched}
+              errors={errors}
+              name="processingFeeRate"
+            />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -260,7 +266,7 @@ const DailyLoanForm = ({
               disabled={isViewOnly}
               className={getFieldClass("totalEmis")}
             />
-            <ErrorMsg name="totalEmis" />
+            <ErrorMsg touched={touched} errors={errors} name="totalEmis" />
           </div>
           {isEditMode && (
             <div className="space-y-2">
@@ -276,7 +282,7 @@ const DailyLoanForm = ({
                 disabled={isViewOnly}
                 className={getFieldClass("paidEmis")}
               />
-              <ErrorMsg name="paidEmis" />
+              <ErrorMsg touched={touched} errors={errors} name="paidEmis" />
             </div>
           )}
         </div>
@@ -301,7 +307,7 @@ const DailyLoanForm = ({
               disabled={isViewOnly}
               className={getFieldClass("startDate")}
             />
-            <ErrorMsg name="startDate" />
+            <ErrorMsg touched={touched} errors={errors} name="startDate" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -316,7 +322,7 @@ const DailyLoanForm = ({
               disabled={isViewOnly}
               className={getFieldClass("emiStartDate")}
             />
-            <ErrorMsg name="emiStartDate" />
+            <ErrorMsg touched={touched} errors={errors} name="emiStartDate" />
             <p className="text-[9px] text-blue-500 font-bold ml-1 italic uppercase tracking-tighter">
               Defaults to 1 day after disbursement
             </p>

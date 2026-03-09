@@ -338,19 +338,35 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Loan not found", 404));
   }
 
-  // Calculate remaining principal
-  const paidEmisCount = await EMI.countDocuments({
-    loanId: loan._id,
-    status: "Paid",
-  });
+  // Calculate remaining principal accurately including partial payments
+  const emis = await EMI.find({ loanId: loan._id });
+  let remainingTenureCount = 0;
+
+  if (emis && emis.length > 0) {
+    emis.forEach((emi) => {
+      const emiAmount = parseFloat(emi.emiAmount) || 0;
+      const amountPaid = parseFloat(emi.amountPaid) || 0;
+      if (emiAmount > 0) {
+        let remainingPortion = (emiAmount - amountPaid) / emiAmount;
+        if (remainingPortion < 0) remainingPortion = 0;
+        remainingTenureCount += remainingPortion;
+      }
+    });
+  } else {
+    remainingTenureCount = loan.tenureMonths || 0;
+  }
+
+  const principalPerMonth =
+    (loan.principalAmount || 0) / (loan.tenureMonths || 1);
   const remainingPrincipalAmount = Math.max(
     0,
-    loan.principalAmount -
-      paidEmisCount * (loan.principalAmount / loan.tenureMonths),
+    remainingTenureCount * principalPerMonth,
   );
 
   const formattedLoan = formatLoanResponse(loan);
-  formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
+  formattedLoan.loanTerms.remainingPrincipalAmount = parseFloat(
+    remainingPrincipalAmount.toFixed(2),
+  );
 
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
@@ -456,19 +472,35 @@ const getLoanById = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Loan not found", 404));
   }
 
-  // Calculate remaining principal
-  const paidEmisCount = await EMI.countDocuments({
-    loanId: loan._id,
-    status: "Paid",
-  });
+  // Calculate remaining principal accurately including partial payments
+  const emis = await EMI.find({ loanId: loan._id });
+  let remainingTenureCount = 0;
+
+  if (emis && emis.length > 0) {
+    emis.forEach((emi) => {
+      const emiAmount = parseFloat(emi.emiAmount) || 0;
+      const amountPaid = parseFloat(emi.amountPaid) || 0;
+      if (emiAmount > 0) {
+        let remainingPortion = (emiAmount - amountPaid) / emiAmount;
+        if (remainingPortion < 0) remainingPortion = 0;
+        remainingTenureCount += remainingPortion;
+      }
+    });
+  } else {
+    remainingTenureCount = loan.tenureMonths || 0;
+  }
+
+  const principalPerMonth =
+    (loan.principalAmount || 0) / (loan.tenureMonths || 1);
   const remainingPrincipalAmount = Math.max(
     0,
-    loan.principalAmount -
-      paidEmisCount * (loan.principalAmount / loan.tenureMonths),
+    remainingTenureCount * principalPerMonth,
   );
 
   const formattedLoan = formatLoanResponse(loan);
-  formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
+  formattedLoan.loanTerms.remainingPrincipalAmount = parseFloat(
+    remainingPrincipalAmount.toFixed(2),
+  );
 
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
