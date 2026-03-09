@@ -8,8 +8,11 @@ const {
   getAllEMIDetails,
   getEMIsByLoanId,
 } = require("../controllers/customercontroller");
-const { isAuthenticated } = require("../middlewares/auth");
-const authorizeRoles = require("../middlewares/role");
+const {
+  isAuthenticated,
+  authorizeRoles,
+  authorizePermissions,
+} = require("../middlewares/auth");
 
 const router = express.Router();
 
@@ -38,6 +41,11 @@ router.get(
 );
 
 router.put("/:id", authorizeRoles("SUPER_ADMIN", "ADMIN"), updateCustomer);
-router.put("/emi/:id", authorizeRoles("SUPER_ADMIN", "ADMIN"), updateEMI);
+router.put(
+  "/emi/:id",
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("emis.edit"),
+  updateEMI,
+);
 
 module.exports = router;

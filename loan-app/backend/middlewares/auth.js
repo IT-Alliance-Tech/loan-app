@@ -50,4 +50,40 @@ const authorizeRoles = (...roles) => {
   };
 };
 
-module.exports = { isAuthenticated, authorizeRoles };
+const authorizePermissions = (permissionPath) => {
+  return (req, res, next) => {
+    if (req.user.role === "SUPER_ADMIN") {
+      return next();
+    }
+
+    const permissions = req.user.permissions;
+    if (!permissions) {
+      return next(new ErrorHandler("User permissions not found", 403));
+    }
+
+    const parts = permissionPath.split(".");
+    let current = permissions;
+
+    for (const part of parts) {
+      if (current && typeof current === "object" && part in current) {
+        current = current[part];
+      } else {
+        current = false;
+        break;
+      }
+    }
+
+    if (current !== true) {
+      return next(
+        new ErrorHandler(
+          `You do not have permission to perform this action (${permissionPath})`,
+          403,
+        ),
+      );
+    }
+
+    next();
+  };
+};
+
+module.exports = { isAuthenticated, authorizeRoles, authorizePermissions };

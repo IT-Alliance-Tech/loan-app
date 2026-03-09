@@ -11,6 +11,7 @@ import { useToast } from "../../../context/ToastContext";
 import Link from "next/link";
 import TableActionMenu from "../../../components/TableActionMenu";
 import ConfirmationModal from "../../../components/ConfirmationModal";
+import { hasPermission } from "../../../utils/auth";
 
 const PartialPaymentsPage = () => {
   const router = useRouter();
@@ -60,10 +61,14 @@ const PartialPaymentsPage = () => {
       if (res.data) {
         if (res.data.payments) {
           setData(res.data.payments);
-          setTotalPages(res.data.pagination.totalPages);
-          setTotalRecords(res.data.pagination.total);
+          if (res.data.pagination) {
+            setTotalPages(res.data.pagination.totalPages || 1);
+            setTotalRecords(res.data.pagination.total || 0);
+          }
         } else {
           setData(res.data);
+          setTotalPages(1);
+          setTotalRecords(res.data.length || 0);
         }
       }
       setError("");
@@ -394,11 +399,15 @@ const PartialPaymentsPage = () => {
                                             "error",
                                           ),
                                   },
-                                  {
-                                    label: "Seize Vehicle",
-                                    onClick: () =>
-                                      handleSeizeClick(item.loanId),
-                                  },
+                                  ...(hasPermission("loans.edit")
+                                    ? [
+                                        {
+                                          label: "Seize Vehicle",
+                                          onClick: () =>
+                                            handleSeizeClick(item.loanId),
+                                        },
+                                      ]
+                                    : []),
                                 ]}
                               />
                             </td>
