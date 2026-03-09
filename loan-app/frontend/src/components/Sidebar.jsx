@@ -9,7 +9,7 @@ import { useUI } from "../context/UIContext";
 const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
   { name: "Analytics", href: "/admin/analytics", icon: "📈" },
-  { name: "Customers", href: "/admin/customers", icon: "👤" },
+  //{ name: "Customers", href: "/admin/customers", icon: "👤" },
   { name: "Loans", href: "/admin/loans", icon: "💰" },
   {
     name: "Weekly Loans",
@@ -35,7 +35,7 @@ const navItems = [
     icon: "👥",
     roles: ["SUPER_ADMIN"],
   },
-  { name: "EMI Details", href: "/admin/emi-details", icon: "🗓️" },
+  //{ name: "EMI Details", href: "/admin/emi-details", icon: "🗓️" },
   { name: "Seized Vehicles", href: "/admin/seized-vehicles", icon: "🚗" },
   {
     name: "Payments",

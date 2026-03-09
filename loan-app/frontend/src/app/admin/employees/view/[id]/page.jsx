@@ -94,7 +94,7 @@ const ViewEmployeePage = () => {
                     ← Back
                   </button>
                   <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
-                    Operator Details
+                    Employee Details
                   </h1>
                   <p className="text-slate-500 font-medium text-sm">
                     Profile and protocol status for {employee.name}
@@ -163,7 +163,7 @@ const ViewEmployeePage = () => {
                   >
                     {employee.isActive ? (
                       <>
-                        Revoke Access
+                        Remove Access
                         <svg
                           className="w-4 h-4 group-active:rotate-90 transition-transform"
                           fill="none"
@@ -242,7 +242,7 @@ const ViewEmployeePage = () => {
                       onClick={handleDelete}
                       className="w-full bg-white text-red-500 border border-red-100 p-5 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-red-50 transition-all shadow-sm"
                     >
-                      Purge From Registry
+                      Delete User
                     </button>
                   </div>
 
@@ -250,7 +250,7 @@ const ViewEmployeePage = () => {
                   <div className="md:col-span-2 bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
                     <div className="mb-6">
                       <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">
-                        Assigned Privileges
+                        Access controls
                       </h2>
                       <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
                         Granular access matrix enabled
@@ -266,7 +266,12 @@ const ViewEmployeePage = () => {
                               className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100"
                             >
                               <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-3">
-                                {key} Module
+                                <span className="capitalize">
+                                  {key === "loans"
+                                    ? "Loans (Main)"
+                                    : key.replace(/([A-Z])/g, " $1")}
+                                </span>{" "}
+                                Module
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {Object.entries(val).map(([act, allowed]) => (

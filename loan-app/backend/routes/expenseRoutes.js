@@ -16,6 +16,6 @@ router.get("/loan/:loanId", getLoanExpensesTotal);
 router
   .route("/")
   .get(getAllExpenses)
-  .post(authorizeRoles("SUPER_ADMIN"), createExpense);
+  .post(authorizeRoles("SUPER_ADMIN", "ADMIN"), createExpense);
 
 module.exports = router;

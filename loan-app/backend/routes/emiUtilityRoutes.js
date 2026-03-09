@@ -12,8 +12,8 @@ router.use(isAuthenticated);
 // Utility route to generate EMIs for existing loans
 router.post(
   "/generate-emis",
-  authorizeRoles("SUPER_ADMIN"),
-  generateEMIsForExistingLoans
+  authorizeRoles("SUPER_ADMIN", "ADMIN"),
+  generateEMIsForExistingLoans,
 );
 
 module.exports = router;

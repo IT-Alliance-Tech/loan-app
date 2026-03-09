@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 const DailyLoan = require("../models/DailyLoan");
 const EMI = require("../models/EMI");
+const ClosedLoan = require("../models/ClosedLoan");
+const Followup = require("../models/Followup");
 const ErrorHandler = require("../utils/ErrorHandler");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
@@ -212,7 +214,9 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
 
 // Get Single Daily Loan
 exports.getDailyLoanById = asyncHandler(async (req, res, next) => {
-  const dailyLoan = await DailyLoan.findById(req.params.id);
+  const dailyLoan = await DailyLoan.findById(req.params.id)
+    .populate("closureDetails")
+    .populate("followupHistory");
 
   if (!dailyLoan) {
     return next(new ErrorHandler("Daily loan not found", 404));
@@ -310,6 +314,41 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     new: true,
     runValidators: true,
   });
+
+  // Handle ClosedLoan and Followup records
+  if (updateData.status === "Closed") {
+    await ClosedLoan.findOneAndUpdate(
+      { loanId: dailyLoan._id },
+      {
+        loanId: dailyLoan._id,
+        loanModel: "DailyLoan",
+        closureType: "Foreclosure", // Daily/Weekly usually closure is foreclosure or full payment
+        closureDate: new Date(),
+        amount: dailyLoan.totalCollected || 0,
+        processedBy: req.user._id,
+        remarks: `Auto-created via DailyLoan sync. ${dailyLoan.remarks || ""}`,
+      },
+      { upsert: true, new: true },
+    );
+  }
+
+  if (clientResponse || nextFollowUpDate) {
+    await Followup.create({
+      loanId: dailyLoan._id,
+      loanModel: "DailyLoan",
+      loanType: "Daily",
+      followupDate: new Date(),
+      clientResponse: clientResponse || dailyLoan.clientResponse,
+      remarks: dailyLoan.remarks,
+      nextFollowupDate: nextFollowUpDate,
+      followedUpBy: req.user._id,
+    });
+  }
+
+  // Refetch to include virtuals
+  dailyLoan = await DailyLoan.findById(dailyLoan._id)
+    .populate("closureDetails")
+    .populate("followupHistory");
 
   if (
     emiStartDate ||
@@ -667,6 +706,14 @@ exports.getDailyPendingEmiDetails = asyncHandler(async (req, res, next) => {
     { $sort: { dueDate: 1 } },
     {
       $lookup: {
+        from: "payments",
+        localField: "_id",
+        foreignField: "emiId",
+        as: "paymentRecords",
+      },
+    },
+    {
+      $lookup: {
         from: "dailyloans",
         localField: "loanId",
         foreignField: "_id",
@@ -706,8 +753,11 @@ exports.getDailyPendingEmiDetails = asyncHandler(async (req, res, next) => {
         remarks: "$remarks",
         clientResponse: "$loan.clientResponse",
         emiNumber: 1,
+        overdue: "$overdue",
+        paymentHistory: "$paymentHistory",
         updatedAt: 1,
         updatedBy: { $ifNull: ["$updatedUserInfo.name", "$updatedBy"] },
+        paymentRecords: 1,
       },
     },
   ]);

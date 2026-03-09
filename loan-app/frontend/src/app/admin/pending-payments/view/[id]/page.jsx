@@ -15,6 +15,7 @@ import {
 import { updateEMI } from "../../../../../services/customer";
 import { format } from "date-fns";
 import { useToast } from "../../../../../context/ToastContext";
+import { hasPermission } from "../../../../../utils/auth";
 
 const LoanPendingViewPage = () => {
   const { id } = useParams();
@@ -172,9 +173,7 @@ const LoanPendingViewPage = () => {
 
   const remainingBalance = Math.max(
     0,
-    (selectedEmi?.emiAmount || 0) -
-      (selectedEmi?.amountPaid || 0) -
-      calculateTotalPaidNow(),
+    (selectedEmi?.emiAmount || 0) - calculateTotalPaidNow(),
   );
 
   const handleSaveEMI = async (e) => {
@@ -328,7 +327,7 @@ const LoanPendingViewPage = () => {
                               </button>
                             ))
                           ) : (
-                            <p className="text-slate-300">N/A</p>
+                            <p className="text-slate-300">-</p>
                           )}
                         </div>
                       </div>
@@ -362,7 +361,9 @@ const LoanPendingViewPage = () => {
                           Engine No
                         </span>
                         <p className="text-xs font-black text-slate-800 uppercase">
-                          {loan.engineNumber || "N/A"}
+                          {!loan.engineNumber || loan.engineNumber === "N/A"
+                            ? "-"
+                            : loan.engineNumber}
                         </p>
                       </div>
                       <div>
@@ -370,7 +371,9 @@ const LoanPendingViewPage = () => {
                           Chassis No
                         </span>
                         <p className="text-xs font-black text-slate-800 uppercase">
-                          {loan.chassisNumber || "N/A"}
+                          {!loan.chassisNumber || loan.chassisNumber === "N/A"
+                            ? "-"
+                            : loan.chassisNumber}
                         </p>
                       </div>
                     </div>
@@ -405,13 +408,15 @@ const LoanPendingViewPage = () => {
                         />
                       </div>
                     </div>
-                    <button
-                      onClick={handleUpdateStatus}
-                      disabled={updating}
-                      className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-500/20"
-                    >
-                      {updating ? "Updating..." : "Update Client Response"}
-                    </button>
+                    {hasPermission("loans.edit") && (
+                      <button
+                        onClick={handleUpdateStatus}
+                        disabled={updating}
+                        className="w-full bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all disabled:opacity-50 shadow-xl shadow-blue-500/20"
+                      >
+                        {updating ? "Updating..." : "Update Client Response"}
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -549,86 +554,98 @@ const LoanPendingViewPage = () => {
                               )}
 
                               {/* Action Row: Full Width Button */}
-                              <button
-                                onClick={() => {
-                                  setSelectedEmi(emi);
-                                  setEditData({
-                                    overdue: emi.overdue || 0,
-                                    status: emi.status || "Pending",
-                                    remarks: emi.remarks || "",
-                                  });
-
-                                  if (
-                                    emi.paymentHistory &&
-                                    emi.paymentHistory.length > 0
-                                  ) {
-                                    // Group history by date
-                                    const groups = {};
-                                    emi.paymentHistory.forEach((p) => {
-                                      const dateKey = new Date(p.date)
-                                        .toISOString()
-                                        .split("T")[0];
-                                      if (!groups[dateKey]) {
-                                        groups[dateKey] = {
-                                          id: Math.random(),
-                                          date: dateKey,
-                                          payments: [],
-                                        };
-                                      }
-                                      groups[dateKey].payments.push({
-                                        id: Math.random(),
-                                        mode: p.mode,
-                                        amount: p.amount,
-                                      });
+                              {hasPermission("emis.edit") && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedEmi(emi);
+                                    setEditData({
+                                      overdue: emi.overdue || 0,
+                                      status: emi.status || "Pending",
+                                      remarks: emi.remarks || "",
                                     });
-                                    setDateGroups(Object.values(groups));
-                                  } else if (emi.amountPaid > 0) {
-                                    // Fallback for legacy data (before paymentHistory was added)
-                                    setDateGroups([
-                                      {
-                                        id: Date.now(),
-                                        date: emi.paymentDate
-                                          ? new Date(emi.paymentDate)
-                                              .toISOString()
-                                              .split("T")[0]
-                                          : new Date()
-                                              .toISOString()
-                                              .split("T")[0],
-                                        payments: [
-                                          {
-                                            id: Date.now() + 1,
-                                            mode:
-                                              (emi.paymentMode || "").split(
-                                                ", ",
-                                              )[0] || "CASH",
-                                            amount: emi.amountPaid,
-                                          },
-                                        ],
-                                      },
-                                    ]);
-                                  } else {
-                                    setDateGroups([
-                                      {
-                                        id: Date.now(),
-                                        date: new Date()
+
+                                    const sourceHistory =
+                                      emi.paymentRecords &&
+                                      emi.paymentRecords.length > 0
+                                        ? emi.paymentRecords.map((r) => ({
+                                            amount: r.amount,
+                                            mode: r.mode,
+                                            date: r.paymentDate,
+                                          }))
+                                        : emi.paymentHistory &&
+                                            emi.paymentHistory.length > 0
+                                          ? emi.paymentHistory
+                                          : [];
+
+                                    if (sourceHistory.length > 0) {
+                                      // Group history by date
+                                      const groups = {};
+                                      sourceHistory.forEach((p) => {
+                                        const dateKey = new Date(p.date)
                                           .toISOString()
-                                          .split("T")[0],
-                                        payments: [
-                                          {
-                                            id: Date.now() + 1,
-                                            mode: "CASH",
-                                            amount: "",
-                                          },
-                                        ],
-                                      },
-                                    ]);
-                                  }
-                                  setShowModal(true);
-                                }}
-                                className="w-full bg-primary hover:bg-blue-700 text-white rounded-xl py-2.5 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-100 active:scale-[0.98] flex items-center justify-center gap-2"
-                              >
-                                <span className="text-sm">₹</span> PAY EMI
-                              </button>
+                                          .split("T")[0];
+                                        if (!groups[dateKey]) {
+                                          groups[dateKey] = {
+                                            id: Math.random(),
+                                            date: dateKey,
+                                            payments: [],
+                                          };
+                                        }
+                                        groups[dateKey].payments.push({
+                                          id: Math.random(),
+                                          mode: p.mode,
+                                          amount: p.amount,
+                                        });
+                                      });
+                                      setDateGroups(Object.values(groups));
+                                    } else if (emi.amountPaid > 0) {
+                                      // Fallback for legacy data (before paymentHistory was added)
+                                      setDateGroups([
+                                        {
+                                          id: Date.now(),
+                                          date: emi.paymentDate
+                                            ? new Date(emi.paymentDate)
+                                                .toISOString()
+                                                .split("T")[0]
+                                            : new Date()
+                                                .toISOString()
+                                                .split("T")[0],
+                                          payments: [
+                                            {
+                                              id: Date.now() + 1,
+                                              mode:
+                                                (emi.paymentMode || "").split(
+                                                  ", ",
+                                                )[0] || "CASH",
+                                              amount: emi.amountPaid,
+                                            },
+                                          ],
+                                        },
+                                      ]);
+                                    } else {
+                                      setDateGroups([
+                                        {
+                                          id: Date.now(),
+                                          date: new Date()
+                                            .toISOString()
+                                            .split("T")[0],
+                                          payments: [
+                                            {
+                                              id: Date.now() + 1,
+                                              mode: "CASH",
+                                              amount: "",
+                                            },
+                                          ],
+                                        },
+                                      ]);
+                                    }
+                                    setShowModal(true);
+                                  }}
+                                  className="w-full bg-primary hover:bg-blue-700 text-white rounded-xl py-2.5 font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-100 active:scale-[0.98] flex items-center justify-center gap-2"
+                                >
+                                  <span className="text-sm">₹</span> PAY EMI
+                                </button>
+                              )}
                             </div>
                           ))}
                       </div>
@@ -733,6 +750,7 @@ const LoanPendingViewPage = () => {
                                   <div className="relative">
                                     <PaymentModeSelector
                                       value={payment.mode}
+                                      allowMultiple={false}
                                       onChange={(val) =>
                                         handlePaymentChange(
                                           group.id,

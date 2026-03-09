@@ -123,7 +123,10 @@ const EMIDetailsPage = () => {
           status: "Pending",
           mobileNumbers: emi.mobileNumbers || [],
           guarantorMobileNumbers: emi.guarantorMobileNumbers || [],
-          guarantorName: emi.guarantorName || "N/A",
+          guarantorName:
+            !emi.guarantorName || emi.guarantorName === "N/A"
+              ? "-"
+              : emi.guarantorName,
         };
       }
 

@@ -15,6 +15,8 @@ const LoansPage = () => {
   const router = useRouter();
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const canCreate = isSuperAdmin || user?.permissions?.loans?.create;
+  const canEdit = isSuperAdmin || user?.permissions?.loans?.edit;
 
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -178,7 +180,7 @@ const LoansPage = () => {
                     </svg>
                     Export
                   </button>
-                  {isSuperAdmin && (
+                  {canCreate && (
                     <button
                       onClick={() => router.push("/admin/loans/add")}
                       className="bg-[#2463EB] text-white px-4 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wide shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
@@ -445,7 +447,7 @@ const LoansPage = () => {
                                       />
                                     </svg>
                                   </button>
-                                  {isSuperAdmin && (
+                                  {canEdit && (
                                     <button
                                       onClick={() => {
                                         const id =
@@ -702,7 +704,7 @@ const LoansPage = () => {
                                       />
                                     </svg>
                                   </button>
-                                  {isSuperAdmin && (
+                                  {canEdit && (
                                     <button
                                       onClick={() => {
                                         const id =

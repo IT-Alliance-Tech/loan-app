@@ -1,6 +1,37 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import { addDays, format } from "date-fns";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import ClientResponseSection from "./ClientResponseSection";
+
+const validationSchema = Yup.object().shape({
+  loanNumber: Yup.string().required("Loan number is required"),
+  customerName: Yup.string().required("Customer name is required"),
+  mobileNumber: Yup.string()
+    .matches(/^[6-9]\d{9}$/, "Invalid mobile number")
+    .required("Mobile number is required"),
+  disbursementAmount: Yup.number()
+    .positive("Amount must be positive")
+    .required("Amount is required"),
+  totalEmis: Yup.number()
+    .positive("Tenure must be positive")
+    .integer("Tenure must be an integer")
+    .required("Tenure is required"),
+  startDate: Yup.string().required("Disbursement date is required"),
+  emiStartDate: Yup.string().required("EMI start date is required"),
+});
+
+const ErrorMsg = ({ name, touched, errors }) => {
+  const [section, field] = name.includes(".") ? name.split(".") : [null, name];
+  const isTouched = section ? touched[section]?.[field] : touched[field];
+  const error = section ? errors[section]?.[field] : errors[field];
+
+  return isTouched && error ? (
+    <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
+      {error}
+    </p>
+  ) : null;
+};
 
 const DailyLoanForm = ({
   initialData,
@@ -9,18 +40,46 @@ const DailyLoanForm = ({
   submitting,
   isViewOnly = false,
 }) => {
-  const [formData, setFormData] = useState(initialData);
+  const formik = useFormik({
+    initialValues: initialData,
+    validationSchema,
+    enableReinitialize: true,
+    onSubmit: (values) => {
+      onSubmit({
+        ...values,
+        emiAmount,
+        processingFee,
+        remainingEmis,
+        totalAmount,
+        totalCollected,
+        nextEmiDate,
+        emiEndDate,
+        remainingPrincipalAmount,
+      });
+    },
+  });
+
+  const { values, setFieldValue, errors, touched, handleBlur } = formik;
+
+  // Auto-set EMI Start Date to 1 day after Disbursement Date
+  useEffect(() => {
+    if (values.startDate && !formik.values._id) {
+      const disbursementDate = new Date(values.startDate);
+      if (!isNaN(disbursementDate.getTime())) {
+        const autoEmiStart = format(addDays(disbursementDate, 1), "yyyy-MM-dd");
+        if (values.emiStartDate !== autoEmiStart) {
+          setFieldValue("emiStartDate", autoEmiStart);
+        }
+      }
+    }
+  }, [values.startDate, setFieldValue, formik.values._id, values.emiStartDate]);
 
   // Auto-calculations (Derived State)
-  const amount = parseFloat(formData.disbursementAmount) || 0;
-  const totalDays = parseInt(formData.totalEmis) || 0;
-  const paidDays = parseInt(formData.paidEmis) || 0;
-  const feeRate = parseFloat(formData.processingFeeRate) || 10;
-  const eStartDate = formData.emiStartDate
-    ? new Date(formData.emiStartDate)
-    : formData.startDate
-      ? new Date(formData.startDate)
-      : null;
+  const amount = parseFloat(values.disbursementAmount) || 0;
+  const totalDays = parseInt(values.totalEmis) || 0;
+  const paidDays = parseInt(values.paidEmis) || 0;
+  const feeRate = parseFloat(values.processingFeeRate) || 10;
+  const eStartDate = values.emiStartDate ? new Date(values.emiStartDate) : null;
 
   // Processing Fee
   const processingFee = (amount * (feeRate / 100)).toFixed(2);
@@ -51,47 +110,27 @@ const DailyLoanForm = ({
       ? format(addDays(eStartDate, paidDays), "yyyy-MM-dd")
       : "";
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const isEditMode = !!values?._id;
 
-    // Auto-set EMI Start Date to 1 day after Disbursement Date
-    if (name === "startDate" && value) {
-      const disbursementDate = new Date(value);
-      const autoEmiStart = format(addDays(disbursementDate, 1), "yyyy-MM-dd");
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-        emiStartDate: autoEmiStart,
-      }));
-      return;
-    }
+  const getFieldClass = (name) => {
+    const [section, field] = name.includes(".")
+      ? name.split(".")
+      : [null, name];
+    const isTouched = section ? touched[section]?.[field] : touched[field];
+    const error = section ? errors[section]?.[field] : errors[field];
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    const baseClass =
+      "w-full bg-slate-50 border rounded-2xl px-5 py-4 text-sm font-bold transition-all placeholder:text-slate-300 disabled:opacity-70 focus:outline-none focus:ring-2 ";
+    const stateClass =
+      isTouched && error
+        ? "border-red-300 text-red-900 focus:ring-red-100 placeholder:text-red-200"
+        : "border-transparent text-slate-700 focus:ring-primary/20";
+    return baseClass + stateClass;
   };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({
-      ...formData,
-      emiAmount,
-      processingFee,
-      remainingEmis,
-      totalAmount,
-      totalCollected,
-      nextEmiDate,
-      emiEndDate,
-      remainingPrincipalAmount,
-    });
-  };
-
-  const isEditMode = !!formData?._id;
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={formik.handleSubmit}
       className="space-y-8 animate-in fade-in duration-500"
     >
       {/* Customer Info */}
@@ -105,45 +144,55 @@ const DailyLoanForm = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Loan Number
+              Loan Number <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               name="loanNumber"
-              value={formData.loanNumber || ""}
-              onChange={handleChange}
-              required
+              value={values.loanNumber || ""}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
               disabled={isViewOnly}
-              className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300 disabled:opacity-70"
+              className={getFieldClass("loanNumber")}
+              placeholder="Enter Loan Number"
             />
+            <ErrorMsg touched={touched} errors={errors} name="loanNumber" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Customer Name
+              Customer Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               name="customerName"
-              value={formData.customerName || ""}
-              onChange={handleChange}
-              required
+              value={values.customerName || ""}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
               disabled={isViewOnly}
-              className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300 disabled:opacity-70"
+              className={getFieldClass("customerName")}
+              placeholder="Enter Customer Name"
             />
+            <ErrorMsg touched={touched} errors={errors} name="customerName" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Mobile Number
+              Mobile Number <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               name="mobileNumber"
-              value={formData.mobileNumber || ""}
-              onChange={handleChange}
-              required
+              value={values.mobileNumber || ""}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setFieldValue("mobileNumber", val);
+              }}
+              onBlur={handleBlur}
               disabled={isViewOnly}
-              className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300 disabled:opacity-70"
+              maxLength={10}
+              className={getFieldClass("mobileNumber")}
+              placeholder="10-digit Number"
             />
+            <ErrorMsg touched={touched} errors={errors} name="mobileNumber" />
           </div>
         </div>
       </div>
@@ -161,11 +210,16 @@ const DailyLoanForm = ({
             <input
               type="number"
               name="disbursementAmount"
-              value={formData.disbursementAmount || ""}
-              onChange={handleChange}
-              required
+              value={values.disbursementAmount || ""}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
               disabled={isViewOnly}
-              className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all"
+              className={getFieldClass("disbursementAmount")}
+            />
+            <ErrorMsg
+              touched={touched}
+              errors={errors}
+              name="disbursementAmount"
             />
           </div>
           <div className="space-y-2">
@@ -175,10 +229,16 @@ const DailyLoanForm = ({
             <input
               type="number"
               name="processingFeeRate"
-              value={formData.processingFeeRate ?? 10}
-              onChange={handleChange}
+              value={values.processingFeeRate ?? 10}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
               disabled={isViewOnly}
-              className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all"
+              className={getFieldClass("processingFeeRate")}
+            />
+            <ErrorMsg
+              touched={touched}
+              errors={errors}
+              name="processingFeeRate"
             />
           </div>
           <div className="space-y-2">
@@ -200,12 +260,13 @@ const DailyLoanForm = ({
             <input
               type="number"
               name="totalEmis"
-              value={formData.totalEmis || ""}
-              onChange={handleChange}
-              required
+              value={values.totalEmis || ""}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
               disabled={isViewOnly}
-              className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all"
+              className={getFieldClass("totalEmis")}
             />
+            <ErrorMsg touched={touched} errors={errors} name="totalEmis" />
           </div>
           {isEditMode && (
             <div className="space-y-2">
@@ -215,11 +276,13 @@ const DailyLoanForm = ({
               <input
                 type="number"
                 name="paidEmis"
-                value={formData.paidEmis ?? ""}
-                onChange={handleChange}
+                value={values.paidEmis ?? ""}
+                onChange={formik.handleChange}
+                onBlur={handleBlur}
                 disabled={isViewOnly}
-                className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all"
+                className={getFieldClass("paidEmis")}
               />
+              <ErrorMsg touched={touched} errors={errors} name="paidEmis" />
             </div>
           )}
         </div>
@@ -238,12 +301,13 @@ const DailyLoanForm = ({
             <input
               type="date"
               name="startDate"
-              value={formData.startDate || ""}
-              onChange={handleChange}
-              required
+              value={values.startDate || ""}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
               disabled={isViewOnly}
-              className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all"
+              className={getFieldClass("startDate")}
             />
+            <ErrorMsg touched={touched} errors={errors} name="startDate" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -252,11 +316,13 @@ const DailyLoanForm = ({
             <input
               type="date"
               name="emiStartDate"
-              value={formData.emiStartDate || ""}
-              onChange={handleChange}
+              value={values.emiStartDate || ""}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
               disabled={isViewOnly}
-              className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all font-mono"
+              className={getFieldClass("emiStartDate")}
             />
+            <ErrorMsg touched={touched} errors={errors} name="emiStartDate" />
             <p className="text-[9px] text-blue-500 font-bold ml-1 italic uppercase tracking-tighter">
               Defaults to 1 day after disbursement
             </p>
@@ -294,7 +360,7 @@ const DailyLoanForm = ({
                   Total Collected (Auto)
                 </label>
                 <div className="w-full bg-primary/10 border-none rounded-2xl px-5 py-4 text-sm font-black text-primary">
-                  {formData.totalCollected}
+                  {totalCollected}
                 </div>
               </div>
             </>
@@ -336,11 +402,11 @@ const DailyLoanForm = ({
         </div>
       </div>
 
-      {formData?._id && (
+      {values?._id && (
         <ClientResponseSection
-          clientResponse={formData.clientResponse}
-          nextFollowUpDate={formData.nextFollowUpDate}
-          onChange={handleChange}
+          clientResponse={values.clientResponse}
+          nextFollowUpDate={values.nextFollowUpDate}
+          onChange={formik.handleChange}
           isViewOnly={isViewOnly}
         />
       )}

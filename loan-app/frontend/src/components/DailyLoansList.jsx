@@ -15,6 +15,8 @@ const DailyLoansList = ({ type, title }) => {
   const { showToast } = useToast();
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const canCreate = isSuperAdmin || user?.permissions?.dailyLoans?.create;
+  const canEdit = isSuperAdmin || user?.permissions?.dailyLoans?.edit;
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -145,12 +147,14 @@ const DailyLoansList = ({ type, title }) => {
             </svg>
             Export
           </button>
-          <Link
-            href="/admin/daily-loans/add"
-            className="bg-[#2463EB] text-white px-4 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wide shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
-          >
-            <span className="text-lg leading-none">+</span> Add New
-          </Link>
+          {canCreate && (
+            <Link
+              href="/admin/daily-loans/add"
+              className="bg-[#2463EB] text-white px-4 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wide shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
+            >
+              <span className="text-lg leading-none">+</span> Add New
+            </Link>
+          )}
         </div>
       </div>
 
@@ -228,6 +232,9 @@ const DailyLoansList = ({ type, title }) => {
                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                     STATUS
                   </th>
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                    CLIENT RESPONSE
+                  </th>
                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap sticky right-0 bg-slate-50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                     ACTIONS
                   </th>
@@ -237,7 +244,7 @@ const DailyLoansList = ({ type, title }) => {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan="9"
+                      colSpan="10"
                       className="px-4 py-12 text-center text-slate-400 font-bold text-[10px] uppercase tracking-widest"
                     >
                       Loading...
@@ -246,7 +253,7 @@ const DailyLoansList = ({ type, title }) => {
                 ) : loans.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="9"
+                      colSpan="10"
                       className="px-4 py-12 text-center text-slate-400 font-bold text-[10px] uppercase tracking-widest"
                     >
                       No records
@@ -311,6 +318,11 @@ const DailyLoansList = ({ type, title }) => {
                           {loan.status}
                         </span>
                       </td>
+                      <td className="px-4 py-5 text-center">
+                        <span className="text-[10px] font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100 block max-h-[60px] overflow-y-auto whitespace-normal break-words scrollbar-none mx-auto">
+                          {loan.clientResponse || "—"}
+                        </span>
+                      </td>
                       <td className="px-4 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                         <div className="flex justify-center items-center gap-2">
                           <button
@@ -339,7 +351,7 @@ const DailyLoansList = ({ type, title }) => {
                               />
                             </svg>
                           </button>
-                          {isSuperAdmin && (
+                          {canEdit && (
                             <button
                               onClick={() =>
                                 router.push(
@@ -402,6 +414,9 @@ const DailyLoansList = ({ type, title }) => {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Status
                 </th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                  Client Response
+                </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap sticky right-0 bg-slate-50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                   Actions
                 </th>
@@ -411,7 +426,7 @@ const DailyLoansList = ({ type, title }) => {
               {loading ? (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="9"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
                     Loading records...
@@ -420,7 +435,7 @@ const DailyLoansList = ({ type, title }) => {
               ) : loans.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="9"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
                     No records found
@@ -484,6 +499,11 @@ const DailyLoansList = ({ type, title }) => {
                         {loan.status}
                       </span>
                     </td>
+                    <td className="px-6 py-5 text-center">
+                      <span className="text-[10px] font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-100 block max-h-[80px] overflow-y-auto whitespace-normal break-words scrollbar-none mx-auto min-w-[120px]">
+                        {loan.clientResponse || "—"}
+                      </span>
+                    </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                       <div className="flex justify-center items-center gap-3">
                         <button
@@ -512,7 +532,7 @@ const DailyLoansList = ({ type, title }) => {
                             />
                           </svg>
                         </button>
-                        {isSuperAdmin && (
+                        {canEdit && (
                           <button
                             onClick={() =>
                               router.push(`/admin/daily-loans/edit/${loan._id}`)

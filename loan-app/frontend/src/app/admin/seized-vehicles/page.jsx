@@ -286,7 +286,7 @@ const SeizedVehiclesPage = () => {
                               diffTime / (1000 * 60 * 60 * 24),
                             );
                           } else {
-                            diffDays = "N/A";
+                            diffDays = "-";
                             isDateValid = false;
                           }
 
@@ -347,11 +347,11 @@ const SeizedVehiclesPage = () => {
                               </td>
 
                               {/* 4. Vehicle Number */}
-                              <td className="px-6 py-5">
+                              <td className="px-6 py-5 whitespace-nowrap">
                                 <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
                                   {loan.loanTerms?.vehicleNumber ||
                                     loan.vehicleNumber ||
-                                    "N/A"}
+                                    "-"}
                                 </span>
                               </td>
 
@@ -371,9 +371,9 @@ const SeizedVehiclesPage = () => {
                               </td>
 
                               {/* 7. Days (Since Seized) */}
-                              <td className="px-6 py-5 text-center">
+                              <td className="px-6 py-5 text-center whitespace-nowrap">
                                 <span className="text-[10px] font-bold text-slate-500">
-                                  {isDateValid ? `${diffDays} Days` : "N/A"}
+                                  {isDateValid ? `${diffDays} Days` : "-"}
                                 </span>
                               </td>
 

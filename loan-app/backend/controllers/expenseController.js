@@ -8,27 +8,40 @@ const sendResponse = require("../utils/response");
 // @route   POST /api/expenses
 // @access  Private/Admin
 const createExpense = asyncHandler(async (req, res, next) => {
-  const { loanNumber, vehicleNumber, particulars, date, amount } = req.body;
+  const {
+    loanNumber,
+    vehicleNumber,
+    particulars,
+    date,
+    amount,
+    isOfficeExpense,
+  } = req.body;
 
-  if (!loanNumber || !particulars || !amount) {
+  if (!particulars || !amount || (!isOfficeExpense && !loanNumber)) {
     return next(
       new ErrorHandler(
-        "Please provide loan number, particulars and amount",
+        "Please provide particulars, amount and either loan number or mark as office expense",
         400,
       ),
     );
   }
 
   // Find loanId if it exists
-  const loan = await Loan.findOne({ loanNumber });
+  let loan = null;
+  if (!isOfficeExpense && loanNumber) {
+    loan = await Loan.findOne({ loanNumber });
+  }
 
   const expense = await Expense.create({
     loanId: loan ? loan._id : null,
-    loanNumber,
-    vehicleNumber: vehicleNumber || (loan ? loan.vehicleNumber : null),
+    loanNumber: isOfficeExpense ? "OFFICE" : loanNumber,
+    vehicleNumber: isOfficeExpense
+      ? "-"
+      : vehicleNumber || (loan ? loan.vehicleNumber : null),
     particulars,
     date: date || Date.now(),
     amount,
+    isOfficeExpense: isOfficeExpense || false,
     createdBy: req.user._id,
   });
 

@@ -15,6 +15,7 @@ import { useToast } from "../../../context/ToastContext";
 import Link from "next/link";
 import TableActionMenu from "../../../components/TableActionMenu";
 import ConfirmationModal from "../../../components/ConfirmationModal";
+import { hasPermission } from "../../../utils/auth";
 
 const PendingPaymentsPage = () => {
   const router = useRouter();
@@ -403,11 +404,15 @@ const PendingPaymentsPage = () => {
                                       }
                                     },
                                   },
-                                  {
-                                    label: "Seize Vehicle",
-                                    onClick: () =>
-                                      handleSeizeClick(item.loanId),
-                                  },
+                                  ...(hasPermission("loans.edit")
+                                    ? [
+                                        {
+                                          label: "Seize Vehicle",
+                                          onClick: () =>
+                                            handleSeizeClick(item.loanId),
+                                        },
+                                      ]
+                                    : []),
                                 ]}
                               />
                             </td>
