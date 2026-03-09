@@ -17,9 +17,26 @@ const AddExpenseModal = ({ isOpen, onClose, onSuccess }) => {
 
   if (!isOpen) return null;
 
+  const formatVehicleNumber = (val) => {
+    // Remove all non-alphanumeric characters and uppercase
+    const clean = val.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    const parts = [];
+
+    if (clean.length > 0) parts.push(clean.substring(0, 2)); // KA
+    if (clean.length > 2) parts.push(clean.substring(2, 4)); // 02
+    if (clean.length > 4) parts.push(clean.substring(4, 6)); // UJ
+    if (clean.length > 6) parts.push(clean.substring(6, 10)); // 7890
+
+    return parts.join("-");
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "vehicleNumber") {
+      setFormData((prev) => ({ ...prev, [name]: formatVehicleNumber(value) }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSearch = async (query) => {
