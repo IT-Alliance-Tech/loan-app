@@ -103,9 +103,22 @@ const ViewEmployeePage = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={() => router.push(`/admin/employees/edit/${id}`)}
-                    className="bg-white border border-slate-200 text-primary px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm shadow-blue-100"
+                    className="bg-white border border-slate-200 text-primary px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 shadow-2xl shadow-blue-100 ring-4 ring-primary/5 group"
                   >
                     Edit Profile
+                    <svg
+                      className="w-4 h-4 group-hover:rotate-12 transition-transform"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2.5"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -142,13 +155,47 @@ const ViewEmployeePage = () => {
                   </div>
                   <button
                     onClick={handleToggleStatus}
-                    className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
+                    className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ring-4 flex items-center gap-2 group ${
                       employee.isActive
-                        ? "bg-amber-500 text-white shadow-xl shadow-amber-100 hover:bg-amber-600"
-                        : "bg-emerald-600 text-white shadow-xl shadow-emerald-100 hover:bg-emerald-700"
+                        ? "bg-amber-500 text-white shadow-2xl shadow-amber-100 ring-amber-500/10 hover:bg-amber-600"
+                        : "bg-emerald-600 text-white shadow-2xl shadow-emerald-100 ring-emerald-500/10 hover:bg-emerald-700"
                     }`}
                   >
-                    {employee.isActive ? "Revoke Access" : "Grant Access"}
+                    {employee.isActive ? (
+                      <>
+                        Revoke Access
+                        <svg
+                          className="w-4 h-4 group-active:rotate-90 transition-transform"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2.5"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                          />
+                        </svg>
+                      </>
+                    ) : (
+                      <>
+                        Grant Access
+                        <svg
+                          className="w-4 h-4 group-hover:scale-110 transition-transform"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2.5"
+                            d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </>
+                    )}
                   </button>
                 </div>
 

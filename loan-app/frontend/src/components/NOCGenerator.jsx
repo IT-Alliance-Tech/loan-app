@@ -4,7 +4,7 @@ import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 import "@fontsource/noto-sans-kannada/700.css";
 
-const NOCGenerator = ({ loan }) => {
+const NOCGenerator = ({ loan, showSeal }) => {
   const [generating, setGenerating] = useState(false);
 
   const generatePDF = async () => {
@@ -74,11 +74,7 @@ const NOCGenerator = ({ loan }) => {
       ctx.font = `bold ${42 * scale}px 'Noto Sans Kannada', 'Tunga', 'Kannada MN', sans-serif`;
       ctx.fillStyle = "#1e1e1e";
       ctx.textBaseline = "top";
-      ctx.fillText(
-        "\u0CB8\u0CCD\u0C95\u0CCD\u0CB5\u0CC7\u0CB0\u0CCD \u0CAB\u0CC8\u0CA8\u0CBE\u0CA8\u0CCD\u0CB8\u0CCD",
-        cx,
-        boxY + boxH + 75 * scale,
-      );
+      ctx.fillText("ಸ್ಕ್ವೇರ್ ಫೈನಾನ್ಸ್", cx, boxY + boxH + 75 * scale);
 
       // Remove the separate Square Finance drawing below as it's now inside the box
 
@@ -177,20 +173,45 @@ const NOCGenerator = ({ loan }) => {
       pdf.setFont("helvetica", "bold");
       pdf.text("Thanking you,", margin, y);
 
-      // Signature box
+      // Signature area
       y += 10;
-      pdf.setDrawColor(0, 0, 0);
-      pdf.setLineWidth(0.5);
-      pdf.rect(margin, y, 60, 30);
 
-      // "For Square Finance" inside box
-      pdf.setFontSize(9);
+      if (showSeal) {
+        try {
+          // Place seal inside the logical signature area without a hard box border if it has its own
+          pdf.addImage(
+            "/assets/images/seal-sign.png",
+            "PNG",
+            margin + 2,
+            y - 5,
+            55,
+            28,
+          );
+        } catch (e) {
+          console.error("Failed to add seal image", e);
+          pdf.setDrawColor(0, 0, 0);
+          pdf.setLineWidth(0.5);
+          pdf.rect(margin, y, 60, 30);
+          pdf.setFontSize(9);
+          pdf.setFont("helvetica", "bold");
+          pdf.text("For Square Finance", margin + 30, y + 27, {
+            align: "center",
+          });
+        }
+      } else {
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setLineWidth(0.5);
+        pdf.rect(margin, y, 60, 30);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("For Square Finance", margin + 30, y + 27, {
+          align: "center",
+        });
+      }
+
+      // "Yours faithfully" on the right (reset y to box top for alignment)
+      pdf.setFontSize(10);
       pdf.setFont("helvetica", "bold");
-      pdf.text("For Square Finance", margin + 30, y + 27, {
-        align: "center",
-      });
-
-      // "Yours faithfully" on the right
       pdf.text("Yours faithfully,", pageWidth - margin, y, {
         align: "right",
       });
