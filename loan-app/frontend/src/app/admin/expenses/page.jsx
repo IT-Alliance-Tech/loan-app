@@ -102,7 +102,7 @@ const ExpensesPage = () => {
                         expenses.map((expense) => (
                           <tr
                             key={expense._id}
-                            className="hover:bg-slate-50/50 transition-all"
+                            className="hover:bg-blue-50/80 transition-all cursor-default"
                           >
                             <td className="px-6 py-5">
                               <span className="font-bold text-slate-700 text-xs">

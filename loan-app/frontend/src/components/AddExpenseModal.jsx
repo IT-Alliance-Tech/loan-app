@@ -13,6 +13,7 @@ const AddExpenseModal = ({ isOpen, onClose, onSuccess }) => {
     particulars: "",
     date: new Date().toISOString().split("T")[0],
     amount: "",
+    isOfficeExpense: false,
   });
 
   if (!isOpen) return null;
@@ -75,6 +76,7 @@ const AddExpenseModal = ({ isOpen, onClose, onSuccess }) => {
         particulars: "",
         date: new Date().toISOString().split("T")[0],
         amount: "",
+        isOfficeExpense: false,
       });
     } catch (err) {
       showToast(err.message || "Failed to add expense", "error");
@@ -108,37 +110,62 @@ const AddExpenseModal = ({ isOpen, onClose, onSuccess }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-5">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                Loan Number
-              </label>
-              <input
-                type="text"
-                name="loanNumber"
-                required
-                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all uppercase"
-                value={formData.loanNumber}
-                onChange={handleChange}
-                onBlur={(e) => handleSearch(e.target.value)}
-                placeholder="E.G. L-123"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                Vehicle Number
-              </label>
-              <input
-                type="text"
-                name="vehicleNumber"
-                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all uppercase"
-                value={formData.vehicleNumber}
-                onChange={handleChange}
-                onBlur={(e) => handleSearch(e.target.value)}
-                placeholder="E.G. GJ01..."
-              />
-            </div>
+          <div className="flex items-center gap-3 px-1">
+            <input
+              type="checkbox"
+              id="isOfficeExpense"
+              name="isOfficeExpense"
+              className="w-5 h-5 text-primary bg-slate-50 border-slate-200 rounded-lg focus:ring-primary/20 transition-all cursor-pointer"
+              checked={formData.isOfficeExpense}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  isOfficeExpense: e.target.checked,
+                  // Option: could clear loan text if checked, but better not to lose user input if they misclick
+                }))
+              }
+            />
+            <label
+              htmlFor="isOfficeExpense"
+              className="text-xs font-black text-slate-700 uppercase tracking-wider cursor-pointer"
+            >
+              Office Expense
+            </label>
           </div>
+
+          {!formData.isOfficeExpense && (
+            <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-300">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                  Loan Number
+                </label>
+                <input
+                  type="text"
+                  name="loanNumber"
+                  required={!formData.isOfficeExpense}
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all uppercase"
+                  value={formData.loanNumber}
+                  onChange={handleChange}
+                  onBlur={(e) => handleSearch(e.target.value)}
+                  placeholder="E.G. L-123"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                  Vehicle Number
+                </label>
+                <input
+                  type="text"
+                  name="vehicleNumber"
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all uppercase"
+                  value={formData.vehicleNumber}
+                  onChange={handleChange}
+                  onBlur={(e) => handleSearch(e.target.value)}
+                  placeholder="E.G. GJ01..."
+                />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
