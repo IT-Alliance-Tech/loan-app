@@ -8,7 +8,12 @@ const expenseSchema = new mongoose.Schema(
     },
     loanNumber: {
       type: String,
-      required: [true, "Loan number is required"],
+      required: [
+        function () {
+          return !this.isOfficeExpense;
+        },
+        "Loan number is required",
+      ],
       trim: true,
     },
     vehicleNumber: {
@@ -34,6 +39,10 @@ const expenseSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+    },
+    isOfficeExpense: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true },
