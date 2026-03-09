@@ -141,7 +141,10 @@ const ExpensesPage = () => {
                               </td>
                               <td className="px-6 py-5">
                                 <span className="font-black text-slate-900 text-[10px] uppercase tracking-wider">
-                                  {expense.vehicleNumber || "N/A"}
+                                  {!expense.vehicleNumber ||
+                                  expense.vehicleNumber === "N/A"
+                                    ? "-"
+                                    : expense.vehicleNumber}
                                 </span>
                               </td>
                               <td className="px-6 py-5">

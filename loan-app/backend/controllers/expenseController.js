@@ -36,7 +36,7 @@ const createExpense = asyncHandler(async (req, res, next) => {
     loanId: loan ? loan._id : null,
     loanNumber: isOfficeExpense ? "OFFICE" : loanNumber,
     vehicleNumber: isOfficeExpense
-      ? "N/A"
+      ? "-"
       : vehicleNumber || (loan ? loan.vehicleNumber : null),
     particulars,
     date: date || Date.now(),

@@ -58,11 +58,11 @@ const SeizingNoticePage = () => {
   };
 
   const formatDate = (date) => {
-    if (!date) return "N/A";
+    if (!date) return "-";
     try {
       return format(new Date(date), "dd MMM yyyy");
     } catch {
-      return "N/A";
+      return "-";
     }
   };
 
@@ -177,15 +177,21 @@ const SeizingNoticePage = () => {
                           Model
                         </p>
                         <p className="text-sm font-black text-slate-900">
-                          {loan.vehicleInformation?.model || "N/A"}
+                          {!loan.vehicleInformation?.model ||
+                          loan.vehicleInformation?.model === "N/A"
+                            ? "-"
+                            : loan.vehicleInformation.model}
                         </p>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          Engine Number
-                        </p>
-                        <p className="text-sm font-black text-slate-900">
-                          {loan.vehicleInformation?.engineNumber || "N/A"}
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          Engine No
+                        </span>
+                        <p className="text-sm font-bold text-slate-700 uppercase">
+                          {!loan.vehicleInformation?.engineNumber ||
+                          loan.vehicleInformation?.engineNumber === "N/A"
+                            ? "-"
+                            : loan.vehicleInformation.engineNumber}
                         </p>
                       </div>
                     </div>
