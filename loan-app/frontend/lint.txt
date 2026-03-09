@@ -1,0 +1,511 @@
+﻿
+C:\Users\hp\loan-app\loan-app\frontend\src\components\DailyLoanForm.jsx
+  161:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  159 |               placeholder="Enter Loan Number"
+  160 |             />
+> 161 |             <ErrorMsg name="loanNumber" />
+      |              ^^^^^^^^ This component is created during render
+  162 |           </div>
+  163 |           <div className="space-y-2">
+  164 |             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                            react-hooks/static-components
+  177:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  175 |               placeholder="Enter Customer Name"
+  176 |             />
+> 177 |             <ErrorMsg name="customerName" />
+      |              ^^^^^^^^ This component is created during render
+  178 |           </div>
+  179 |           <div className="space-y-2">
+  180 |             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                        react-hooks/static-components
+  197:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  195 |               placeholder="10-digit Number"
+  196 |             />
+> 197 |             <ErrorMsg name="mobileNumber" />
+      |              ^^^^^^^^ This component is created during render
+  198 |           </div>
+  199 |         </div>
+  200 |       </div>
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                                                                                                                                           react-hooks/static-components
+  221:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  219 |               className={getFieldClass("disbursementAmount")}
+  220 |             />
+> 221 |             <ErrorMsg name="disbursementAmount" />
+      |              ^^^^^^^^ This component is created during render
+  222 |           </div>
+  223 |           <div className="space-y-2">
+  224 |             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")    react-hooks/static-components
+  236:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  234 |               className={getFieldClass("processingFeeRate")}
+  235 |             />
+> 236 |             <ErrorMsg name="processingFeeRate" />
+      |              ^^^^^^^^ This component is created during render
+  237 |           </div>
+  238 |           <div className="space-y-2">
+  239 |             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")      react-hooks/static-components
+  263:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  261 |               className={getFieldClass("totalEmis")}
+  262 |             />
+> 263 |             <ErrorMsg name="totalEmis" />
+      |              ^^^^^^^^ This component is created during render
+  264 |           </div>
+  265 |           {isEditMode && (
+  266 |             <div className="space-y-2">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                                                                                              react-hooks/static-components
+  279:16  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  277 |                 className={getFieldClass("paidEmis")}
+  278 |               />
+> 279 |               <ErrorMsg name="paidEmis" />
+      |                ^^^^^^^^ This component is created during render
+  280 |             </div>
+  281 |           )}
+  282 |         </div>
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                                                                                                                             react-hooks/static-components
+  304:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  302 |               className={getFieldClass("startDate")}
+  303 |             />
+> 304 |             <ErrorMsg name="startDate" />
+      |              ^^^^^^^^ This component is created during render
+  305 |           </div>
+  306 |           <div className="space-y-2">
+  307 |             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                      react-hooks/static-components
+  319:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  317 |               className={getFieldClass("emiStartDate")}
+  318 |             />
+> 319 |             <ErrorMsg name="emiStartDate" />
+      |              ^^^^^^^^ This component is created during render
+  320 |             <p className="text-[9px] text-blue-500 font-bold ml-1 italic uppercase tracking-tighter">
+  321 |               Defaults to 1 day after disbursement
+  322 |             </p>
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")  react-hooks/static-components
+
+C:\Users\hp\loan-app\loan-app\frontend\src\components\WeeklyLoanForm.jsx
+  161:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  159 |               placeholder="Enter Loan Number"
+  160 |             />
+> 161 |             <ErrorMsg name="loanNumber" />
+      |              ^^^^^^^^ This component is created during render
+  162 |           </div>
+  163 |           <div className="space-y-2">
+  164 |             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                             react-hooks/static-components
+  177:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  175 |               placeholder="Enter Customer Name"
+  176 |             />
+> 177 |             <ErrorMsg name="customerName" />
+      |              ^^^^^^^^ This component is created during render
+  178 |           </div>
+  179 |           <div className="space-y-2">
+  180 |             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                         react-hooks/static-components
+  197:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  195 |               placeholder="10-digit Number"
+  196 |             />
+> 197 |             <ErrorMsg name="mobileNumber" />
+      |              ^^^^^^^^ This component is created during render
+  198 |           </div>
+  199 |         </div>
+  200 |       </div>
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                                                                                                                                            react-hooks/static-components
+  221:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  219 |               className={getFieldClass("disbursementAmount")}
+  220 |             />
+> 221 |             <ErrorMsg name="disbursementAmount" />
+      |              ^^^^^^^^ This component is created during render
+  222 |           </div>
+  223 |           <div className="space-y-2">
+  224 |             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")     react-hooks/static-components
+  236:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  234 |               className={getFieldClass("processingFeeRate")}
+  235 |             />
+> 236 |             <ErrorMsg name="processingFeeRate" />
+      |              ^^^^^^^^ This component is created during render
+  237 |           </div>
+  238 |           <div className="space-y-2">
+  239 |             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")       react-hooks/static-components
+  263:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  261 |               className={getFieldClass("totalEmis")}
+  262 |             />
+> 263 |             <ErrorMsg name="totalEmis" />
+      |              ^^^^^^^^ This component is created during render
+  264 |           </div>
+  265 |           {isEditMode && (
+  266 |             <div className="space-y-2">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                                                                                               react-hooks/static-components
+  279:16  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  277 |                 className={getFieldClass("paidEmis")}
+  278 |               />
+> 279 |               <ErrorMsg name="paidEmis" />
+      |                ^^^^^^^^ This component is created during render
+  280 |             </div>
+  281 |           )}
+  282 |         </div>
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                                                                                                                              react-hooks/static-components
+  304:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  302 |               className={getFieldClass("startDate")}
+  303 |             />
+> 304 |             <ErrorMsg name="startDate" />
+      |              ^^^^^^^^ This component is created during render
+  305 |           </div>
+  306 |           <div className="space-y-2">
+  307 |             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")                       react-hooks/static-components
+  319:14  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+  317 |               className={getFieldClass("emiStartDate")}
+  318 |             />
+> 319 |             <ErrorMsg name="emiStartDate" />
+      |              ^^^^^^^^ This component is created during render
+  320 |             <p className="text-[9px] text-blue-500 font-bold ml-1 italic uppercase tracking-tighter">
+  321 |               Defaults to 7 days after disbursement
+  322 |             </p>
+
+  101 |   const isEditMode = !!values?._id;
+  102 |
+> 103 |   const ErrorMsg = ({ name }) => {
+      |                    ^^^^^^^^^^^^^^^
+> 104 |     const [section, field] = name.includes(".")
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 105 |       ? name.split(".")
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 114 |     ) : null;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 115 |   };
+      | ^^^^ The component is created during render here
+  116 |
+  117 |   const getFieldClass = (name) => {
+  118 |     const [section, field] = name.includes(".")  react-hooks/static-components
+
+Γ£û 18 problems (18 errors, 0 warnings)
+
