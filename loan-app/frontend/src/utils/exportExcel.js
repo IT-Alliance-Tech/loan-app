@@ -87,38 +87,110 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
     });
   } else {
     // Default / Monthly Loans
-    title = "MONTHLY LOANS";
+    title = "MONTHLY LOANS REPORT";
     headers = [
-      "Loan No",
-      "Customer Name",
-      "Mobile",
-      "Principal",
-      "ROI %",
-      "Tenure",
-      "EMI Amount",
-      "Total Paid",
-      "Next EMI Due",
-      "Status",
+      "SI No", // A
+      "Loan No.", // B
+      "Loan Status", // C
+      "Name", // D
+      "Address", // E
+      "Own/Rent", // F
+      "Mobile no.", // G
+      "Amount", // H
+      "Interest Rate", // I
+      "Processing fee", // J
+      "Tenure Type", // K
+      "Tenure", // L
+      "Start date", // M
+      "End date", // N
+      "EMI Amount", // O
+      "Overdue", // P
+      "Remaining Tenure", // Q
+      "Remaining Principle Amount", // R
+      "Next EMI DueDate", // S
+      "Vehicle Number", // T
+      "Chassis No", // U
+      "Engine No", // V
+      "Type of Vehicle", // W
+      "Model", // X
+      "YW Board", // Y
+      "PAN Number", // Z
+      "Aadhar Number", // AA
+      "Guarantor Name", // AB
+      "Dealer name", // AC
+      "Dealer number", // AD
+      "HP Entry", // AE
+      "FC Date", // AF
+      "Insurance date", // AG
+      "Paid EMI counter", // AH
+      "DOCUMENTS COLLECTED", // AI
+      "RTO WORK PENDING", // AJ
+      "RTO WORK COMPLETED", // AK
+      "Value", // AL
+      "Remarks", // AM
     ];
 
-    data.forEach((loan) => {
+    data.forEach((loan, index) => {
       const customer = loan.customerDetails || {};
       const terms = loan.loanTerms || {};
       const status = loan.status || {};
+      const repayment = loan.repaymentStats || {};
+      const vInfo = loan.vehicleInformation || {};
+
+      const rowNumber = index + 3; // Data starts at row 3 (Row 1: Title, Row 2: Headers)
 
       columns.push([
-        terms.loanNumber || "",
-        customer.customerName || "",
-        Array.isArray(customer.mobileNumbers) ? customer.mobileNumbers[0] : "",
-        terms.principalAmount || 0,
-        terms.annualInterestRate || 0,
-        terms.tenureMonths || 0,
-        terms.monthlyEMI || 0,
-        loan.repaymentStats?.totalPaidAmount || 0,
-        status.nextEmiDueDate
-          ? new Date(status.nextEmiDueDate).toLocaleDateString("en-IN")
-          : "-",
-        status.status || "",
+        index + 1, // A: SI No
+        terms.loanNumber || "-", // B: Loan No.
+        status.status || "Active", // C: Loan Status
+        customer.customerName || "-", // D: Name
+        customer.address || "-", // E: Address
+        customer.ownRent || "-", // F: Own/Rent
+        Array.isArray(customer.mobileNumbers)
+          ? customer.mobileNumbers.join(", ")
+          : customer.mobileNumbers || "-", // G: Mobile no.
+        terms.principalAmount || 0, // H: Amount
+        terms.annualInterestRate || 0, // I: Interest Rate
+        terms.processingFee || 0, // J: Processing fee
+        terms.tenureType || "Monthly", // K: Tenure Type
+        terms.tenureMonths || 0, // L: Tenure
+        terms.emiStartDate
+          ? new Date(terms.emiStartDate).toLocaleDateString("en-IN")
+          : "-", // M: Start date
+        terms.emiEndDate
+          ? new Date(terms.emiEndDate).toLocaleDateString("en-IN")
+          : "-", // N: End date
+        terms.monthlyEMI || 0, // O: EMI Amount
+        repayment.overdueAmount || 0, // P: Overdue
+        repayment.remainingTenure || 0, // Q: Remaining Tenure
+        repayment.remainingPrincipal || 0, // R: Remaining Principle Amount
+        repayment.nextEmiDueDate
+          ? new Date(repayment.nextEmiDueDate).toLocaleDateString("en-IN")
+          : "-", // S: Next EMI DueDate
+        vInfo.vehicleNumber || "-", // T: Vehicle Number
+        vInfo.chassisNumber || "-", // U: Chassis No
+        vInfo.engineNumber || "-", // V: Engine No
+        vInfo.typeOfVehicle || "-", // W: Type of Vehicle
+        vInfo.model || "-", // X: Model
+        vInfo.ywBoard || "-", // Y: YW Board
+        customer.panNumber || "-", // Z: PAN Number
+        customer.aadharNumber || "-", // AA: Aadhar Number
+        customer.guarantorName || "-", // AB: Guarantor Name
+        vInfo.dealerName || "-", // AC: Dealer name
+        vInfo.dealerNumber || "-", // AD: Dealer number
+        vInfo.hpEntry || "Not done", // AE: HP Entry
+        vInfo.fcDate ? new Date(vInfo.fcDate).toLocaleDateString("en-IN") : "-", // AF: FC Date
+        vInfo.insuranceDate
+          ? new Date(vInfo.insuranceDate).toLocaleDateString("en-IN")
+          : "-", // AG: Insurance date
+        repayment.paidEmisCount || 0, // AH: Paid EMI counter
+        status.docChecklist || "-", // AI: DOCUMENTS COLLECTED
+        Array.isArray(vInfo.rtoWorkPending)
+          ? vInfo.rtoWorkPending.join(", ")
+          : vInfo.rtoWorkPending || "-", // AJ: RTO WORK PENDING
+        "-", // AK: RTO WORK COMPLETED (Placeholder)
+        { formula: `AH${rowNumber}*O${rowNumber}+P${rowNumber}+J${rowNumber}` }, // AL: Value
+        status.remarks || "-", // AM: Remarks
       ]);
     });
   }
@@ -126,7 +198,7 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
   // Add Title
   const titleRow = worksheet.addRow([title]);
   titleRow.font = { name: "Arial Black", size: 16, bold: true };
-  worksheet.mergeCells(`A1:${String.fromCharCode(64 + headers.length)}1`);
+  worksheet.mergeCells(1, 1, 1, headers.length);
   titleRow.alignment = { vertical: "middle", horizontal: "center" };
   titleRow.height = 30;
 
