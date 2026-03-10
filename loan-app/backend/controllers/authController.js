@@ -180,6 +180,8 @@ const logout = asyncHandler(async (req, res, next) => {
   );
 });
 
+const { sendOTP } = require("../utils/emailService");
+
 const forgotPassword = asyncHandler(async (req, res, next) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
@@ -188,11 +190,19 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   user.resetPasswordOTP = otp;
-  user.resetPasswordOTPExpire = Date.now() + 15 * 60 * 1000;
+  user.resetPasswordOTPExpire = Date.now() + 2 * 60 * 1000;
   await user.save();
 
-  console.log(`OTP for ${email}: ${otp}`);
-  return sendResponse(res, 200, "success", "OTP sent to email", null, null);
+  try {
+    await sendOTP(email, otp);
+    return sendResponse(res, 200, "success", "OTP sent to email", null, null);
+  } catch (error) {
+    console.error("FORGOT_PASSWORD_ERROR:", error.message || error);
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordOTPExpire = undefined;
+    await user.save();
+    return next(new ErrorHandler("Email could not be sent", 500));
+  }
 });
 
 const resetPassword = asyncHandler(async (req, res, next) => {
