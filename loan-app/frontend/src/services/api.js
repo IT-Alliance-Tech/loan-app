@@ -34,7 +34,14 @@ const apiHandler = async (endpoint, options = {}, isRetry = false) => {
     const response = await fetch(url, config);
 
     // If unauthorized and not already retrying, attempt to refresh token
-    if (response.status === 401 && !isRetry) {
+    // EXCEPTION: Don't intercept login failures (401/403) so we can show specific error messages
+    const isLoginEndpoint = endpoint.includes("/api/auth/login");
+
+    if (
+      (response.status === 401 || response.status === 403) &&
+      !isRetry &&
+      !isLoginEndpoint
+    ) {
       if (isRefreshing) {
         // If already refreshing, return a promise that resolves when refresh is done
         return new Promise((resolve, reject) => {
