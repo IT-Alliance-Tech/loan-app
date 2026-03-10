@@ -1,6 +1,5 @@
 const express = require("express");
-// Triggering server redeploy v4
-const dotenv = require("dotenv");
+require("dotenv").config();
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const errorMiddleware = require("./middlewares/error");
@@ -12,10 +11,7 @@ const emiUtilityRoutes = require("./routes/emiUtilityRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
 const weeklyLoanRoutes = require("./routes/weeklyLoanRoutes");
 const dailyLoanRoutes = require("./routes/dailyLoanRoutes");
-
 const compression = require("compression");
-
-dotenv.config();
 
 const app = express();
 
