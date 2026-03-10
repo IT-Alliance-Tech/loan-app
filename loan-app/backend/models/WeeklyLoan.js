@@ -146,4 +146,12 @@ weeklyLoanSchema.pre("save", async function () {
   }
 });
 
+// Indexes for analytics and faster searching
+weeklyLoanSchema.index({ status: 1 });
+weeklyLoanSchema.index({ disbursementAmount: 1 });
+weeklyLoanSchema.index({ totalAmount: 1 });
+weeklyLoanSchema.index({ paidEmis: 1 });
+weeklyLoanSchema.index({ remainingEmis: 1 });
+weeklyLoanSchema.index({ loanNumber: 1 });
+
 module.exports = mongoose.model("WeeklyLoan", weeklyLoanSchema);

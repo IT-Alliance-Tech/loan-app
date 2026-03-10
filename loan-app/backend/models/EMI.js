@@ -86,4 +86,9 @@ emiSchema.virtual("paymentRecords", {
   foreignField: "emiId",
 });
 
+// Indexes for analytics and lookup
+emiSchema.index({ loanId: 1 });
+emiSchema.index({ amountPaid: 1 });
+emiSchema.index({ status: 1 });
+
 module.exports = mongoose.model("EMI", emiSchema);

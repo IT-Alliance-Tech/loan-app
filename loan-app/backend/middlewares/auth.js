@@ -4,6 +4,7 @@ const ErrorHandler = require("../utils/ErrorHandler");
 const asyncHandler = require("../utils/asyncHandler");
 
 const isAuthenticated = asyncHandler(async (req, res, next) => {
+  const startAuth = performance.now();
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -21,16 +22,19 @@ const isAuthenticated = asyncHandler(async (req, res, next) => {
         new ErrorHandler("JSON Web Token is expired. Try again", 401),
       );
     }
-    if (error.name === "JsonWebTokenError") {
-      return next(new ErrorHandler("Invalid JSON Web Token", 401));
-    }
     return next(new ErrorHandler("Authentication failed", 401));
   }
 
-  req.user = await User.findById(decodedData.id);
+  // Optimize: Use .lean() to bypass Mongoose hydration
+  req.user = await User.findById(decodedData.id).lean();
 
   if (!req.user) {
     return next(new ErrorHandler("User not found", 404));
+  }
+
+  const authDuration = (performance.now() - startAuth).toFixed(2);
+  if (authDuration > 100) {
+    console.log(`[PERF][WARN] auth.isAuthenticated took ${authDuration}ms`);
   }
 
   next();

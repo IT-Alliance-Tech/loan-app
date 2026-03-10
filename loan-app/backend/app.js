@@ -13,9 +13,24 @@ const expenseRoutes = require("./routes/expenseRoutes");
 const weeklyLoanRoutes = require("./routes/weeklyLoanRoutes");
 const dailyLoanRoutes = require("./routes/dailyLoanRoutes");
 
+const compression = require("compression");
+
 dotenv.config();
 
 const app = express();
+
+// 1. Performance Monitoring Middleware (Global)
+app.use((req, res, next) => {
+  const start = performance.now();
+  res.on("finish", () => {
+    const duration = (performance.now() - start).toFixed(2);
+    console.log(`[PERF] ${req.method} ${req.originalUrl} - ${duration}ms`);
+  });
+  next();
+});
+
+// 2. Global Compression
+app.use(compression());
 
 // Health Check & Root
 app.get("/api/health", (req, res) => {
