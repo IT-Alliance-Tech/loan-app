@@ -35,8 +35,12 @@ const login = asyncHandler(async (req, res, next) => {
 
   const user = await User.findOne({ email }).select("+password");
 
-  if (!user || !(await user.comparePassword(password))) {
-    return next(new ErrorHandler("Invalid email or password", 401));
+  if (!user) {
+    return next(new ErrorHandler("Email is incorrect", 401));
+  }
+
+  if (!(await user.comparePassword(password))) {
+    return next(new ErrorHandler("Password is incorrect", 401));
   }
 
   if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") {
@@ -45,12 +49,7 @@ const login = asyncHandler(async (req, res, next) => {
       (user.role === "SUPER_ADMIN" ? process.env.SUPER_ADMIN_ACCESS_KEY : null);
 
     if (!accessKey || accessKey !== validAccessKey) {
-      return next(
-        new ErrorHandler(
-          `Invalid ${user.role.replace("_", " ")} access key`,
-          403,
-        ),
-      );
+      return next(new ErrorHandler("Access key is incorrect", 403));
     }
   }
 
