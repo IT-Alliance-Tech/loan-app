@@ -147,4 +147,12 @@ dailyLoanSchema.pre("save", async function () {
   }
 });
 
+// Indexes for analytics and faster searching
+dailyLoanSchema.index({ status: 1 });
+dailyLoanSchema.index({ disbursementAmount: 1 });
+dailyLoanSchema.index({ totalAmount: 1 });
+dailyLoanSchema.index({ paidEmis: 1 });
+dailyLoanSchema.index({ remainingEmis: 1 });
+dailyLoanSchema.index({ loanNumber: 1 });
+
 module.exports = mongoose.model("DailyLoan", dailyLoanSchema);
