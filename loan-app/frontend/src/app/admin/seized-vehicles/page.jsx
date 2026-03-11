@@ -29,7 +29,7 @@ const SeizedVehiclesPage = () => {
   const [selectedLoanForSale, setSelectedLoanForSale] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [highlightedRows, setHighlightedRows] = useState({});
+  const [selectedRowId, setSelectedRowId] = useState(null);
 
   const toggleHighlight = (e, id) => {
     // Don't toggle if clicking a link, button, or select directly
@@ -39,10 +39,7 @@ const SeizedVehiclesPage = () => {
       e.target.tagName === "SELECT"
     )
       return;
-    setHighlightedRows((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setSelectedRowId((prev) => (prev === id ? null : id));
   };
 
   const handleSeizedStatusChange = async (loanId, newStatus) => {
@@ -310,7 +307,7 @@ const SeizedVehiclesPage = () => {
                               key={loan._id}
                               onClick={(e) => toggleHighlight(e, loan._id)}
                               className={`cursor-pointer transition-colors ${
-                                highlightedRows[loan._id]
+                                selectedRowId === loan._id
                                   ? "bg-blue-50/80"
                                   : "hover:bg-slate-50"
                               }`}
@@ -318,7 +315,7 @@ const SeizedVehiclesPage = () => {
                               {/* 1. Loan Number */}
                               <td
                                 className={`px-6 py-5 sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
-                                  highlightedRows[loan._id]
+                                  selectedRowId === loan._id
                                     ? "bg-blue-50/80"
                                     : "bg-white group-hover:bg-slate-50"
                                 }`}

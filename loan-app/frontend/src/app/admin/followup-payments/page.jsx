@@ -43,6 +43,18 @@ const FollowupPaymentsPage = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
   const { showToast } = useToast();
+  const [selectedRowId, setSelectedRowId] = useState(null);
+
+  const toggleHighlight = (e, id) => {
+    // Don't toggle if clicking a button (like call/WhatsApp) or internal interactive element
+    if (
+      e.target.closest("button") ||
+      e.target.closest("a") ||
+      e.target.closest("select")
+    )
+      return;
+    setSelectedRowId((prev) => (prev === id ? null : id));
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -244,7 +256,12 @@ const FollowupPaymentsPage = () => {
                         data.map((item) => (
                           <tr
                             key={item.loanId}
-                            className="hover:bg-slate-50 transition-colors group"
+                            onClick={(e) => toggleHighlight(e, item.loanId)}
+                            className={`cursor-pointer transition-colors group ${
+                              selectedRowId === item.loanId
+                                ? "bg-blue-50/80"
+                                : "hover:bg-slate-50"
+                            }`}
                           >
                             <td className="px-6 py-5 whitespace-nowrap">
                               <Link
@@ -305,7 +322,13 @@ const FollowupPaymentsPage = () => {
                                 </span>
                               </div>
                             </td>
-                            <td className="px-6 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                            <td
+                              className={`px-6 py-5 text-center whitespace-nowrap sticky right-0 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                                selectedRowId === item.loanId
+                                  ? "bg-blue-50/80"
+                                  : "bg-white group-hover:bg-slate-50"
+                              }`}
+                            >
                               <TableActionMenu
                                 actions={[
                                   {

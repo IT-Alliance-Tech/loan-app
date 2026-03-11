@@ -13,15 +13,12 @@ import { getUserFromToken } from "../utils/auth";
 const DailyLoansList = ({ type, title }) => {
   const router = useRouter();
   const { showToast } = useToast();
-  const [highlightedRows, setHighlightedRows] = useState({});
+  const [selectedRowId, setSelectedRowId] = useState(null);
 
   const toggleHighlight = (e, id) => {
     // Don't toggle if clicking a link or button directly
     if (e.target.closest("button") || e.target.closest("a")) return;
-    setHighlightedRows((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setSelectedRowId((prev) => (prev === id ? null : id));
   };
 
   const user = getUserFromToken();
@@ -276,14 +273,14 @@ const DailyLoansList = ({ type, title }) => {
                       key={loan._id}
                       onClick={(e) => toggleHighlight(e, loan._id)}
                       className={`cursor-pointer transition-colors group ${
-                        highlightedRows[loan._id]
+                        selectedRowId === loan._id
                           ? "bg-blue-50/80"
                           : "active:bg-slate-50"
                       }`}
                     >
                       <td
                         className={`px-4 py-5 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
-                          highlightedRows[loan._id]
+                          selectedRowId === loan._id
                             ? "bg-blue-50/80"
                             : "bg-white group-hover:bg-slate-50"
                         }`}
@@ -347,7 +344,7 @@ const DailyLoansList = ({ type, title }) => {
                       </td>
                       <td
                         className={`px-4 py-5 text-center whitespace-nowrap sticky right-0 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
-                          highlightedRows[loan._id]
+                          selectedRowId === loan._id
                             ? "bg-blue-50/80"
                             : "bg-white group-hover:bg-slate-50"
                         }`}
@@ -475,14 +472,14 @@ const DailyLoansList = ({ type, title }) => {
                     key={loan._id}
                     onClick={(e) => toggleHighlight(e, loan._id)}
                     className={`cursor-pointer transition-colors group ${
-                      highlightedRows[loan._id]
+                      selectedRowId === loan._id
                         ? "bg-blue-50/80"
                         : "hover:bg-slate-50"
                     }`}
                   >
                     <td
                       className={`px-6 py-5 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
-                        highlightedRows[loan._id]
+                        selectedRowId === loan._id
                           ? "bg-blue-50/80"
                           : "bg-white group-hover:bg-slate-50"
                       }`}
@@ -545,7 +542,7 @@ const DailyLoansList = ({ type, title }) => {
                     </td>
                     <td
                       className={`px-6 py-5 text-center whitespace-nowrap sticky right-0 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
-                        highlightedRows[loan._id]
+                        selectedRowId === loan._id
                           ? "bg-blue-50/80"
                           : "bg-white group-hover:bg-slate-50"
                       }`}
