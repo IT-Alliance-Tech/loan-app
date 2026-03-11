@@ -1,23 +1,26 @@
 const { google } = require("googleapis");
 
+// Initialize OAuth2 client once
+const CLIENT_ID = process.env.GMAIL_CLIENT_ID;
+const CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
+const REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
+const GMAIL_USER = process.env.GMAIL_USER;
+
+const oauth2Client = new google.auth.OAuth2(
+  CLIENT_ID,
+  CLIENT_SECRET,
+  "https://developers.google.com/oauthplayground",
+);
+
+oauth2Client.setCredentials({
+  refresh_token: REFRESH_TOKEN,
+});
+
+// Pre-initialize Gmail API instance
+const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
 const sendOTP = async (email, otp) => {
-  const CLIENT_ID = process.env.GMAIL_CLIENT_ID;
-  const CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
-  const REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
-  const GMAIL_USER = process.env.GMAIL_USER;
-
-  const oauth2Client = new google.auth.OAuth2(
-    CLIENT_ID,
-    CLIENT_SECRET,
-    "https://developers.google.com/oauthplayground",
-  );
-
-  oauth2Client.setCredentials({
-    refresh_token: REFRESH_TOKEN,
-  });
-
-  console.log("Email Service sending from:", GMAIL_USER);
-  if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
+  if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN || !GMAIL_USER) {
     console.error(
       "CRITICAL: Gmail OAuth2 credentials missing from environment!",
     );
@@ -25,8 +28,6 @@ const sendOTP = async (email, otp) => {
   }
 
   try {
-    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
     const subject = "Password Reset Request - Square Finance";
     const from = GMAIL_USER;
 

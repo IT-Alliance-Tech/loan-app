@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   getWeeklyLoans,
   deleteWeeklyLoan,
@@ -13,6 +14,7 @@ import { exportLoansToExcel } from "../utils/excelExport";
 import { getUserFromToken } from "../utils/auth";
 
 const WeeklyLoansList = ({ type, title }) => {
+  const router = useRouter();
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");

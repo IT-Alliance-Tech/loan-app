@@ -193,8 +193,13 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
   user.resetPasswordOTPExpire = Date.now() + 2 * 60 * 1000;
   await user.save();
 
+  const emailStart = performance.now();
   try {
     await sendOTP(email, otp);
+    const emailEnd = performance.now();
+    console.log(
+      `[PERF] OTP email sent to ${email} in ${(emailEnd - emailStart).toFixed(2)}ms`,
+    );
     return sendResponse(res, 200, "success", "OTP sent to email", null, null);
   } catch (error) {
     console.error("FORGOT_PASSWORD_ERROR:", error.message || error);
@@ -207,6 +212,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
 const resetPassword = asyncHandler(async (req, res, next) => {
   const { email, otp, newPassword } = req.body;
+  const resetStart = performance.now();
   const user = await User.findOne({
     email,
     resetPasswordOTP: otp,
@@ -220,6 +226,10 @@ const resetPassword = asyncHandler(async (req, res, next) => {
   user.resetPasswordOTPExpire = undefined;
   await user.save();
 
+  const resetEnd = performance.now();
+  console.log(
+    `[PERF] Password reset for ${email} in ${(resetEnd - resetStart).toFixed(2)}ms`,
+  );
   return sendResponse(
     res,
     200,
