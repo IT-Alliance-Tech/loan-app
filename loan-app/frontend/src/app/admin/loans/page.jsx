@@ -33,6 +33,16 @@ const LoansPage = () => {
   });
   const [selectedContact, setSelectedContact] = useState(null); // For contact details modal
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [highlightedRows, setHighlightedRows] = useState({});
+
+  const toggleHighlight = (e, id) => {
+    // Don't toggle if clicking a link or button directly
+    if (e.target.closest("button") || e.target.closest("a")) return;
+    setHighlightedRows((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -240,8 +250,8 @@ const LoansPage = () => {
                   <div className="overflow-x-auto scrollbar-none">
                     <table className="w-full text-left border-collapse min-w-[1000px]">
                       <thead>
-                        <tr className="bg-slate-50/30 border-b border-slate-100 uppercase">
-                          <th className="w-[80px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
+                        <tr className="bg-slate-50 border-b border-slate-100 uppercase">
+                          <th className="w-[80px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                             LOAN NO
                           </th>
                           <th className="px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
@@ -268,7 +278,7 @@ const LoansPage = () => {
                           <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             CLIENT RESPONSE
                           </th>
-                          <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap sticky right-0 bg-slate-50/50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                          <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap sticky right-0 bg-slate-50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                             ACTIONS
                           </th>
                         </tr>
@@ -296,9 +306,20 @@ const LoansPage = () => {
                           loans.map((loan) => (
                             <tr
                               key={loan._id}
-                              className="active:bg-slate-50 transition-colors group"
+                              onClick={(e) => toggleHighlight(e, loan._id)}
+                              className={`cursor-pointer transition-colors group ${
+                                highlightedRows[loan._id]
+                                  ? "bg-blue-50/80"
+                                  : "active:bg-slate-50"
+                              }`}
                             >
-                              <td className="px-4 py-6 whitespace-nowrap">
+                              <td
+                                className={`px-4 py-6 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                                  highlightedRows[loan._id]
+                                    ? "bg-blue-50/80"
+                                    : "bg-white group-active:bg-slate-50"
+                                }`}
+                              >
                                 <Link
                                   href={`/admin/loans/edit/${loan._id || loan.id || loan.status?.id}`}
                                   className="font-bold text-slate-900 tracking-tight text-base hover:text-primary hover:underline transition-all"
@@ -410,7 +431,13 @@ const LoansPage = () => {
                                   {loan.status.clientResponse || "—"}
                                 </span>
                               </td>
-                              <td className="px-4 py-6 text-center whitespace-nowrap sticky right-0 bg-white group-active:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                              <td
+                                className={`px-4 py-6 text-center whitespace-nowrap sticky right-0 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                                  highlightedRows[loan._id]
+                                    ? "bg-blue-50/80"
+                                    : "bg-white group-active:bg-slate-50"
+                                }`}
+                              >
                                 <div className="flex justify-center items-center gap-4">
                                   <button
                                     onClick={() => {
@@ -504,8 +531,8 @@ const LoansPage = () => {
                   <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-100 pb-1">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/50 border-b border-slate-200">
-                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                             Loan Number
                           </th>
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
@@ -560,9 +587,24 @@ const LoansPage = () => {
                           loans.map((loan) => (
                             <tr
                               key={loan._id}
-                              className={`${loan.isSeized ? "bg-red-50/50" : "hover:bg-slate-50"} transition-colors`}
+                              onClick={(e) => toggleHighlight(e, loan._id)}
+                              className={`cursor-pointer transition-colors group ${
+                                highlightedRows[loan._id]
+                                  ? "bg-blue-50/80"
+                                  : loan.isSeized
+                                    ? "bg-red-50/50"
+                                    : "hover:bg-slate-50"
+                              }`}
                             >
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td
+                                className={`px-6 py-4 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                                  highlightedRows[loan._id]
+                                    ? "bg-blue-50/80"
+                                    : loan.isSeized
+                                      ? "bg-red-50/50"
+                                      : "bg-white hover:bg-slate-50"
+                                }`}
+                              >
                                 <Link
                                   href={`/admin/loans/edit/${loan._id || loan.id || loan.status?.id}`}
                                   className="font-black text-slate-900 uppercase text-xs tracking-tight hover:text-primary hover:underline transition-all"
