@@ -29,6 +29,21 @@ const SeizedVehiclesPage = () => {
   const [selectedLoanForSale, setSelectedLoanForSale] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [highlightedRows, setHighlightedRows] = useState({});
+
+  const toggleHighlight = (e, id) => {
+    // Don't toggle if clicking a link, button, or select directly
+    if (
+      e.target.closest("button") ||
+      e.target.closest("a") ||
+      e.target.tagName === "SELECT"
+    )
+      return;
+    setHighlightedRows((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   const handleSeizedStatusChange = async (loanId, newStatus) => {
     if (newStatus === "Sold") {
@@ -219,7 +234,7 @@ const SeizedVehiclesPage = () => {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                           Loan Number
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -293,10 +308,21 @@ const SeizedVehiclesPage = () => {
                           return (
                             <tr
                               key={loan._id}
-                              className="hover:bg-slate-50 transition-colors"
+                              onClick={(e) => toggleHighlight(e, loan._id)}
+                              className={`cursor-pointer transition-colors ${
+                                highlightedRows[loan._id]
+                                  ? "bg-blue-50/80"
+                                  : "hover:bg-slate-50"
+                              }`}
                             >
                               {/* 1. Loan Number */}
-                              <td className="px-6 py-5">
+                              <td
+                                className={`px-6 py-5 sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                                  highlightedRows[loan._id]
+                                    ? "bg-blue-50/80"
+                                    : "bg-white group-hover:bg-slate-50"
+                                }`}
+                              >
                                 <Link
                                   href={`/admin/loans/${loan._id}`}
                                   className="text-[10px] font-bold text-primary hover:underline uppercase transition-all"

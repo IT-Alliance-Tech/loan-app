@@ -13,6 +13,17 @@ import { getUserFromToken } from "../utils/auth";
 const DailyLoansList = ({ type, title }) => {
   const router = useRouter();
   const { showToast } = useToast();
+  const [highlightedRows, setHighlightedRows] = useState({});
+
+  const toggleHighlight = (e, id) => {
+    // Don't toggle if clicking a link or button directly
+    if (e.target.closest("button") || e.target.closest("a")) return;
+    setHighlightedRows((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const canCreate = isSuperAdmin || user?.permissions?.dailyLoans?.create;
@@ -207,8 +218,8 @@ const DailyLoansList = ({ type, title }) => {
           <div className="overflow-x-auto scrollbar-none">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-200">
-                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                     LOAN NO
                   </th>
                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
@@ -263,9 +274,20 @@ const DailyLoansList = ({ type, title }) => {
                   loans.map((loan) => (
                     <tr
                       key={loan._id}
-                      className="active:bg-slate-50 transition-colors group"
+                      onClick={(e) => toggleHighlight(e, loan._id)}
+                      className={`cursor-pointer transition-colors group ${
+                        highlightedRows[loan._id]
+                          ? "bg-blue-50/80"
+                          : "active:bg-slate-50"
+                      }`}
                     >
-                      <td className="px-4 py-5 whitespace-nowrap">
+                      <td
+                        className={`px-4 py-5 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                          highlightedRows[loan._id]
+                            ? "bg-blue-50/80"
+                            : "bg-white group-hover:bg-slate-50"
+                        }`}
+                      >
                         <Link
                           href={`/admin/daily-loans/${loan._id}`}
                           className="text-[10px] font-black text-primary uppercase tracking-tighter bg-blue-50 px-2 py-1 rounded-md"
@@ -323,7 +345,13 @@ const DailyLoansList = ({ type, title }) => {
                           {loan.clientResponse || "—"}
                         </span>
                       </td>
-                      <td className="px-4 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                      <td
+                        className={`px-4 py-5 text-center whitespace-nowrap sticky right-0 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                          highlightedRows[loan._id]
+                            ? "bg-blue-50/80"
+                            : "bg-white group-hover:bg-slate-50"
+                        }`}
+                      >
                         <div className="flex justify-center items-center gap-2">
                           <button
                             onClick={() =>
@@ -392,8 +420,8 @@ const DailyLoansList = ({ type, title }) => {
         <div className="hidden md:block overflow-x-auto scrollbar-thin scrollbar-thumb-slate-100 pb-1">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-200">
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                   Loan Number
                 </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
@@ -445,9 +473,20 @@ const DailyLoansList = ({ type, title }) => {
                 loans.map((loan) => (
                   <tr
                     key={loan._id}
-                    className="hover:bg-slate-50 transition-colors group"
+                    onClick={(e) => toggleHighlight(e, loan._id)}
+                    className={`cursor-pointer transition-colors group ${
+                      highlightedRows[loan._id]
+                        ? "bg-blue-50/80"
+                        : "hover:bg-slate-50"
+                    }`}
                   >
-                    <td className="px-6 py-5 whitespace-nowrap">
+                    <td
+                      className={`px-6 py-5 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                        highlightedRows[loan._id]
+                          ? "bg-blue-50/80"
+                          : "bg-white group-hover:bg-slate-50"
+                      }`}
+                    >
                       <Link
                         href={`/admin/daily-loans/${loan._id}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
@@ -504,7 +543,13 @@ const DailyLoansList = ({ type, title }) => {
                         {loan.clientResponse || "—"}
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                    <td
+                      className={`px-6 py-5 text-center whitespace-nowrap sticky right-0 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                        highlightedRows[loan._id]
+                          ? "bg-blue-50/80"
+                          : "bg-white group-hover:bg-slate-50"
+                      }`}
+                    >
                       <div className="flex justify-center items-center gap-3">
                         <button
                           onClick={() =>
