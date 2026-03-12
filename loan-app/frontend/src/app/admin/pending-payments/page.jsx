@@ -364,11 +364,13 @@ const PendingPaymentsPage = () => {
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               {(() => {
-                                const days = Math.floor(
-                                  (new Date().setHours(23, 59, 59, 999) -
-                                    new Date(item.earliestDueDate)) /
-                                    (1000 * 60 * 60 * 24),
-                                );
+                                const days = item.earliestDueDate
+                                  ? Math.floor(
+                                      (new Date().setHours(23, 59, 59, 999) -
+                                        new Date(item.earliestDueDate)) /
+                                        (1000 * 60 * 60 * 24),
+                                    )
+                                  : 0;
                                 let colorClass = "text-slate-600";
                                 if (days >= 71) colorClass = "text-red-600";
                                 else if (days >= 36)
