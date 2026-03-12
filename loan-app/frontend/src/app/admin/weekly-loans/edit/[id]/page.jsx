@@ -13,6 +13,7 @@ import {
 } from "../../../../../services/weeklyLoan.service";
 import { useToast } from "../../../../../context/ToastContext";
 import { format } from "date-fns";
+import LoanStatusBadge from "../../../../../components/LoanStatusBadge";
 
 const EditWeeklyLoanPage = ({ params: paramsPromise }) => {
   const params = use(paramsPromise);
@@ -86,16 +87,21 @@ const EditWeeklyLoanPage = ({ params: paramsPromise }) => {
           <Navbar />
           <main className="flex-1 py-8 px-4 sm:px-8">
             <div className="max-w-5xl mx-auto">
-              <div className="mb-8 text-center flex flex-col items-center">
-                <span className="w-16 h-16 bg-primary/10 text-primary rounded-3xl flex items-center justify-center text-3xl mb-4 group-hover:rotate-12 transition-transform duration-500">
-                  📝
-                </span>
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
-                  Edit Weekly Loan
-                </h1>
-                <p className="text-slate-500 font-medium text-sm">
-                  Update weekly repayment details and customer info
-                </p>
+              <div className="sticky top-16 z-30 bg-[#F8FAFC]/80 backdrop-blur-md py-4 mb-8 border-b border-slate-100 flex justify-between items-center transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <span className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center text-2xl">
+                    📝
+                  </span>
+                  <div>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+                      Edit Weekly Loan
+                    </h1>
+                    <p className="text-slate-500 font-medium text-sm text-left">
+                      Loan Number: {loanData?.loanNumber}
+                    </p>
+                  </div>
+                </div>
+                <LoanStatusBadge status={loanData?.status} />
               </div>
 
               {loading ? (
