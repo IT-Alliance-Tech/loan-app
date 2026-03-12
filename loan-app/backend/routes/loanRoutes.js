@@ -17,6 +17,8 @@ const {
   getSeizedVehicles,
   updateSeizedStatus,
   getAnalyticsStats,
+  updateFollowup,
+  getFollowupHistory,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
@@ -68,6 +70,20 @@ router.patch(
   authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
   authorizePermissions("loans.edit"),
   updatePaymentStatus,
+);
+
+router.patch(
+  "/update-followup/:id",
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("loans.edit"),
+  updateFollowup,
+);
+
+router.get(
+  "/followup-history/:id",
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("loans.view"),
+  getFollowupHistory,
 );
 
 router.get("/search/:loanNumber", getLoanByLoanNumber);

@@ -126,6 +126,19 @@ export const updateSeizedStatus = async (
   });
 };
 
+export const updateFollowup = async (id, data) => {
+  return await apiHandler(`/api/loans/update-followup/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+};
+
+export const getFollowupHistory = async (id) => {
+  return await apiHandler(`/api/loans/followup-history/${id}`, {
+    method: "GET",
+  });
+};
+
 export const getAnalyticsStats = async () => {
   return await apiHandler("/api/loans/analytics/stats", {
     method: "GET",

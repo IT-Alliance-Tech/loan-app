@@ -10,6 +10,8 @@ import {
   getWeeklyLoanById,
   getWeeklyLoanEMIs,
 } from "../../../../services/weeklyLoan.service";
+import { getFollowupHistory } from "../../../../services/loan.service";
+import FollowupHistory from "../../../../components/FollowupHistory";
 import { useToast } from "../../../../context/ToastContext";
 import { format } from "date-fns";
 
@@ -19,14 +21,17 @@ const ViewWeeklyLoanPage = ({ params: paramsPromise }) => {
   const { showToast } = useToast();
   const [loanData, setLoanData] = useState(null);
   const [emis, setEmis] = useState([]);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [loanRes, emiRes] = await Promise.all([
+        const [loanRes, emiRes, historyRes] = await Promise.all([
           getWeeklyLoanById(params.id),
           getWeeklyLoanEMIs(params.id),
+          getFollowupHistory(params.id),
         ]);
         const data = loanRes.data;
         const emiData = emiRes.data || [];
@@ -95,6 +100,8 @@ const ViewWeeklyLoanPage = ({ params: paramsPromise }) => {
                     </h2>
                     <EMITable emis={emis} isEditMode={false} />
                   </div>
+
+                  <FollowupHistory history={history} loading={historyLoading} />
                 </>
               )}
             </div>

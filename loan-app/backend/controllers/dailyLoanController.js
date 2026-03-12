@@ -272,7 +272,7 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
         : dailyLoan.processingFeeRate || 10,
     nextFollowUpDate:
       nextFollowUpDate !== undefined
-        ? nextFollowUpDate
+        ? nextFollowUpDate || null
         : dailyLoan.nextFollowUpDate,
     remarks: remarks !== undefined ? remarks : dailyLoan.remarks,
     clientResponse:
@@ -739,6 +739,7 @@ exports.getDailyPendingEmiDetails = asyncHandler(async (req, res, next) => {
       $project: {
         _id: 1,
         loanId: "$loan._id",
+        loanModel: { $literal: "DailyLoan" },
         loanNumber: "$loan.loanNumber",
         customerName: "$loan.customerName",
         mobileNumber: "$loan.mobileNumber",
@@ -752,6 +753,7 @@ exports.getDailyPendingEmiDetails = asyncHandler(async (req, res, next) => {
         paymentMode: 1,
         remarks: "$remarks",
         clientResponse: "$loan.clientResponse",
+        nextFollowUpDate: "$loan.nextFollowUpDate",
         emiNumber: 1,
         overdue: "$overdue",
         paymentHistory: "$paymentHistory",

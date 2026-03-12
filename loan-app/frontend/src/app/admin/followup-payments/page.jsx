@@ -9,6 +9,7 @@ import {
   getFollowupLoans,
   updateLoan,
   toggleSeized,
+  updateFollowup,
 } from "../../../services/loan.service";
 import Pagination from "../../../components/Pagination";
 import { useToast } from "../../../context/ToastContext";
@@ -36,7 +37,13 @@ const FollowupPaymentsPage = () => {
   });
   const [activeContactMenu, setActiveContactMenu] = useState(null);
   const [showSeizeModal, setShowSeizeModal] = useState(false);
-  const [selectedLoanId, setSelectedLoanId] = useState(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState(null);
+  const [updateFormData, setUpdateFormData] = useState({
+    clientResponse: "",
+    nextFollowUpDate: "",
+  });
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -130,22 +137,84 @@ const FollowupPaymentsPage = () => {
   };
 
   const handleSeizeClick = (loanId) => {
-    setSelectedLoanId(loanId);
+    setSelectedLoan({ loanId });
     setShowSeizeModal(true);
   };
 
   const confirmSeize = async () => {
-    if (!selectedLoanId) return;
+    if (!selectedLoan?.loanId) return;
 
     try {
-      await toggleSeized(selectedLoanId);
+      await toggleSeized(selectedLoan.loanId);
       showToast("Vehicle marked as seized", "success");
       fetchFollowups({ ...filters, page: currentPage, limit });
       setShowSeizeModal(false);
-      setSelectedLoanId(null);
+      setSelectedLoan(null);
     } catch (err) {
       showToast(err.message || "Failed to seize vehicle", "error");
     }
+  };
+
+  const handleUpdateClick = (item) => {
+    setSelectedLoan(item);
+    setUpdateFormData({
+      clientResponse: item.clientResponse || "",
+      nextFollowUpDate: item.nextFollowUpDate
+        ? new Date(item.nextFollowUpDate).toISOString().split("T")[0]
+        : "",
+    });
+    setShowUpdateModal(true);
+  };
+
+  const handleClearClick = (item) => {
+    setSelectedLoan(item);
+    setShowClearModal(true);
+  };
+
+  const confirmUpdateFollowup = async () => {
+    if (!selectedLoan) return;
+
+    try {
+      await updateFollowup(selectedLoan.loanId, {
+        loanModel: selectedLoan.loanModel,
+        loanType: selectedLoan.loanType,
+        clientResponse: updateFormData.clientResponse,
+        nextFollowUpDate: updateFormData.nextFollowUpDate,
+      });
+      showToast("Follow-up updated successfully", "success");
+      fetchFollowups({ ...filters, page: currentPage, limit });
+      setShowUpdateModal(false);
+      setSelectedLoan(null);
+    } catch (err) {
+      showToast(err.message || "Failed to update follow-up", "error");
+    }
+  };
+
+  const confirmClearFollowup = async () => {
+    if (!selectedLoan) return;
+
+    try {
+      await updateFollowup(selectedLoan.loanId, {
+        loanModel: selectedLoan.loanModel,
+        loanType: selectedLoan.loanType,
+        nextFollowUpDate: null,
+      });
+      showToast("Follow-up cleared successfully", "success");
+      fetchFollowups({ ...filters, page: currentPage, limit });
+      setShowClearModal(false);
+      setSelectedLoan(null);
+    } catch (err) {
+      showToast(err.message || "Failed to clear follow-up", "error");
+    }
+  };
+
+  const getLoanDetailPath = (item) => {
+    if (item.loanModel === "Loan") return `/admin/loans/${item.loanId}`;
+    if (item.loanModel === "DailyLoan")
+      return `/admin/daily-loans/${item.loanId}`;
+    if (item.loanModel === "WeeklyLoan")
+      return `/admin/weekly-loans/${item.loanId}`;
+    return `/admin/loans/${item.loanId}`;
   };
 
   return (
@@ -220,7 +289,10 @@ const FollowupPaymentsPage = () => {
                           Applicant Mobile
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                          Months
+                          Loan Type
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                          Status
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Remaining Amount
@@ -238,7 +310,7 @@ const FollowupPaymentsPage = () => {
                         <tr>
                           <td
                             colSpan="10"
-                            className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
+                            className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                           >
                             Loading records...
                           </td>
@@ -247,7 +319,7 @@ const FollowupPaymentsPage = () => {
                         <tr>
                           <td
                             colSpan="10"
-                            className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
+                            className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                           >
                             No follow-ups due
                           </td>
@@ -265,7 +337,7 @@ const FollowupPaymentsPage = () => {
                           >
                             <td className="px-6 py-5 whitespace-nowrap">
                               <Link
-                                href={`/admin/pending-payments/view/${item.earliestEmiId}`}
+                                href={getLoanDetailPath(item)}
                                 className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
                               >
                                 {item.loanNumber}
@@ -300,9 +372,22 @@ const FollowupPaymentsPage = () => {
                               </div>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
+                              <span
+                                className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${
+                                  item.loanType === "Monthly"
+                                    ? "bg-blue-50 text-blue-600 border-blue-100"
+                                    : item.loanType === "Weekly"
+                                      ? "bg-purple-50 text-purple-600 border-purple-100"
+                                      : "bg-orange-50 text-orange-600 border-orange-100"
+                                }`}
+                              >
+                                {item.loanType}
+                              </span>
+                            </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap">
                               <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-md">
                                 {item.unpaidMonths || 0}{" "}
-                                {item.unpaidMonths === 1 ? "Month" : "Months"}
+                                {item.unpaidMonths === 1 ? "EMI" : "EMIs"}
                               </span>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
@@ -332,22 +417,18 @@ const FollowupPaymentsPage = () => {
                               <TableActionMenu
                                 actions={[
                                   {
-                                    label: "View",
+                                    label: "View Loan",
                                     onClick: () => {
-                                      if (
-                                        item.earliestEmiId &&
-                                        item.earliestEmiId !== "undefined"
-                                      ) {
-                                        router.push(
-                                          `/admin/pending-payments/view/${item.earliestEmiId}`,
-                                        );
-                                      } else {
-                                        showToast(
-                                          "No pending EMI found for this loan",
-                                          "error",
-                                        );
-                                      }
+                                      router.push(getLoanDetailPath(item));
                                     },
+                                  },
+                                  {
+                                    label: "Update Response",
+                                    onClick: () => handleUpdateClick(item),
+                                  },
+                                  {
+                                    label: "Clear Follow-up",
+                                    onClick: () => handleClearClick(item),
                                   },
                                   {
                                     label: "Seize Vehicle",
@@ -375,6 +456,83 @@ const FollowupPaymentsPage = () => {
             </div>
           </main>
         </div>
+
+        {/* Update Followup Modal */}
+        {showUpdateModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+              onClick={() => setShowUpdateModal(false)}
+            ></div>
+            <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in">
+              <div className="p-8 border-b border-slate-100 bg-white">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                    Update Follow-up
+                  </h2>
+                  <button
+                    onClick={() => setShowUpdateModal(false)}
+                    className="text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                  Loan #{selectedLoan?.loanNumber} | {selectedLoan?.customerName}
+                </p>
+              </div>
+              <div className="p-8 space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                    Client Response
+                  </label>
+                  <textarea
+                    rows="4"
+                    value={updateFormData.clientResponse}
+                    onChange={(e) =>
+                      setUpdateFormData((prev) => ({
+                        ...prev,
+                        clientResponse: e.target.value,
+                      }))
+                    }
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary resize-none"
+                    placeholder="Enter what the client said..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                    Next Follow-up Date
+                  </label>
+                  <input
+                    type="date"
+                    value={updateFormData.nextFollowUpDate}
+                    onChange={(e) =>
+                      setUpdateFormData((prev) => ({
+                        ...prev,
+                        nextFollowUpDate: e.target.value,
+                      }))
+                    }
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+              <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex gap-3">
+                <button
+                  onClick={() => setShowUpdateModal(false)}
+                  className="flex-1 bg-white border border-slate-200 text-slate-400 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmUpdateFollowup}
+                  className="flex-1 bg-primary text-white py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all"
+                >
+                  Save Updates
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Filter Drawer */}
         {isFilterOpen && (
@@ -483,6 +641,14 @@ const FollowupPaymentsPage = () => {
           onConfirm={confirmSeize}
           title="Confirm Seizure"
           message="Are you sure you want to mark this vehicle as seized? This action cannot be undone."
+        />
+
+        <ConfirmationModal
+          isOpen={showClearModal}
+          onClose={() => setShowClearModal(false)}
+          onConfirm={confirmClearFollowup}
+          title="Clear Follow-up"
+          message="Are you sure you want to resolve and clear this follow-up? It will not reappear until a new follow-up date is set."
         />
       </div>
     </AuthGuard>

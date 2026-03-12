@@ -4,6 +4,8 @@ const EMI = require("../models/EMI");
 const SeizedVehicle = require("../models/SeizedVehicle");
 const ClosedLoan = require("../models/ClosedLoan");
 const Followup = require("../models/Followup");
+const DailyLoan = require("../models/DailyLoan");
+const WeeklyLoan = require("../models/WeeklyLoan");
 const ErrorHandler = require("../utils/ErrorHandler");
 const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
@@ -691,8 +693,18 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       statusObj?.isSeized !== undefined ? statusObj.isSeized : loan.isSeized,
     docChecklist: statusObj?.docChecklist || loan.docChecklist,
     remarks: statusObj?.remarks || loan.remarks,
-    clientResponse: statusObj?.clientResponse || topLevelClientResponse,
-    nextFollowUpDate: statusObj?.nextFollowUpDate || topLevelNextFollowUpDate,
+    clientResponse:
+      statusObj?.clientResponse !== undefined
+        ? statusObj.clientResponse
+        : topLevelClientResponse !== undefined
+          ? topLevelClientResponse
+          : loan.clientResponse,
+    nextFollowUpDate:
+      statusObj?.nextFollowUpDate !== undefined
+        ? statusObj.nextFollowUpDate || null
+        : topLevelNextFollowUpDate !== undefined
+          ? topLevelNextFollowUpDate || null
+          : loan.nextFollowUpDate,
 
     // Flatten foreclosureDetails
     foreclosedBy: foreclosureDetails?.foreclosedBy || loan.foreclosedBy,
@@ -1192,6 +1204,7 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
       $project: {
         _id: 1,
         loanId: "$loan._id",
+        loanModel: { $literal: "Loan" },
         loanNumber: "$loan.loanNumber",
         customerName: "$loan.customerName",
         mobileNumbers: "$loan.mobileNumbers",
@@ -1212,6 +1225,7 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
         remarks: "$remarks",
         paymentHistory: "$paymentHistory",
         clientResponse: "$loan.clientResponse",
+        nextFollowUpDate: "$loan.nextFollowUpDate",
         emiNumber: 1,
         paymentRecords: 1,
       },
@@ -1272,118 +1286,156 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  let query = {};
-
-  if (customerName) {
-    query.customerName = { $regex: customerName, $options: "i" };
-  }
-  if (loanNumber) {
-    query.loanNumber = { $regex: loanNumber, $options: "i" };
-  }
-  if (vehicleNumber) {
-    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
-  }
-  if (mobileNumber) {
-    query.$or = [
-      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
-      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
-    ];
-  }
-
-  // Mandatory date filtering for follow-ups
+  // Filter for nextFollowUpDate
   const dateToFilter =
     nextFollowUpDate || new Date().toISOString().split("T")[0];
   const start = new Date(dateToFilter);
   start.setHours(0, 0, 0, 0);
   const end = new Date(dateToFilter);
   end.setHours(23, 59, 59, 999);
-  query.nextFollowUpDate = { $gte: start, $lte: end };
+  const dateFilter = { nextFollowUpDate: { $gte: start, $lte: end } };
 
-  // For followup logic, we don't care if the payment is officially "overdue" yet
-  // We just want ANY loan that has at least one Pending/Partial EMI
-  const result = await Loan.aggregate([
-    {
-      $match: {
-        ...query,
-        status: { $ne: "Closed" },
-      },
-    },
-    {
-      $lookup: {
-        from: "emis",
-        localField: "_id",
-        foreignField: "loanId",
-        as: "emis",
-      },
-    },
-    {
-      $addFields: {
-        pendingEmisList: {
-          $filter: {
-            input: "$emis",
-            as: "emi",
-            cond: {
-              $in: ["$$emi.status", ["Pending", "Partially Paid", "Overdue"]],
-            },
-          },
+  // Common filters
+  let commonQuery = { ...dateFilter, status: { $ne: "Closed" } };
+  if (customerName)
+    commonQuery.customerName = { $regex: customerName, $options: "i" };
+  if (loanNumber)
+    commonQuery.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (vehicleNumber)
+    commonQuery.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+
+  // Helper function for aggregation pipeline
+  const getPipeline = (modelName, loanType, mobileField) => {
+    let pipeline = [{ $match: commonQuery }];
+
+    if (mobileNumber) {
+      if (modelName === "Loan") {
+        pipeline[0].$match.$or = [
+          { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+          { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+        ];
+      } else {
+        pipeline[0].$match.mobileNumber = { $regex: mobileNumber, $options: "i" };
+      }
+    }
+
+    pipeline.push(
+      {
+        $lookup: {
+          from: "emis",
+          localField: "_id",
+          foreignField: "loanId",
+          as: "emis",
         },
       },
-    },
-    {
-      $project: {
-        loanId: "$_id",
-        loanNumber: 1,
-        customerName: 1,
-        guarantorName: 1,
-        status: 1,
-        mobileNumbers: 1,
-        guarantorMobileNumbers: 1,
-        vehicleNumber: 1,
-        model: 1,
-        unpaidMonths: { $size: "$pendingEmisList" },
-        totalDueAmount: {
-          $reduce: {
-            input: "$pendingEmisList",
-            initialValue: 0,
-            in: { $add: ["$$value", "$$this.emiAmount"] },
-          },
-        },
-        earliestEmiId: {
-          $let: {
-            vars: {
-              firstPending: { $arrayElemAt: ["$pendingEmisList", 0] },
-            },
-            in: { $toString: { $ifNull: ["$$firstPending._id", null] } },
-          },
-        },
-        earliestDueDate: {
-          $let: {
-            vars: {
-              sortedEmis: {
-                $sortArray: {
-                  input: "$pendingEmisList",
-                  sortBy: { dueDate: 1 },
-                },
+      {
+        $addFields: {
+          pendingEmisList: {
+            $filter: {
+              input: "$emis",
+              as: "emi",
+              cond: {
+                $and: [
+                  { $ne: ["$$emi.status", "Paid"] },
+                  { $eq: ["$$emi.loanModel", modelName] },
+                ],
               },
             },
-            in: { $arrayElemAt: ["$$sortedEmis.dueDate", 0] },
           },
         },
-        clientResponse: 1,
-        nextFollowUpDate: 1,
       },
-    },
-    { $sort: { earliestDueDate: 1 } },
-    {
-      $facet: {
-        metadata: [{ $count: "total" }],
-        payments: [{ $skip: skip }, { $limit: limit }],
+      {
+        $project: {
+          loanId: "$_id",
+          loanNumber: 1,
+          customerName: 1,
+          guarantorName: modelName === "Loan" ? 1 : { $literal: "—" },
+          status: 1,
+          mobileNumbers: modelName === "Loan" ? 1 : ["$mobileNumber"],
+          guarantorMobileNumbers:
+            modelName === "Loan" ? 1 : { $literal: [] },
+          vehicleNumber: 1,
+          model: 1,
+          loanType: { $literal: loanType },
+          loanModel: { $literal: modelName },
+          unpaidMonths: { $size: "$pendingEmisList" },
+          totalDueAmount: {
+            $reduce: {
+              input: "$pendingEmisList",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $subtract: [
+                      { $toDouble: "$$this.emiAmount" },
+                      { $toDouble: { $ifNull: ["$$this.amountPaid", 0] } },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          earliestEmiId: {
+            $let: {
+              vars: {
+                firstPending: {
+                  $arrayElemAt: [
+                    {
+                      $sortArray: {
+                        input: "$pendingEmisList",
+                        sortBy: { dueDate: 1 },
+                      },
+                    },
+                    0,
+                  ],
+                },
+              },
+              in: { $toString: { $ifNull: ["$$firstPending._id", null] } },
+            },
+          },
+          earliestDueDate: {
+            $let: {
+              vars: {
+                sortedEmis: {
+                  $sortArray: {
+                    input: "$pendingEmisList",
+                    sortBy: { dueDate: 1 },
+                  },
+                },
+              },
+              in: { $arrayElemAt: ["$$sortedEmis.dueDate", 0] },
+            },
+          },
+          clientResponse: 1,
+          nextFollowUpDate: 1,
+        },
       },
-    },
+    );
+    return pipeline;
+  };
+
+  // Run aggregations for all three models
+  const [monthlyFollowups, dailyFollowups, weeklyFollowups] = await Promise.all([
+    Loan.aggregate(getPipeline("Loan", "Monthly")),
+    DailyLoan.aggregate(getPipeline("DailyLoan", "Daily")),
+    WeeklyLoan.aggregate(getPipeline("WeeklyLoan", "Weekly")),
   ]);
 
-  const total = result[0].metadata[0] ? result[0].metadata[0].total : 0;
-  const payments = result[0].payments;
+  // Combine and sort
+  let allFollowups = [
+    ...monthlyFollowups,
+    ...dailyFollowups,
+    ...weeklyFollowups,
+  ].sort((a, b) => {
+    // Sort by earliestDueDate ascending
+    if (!a.earliestDueDate) return 1;
+    if (!b.earliestDueDate) return -1;
+    return new Date(a.earliestDueDate) - new Date(b.earliestDueDate);
+  });
+
+  const total = allFollowups.length;
+  const paginatedFollowups = allFollowups.slice(skip, skip + limit);
 
   sendResponse(
     res,
@@ -1392,7 +1444,7 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     "Follow-up loans fetched successfully",
     null,
     {
-      payments,
+      payments: paginatedFollowups,
       pagination: {
         total,
         page,
@@ -1400,6 +1452,74 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
         totalPages: Math.ceil(total / limit),
       },
     },
+  );
+});
+
+const updateFollowup = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { loanModel, clientResponse, nextFollowUpDate } = req.body;
+
+  let Model;
+  if (loanModel === "Loan") Model = Loan;
+  else if (loanModel === "DailyLoan") Model = DailyLoan;
+  else if (loanModel === "WeeklyLoan") Model = WeeklyLoan;
+  else {
+    return next(new ErrorHandler("Invalid loan model provided", 400));
+  }
+
+  const loan = await Model.findById(id);
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // Update the loan document
+  loan.clientResponse =
+    clientResponse !== undefined ? clientResponse : loan.clientResponse;
+  loan.nextFollowUpDate =
+    nextFollowUpDate !== undefined
+      ? nextFollowUpDate
+        ? new Date(nextFollowUpDate)
+        : null
+      : loan.nextFollowUpDate;
+
+  await loan.save();
+
+  // Create follow-up history record
+  if (clientResponse || nextFollowUpDate !== undefined) {
+    await Followup.create({
+      loanId: loan._id,
+      loanModel,
+      loanType: loanType || (loanModel === "Loan" ? "Monthly" : loanModel.replace("Loan", "")),
+      followupDate: new Date(),
+      clientResponse: clientResponse || loan.clientResponse,
+      nextFollowupDate: loan.nextFollowUpDate,
+      followedUpBy: req.user?._id,
+    });
+  }
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Follow-up updated successfully",
+    null,
+    loan,
+  );
+});
+
+const getFollowupHistory = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const history = await Followup.find({ loanId: id })
+    .sort({ followupDate: -1 })
+    .populate("followedUpBy", "name email");
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Follow-up history fetched successfully",
+    null,
+    history,
   );
 });
 
@@ -2083,4 +2203,6 @@ module.exports = {
   getSeizedVehicles,
   updateSeizedStatus,
   getAnalyticsStats,
+  updateFollowup,
+  getFollowupHistory,
 };

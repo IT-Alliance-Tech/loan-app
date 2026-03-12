@@ -11,6 +11,7 @@ import {
   getPendingEmiDetails,
   updateLoan,
   updatePaymentStatus,
+  updateFollowup,
 } from "../../../../../services/loan.service";
 import { updateEMI } from "../../../../../services/customer";
 import { format } from "date-fns";
@@ -69,7 +70,8 @@ const LoanPendingViewPage = () => {
   const handleUpdateStatus = async () => {
     try {
       setUpdating(true);
-      await updateLoan(loan.loanId, {
+      await updateFollowup(loan.loanId, {
+        loanModel: loan.loanModel || "Loan",
         clientResponse: newStatus,
         nextFollowUpDate: newFollowUpDate,
       });

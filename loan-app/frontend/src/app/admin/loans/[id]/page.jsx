@@ -7,28 +7,37 @@ import Sidebar from "../../../../components/Sidebar";
 import LoanForm from "../../../../components/LoanForm";
 import EMITable from "../../../../components/EMITable";
 import { useToast } from "../../../../context/ToastContext";
-import { getLoanById } from "../../../../services/loan.service";
+import {
+  getLoanById,
+  getFollowupHistory,
+} from "../../../../services/loan.service";
 import { getEMIsByLoanId } from "../../../../services/customer";
 import { flattenLoan } from "../../../../utils/loanUtils";
+import FollowupHistory from "../../../../components/FollowupHistory";
 
 const ViewLoanPage = () => {
   const router = useRouter();
   const { id } = useParams();
   const [loan, setLoan] = useState(null);
   const [emis, setEmis] = useState([]);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const { showToast } = useToast();
 
   useEffect(() => {
     const fetchLoanData = async () => {
       try {
-        const [loanRes, emiRes] = await Promise.all([
+        const [loanRes, emiRes, historyRes] = await Promise.all([
           getLoanById(id),
           getEMIsByLoanId(id),
+          getFollowupHistory(id),
         ]);
 
         const data = loanRes.data; // Already structured from backend
         const emiData = emiRes.data || [];
+        setHistory(historyRes.data || []);
+        setHistoryLoading(false);
 
         // Format dates for input[type="date"]
         const formattedData = {
@@ -158,6 +167,8 @@ const ViewLoanPage = () => {
                       isEditMode={false}
                     />
                   </div>
+
+                  <FollowupHistory history={history} loading={historyLoading} />
                 </>
               )}
             </div>

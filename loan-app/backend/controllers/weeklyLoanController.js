@@ -281,7 +281,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
         : weeklyLoan.processingFeeRate || 10,
     nextFollowUpDate:
       nextFollowUpDate !== undefined
-        ? nextFollowUpDate
+        ? nextFollowUpDate || null
         : weeklyLoan.nextFollowUpDate,
     remarks: remarks !== undefined ? remarks : weeklyLoan.remarks,
     clientResponse:
@@ -763,6 +763,7 @@ exports.getWeeklyPendingEmiDetails = asyncHandler(async (req, res, next) => {
       $project: {
         _id: 1,
         loanId: "$loan._id",
+        loanModel: { $literal: "WeeklyLoan" },
         loanNumber: "$loan.loanNumber",
         customerName: "$loan.customerName",
         mobileNumber: "$loan.mobileNumber",
@@ -776,6 +777,7 @@ exports.getWeeklyPendingEmiDetails = asyncHandler(async (req, res, next) => {
         paymentMode: 1,
         remarks: "$remarks",
         clientResponse: "$loan.clientResponse",
+        nextFollowUpDate: "$loan.nextFollowUpDate",
         emiNumber: 1,
         overdue: "$overdue",
         paymentHistory: "$paymentHistory",

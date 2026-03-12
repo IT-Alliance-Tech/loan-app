@@ -10,6 +10,8 @@ import {
   getDailyLoanById,
   getDailyLoanEMIs,
 } from "../../../../services/dailyLoan.service";
+import { getFollowupHistory } from "../../../../services/loan.service";
+import FollowupHistory from "../../../../components/FollowupHistory";
 import { useToast } from "../../../../context/ToastContext";
 import { format } from "date-fns";
 
@@ -19,16 +21,21 @@ const ViewDailyLoanPage = ({ params: paramsPromise }) => {
   const { showToast } = useToast();
   const [loanData, setLoanData] = useState(null);
   const [emis, setEmis] = useState([]);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   const fetchData = async () => {
     try {
-      const [loanRes, emiRes] = await Promise.all([
+      const [loanRes, emiRes, historyRes] = await Promise.all([
         getDailyLoanById(params.id),
         getDailyLoanEMIs(params.id),
+        getFollowupHistory(params.id),
       ]);
       const data = loanRes.data;
       const emiData = emiRes.data || [];
+      setHistory(historyRes.data || []);
+      setHistoryLoading(false);
 
       // Format dates for the form
       if (data.startDate)
@@ -100,6 +107,8 @@ const ViewDailyLoanPage = ({ params: paramsPromise }) => {
                       onUpdateSuccess={fetchData}
                     />
                   </div>
+
+                  <FollowupHistory history={history} loading={historyLoading} />
                 </>
               )}
             </div>
