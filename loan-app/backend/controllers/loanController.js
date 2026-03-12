@@ -971,14 +971,16 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
                 // If nextFollowUpDate is provided, we include ALL Pending/Partial EMIs to ensure the loan shows up
                 // If NOT provided, we strictly filter by overdue EMIs (dueDate <= now)
                 nextFollowUpDate ? true : { $lte: ["$$emi.dueDate", now] },
-                status
-                  ? { $eq: ["$$emi.status", status] }
-                  : {
-                      $in: [
-                        "$$emi.status",
-                        ["Pending", "Partially Paid", "Overdue"],
-                      ],
-                    },
+                status === "Pending"
+                  ? { $in: ["$$emi.status", ["Pending", "Overdue"]] }
+                  : status
+                    ? { $eq: ["$$emi.status", status] }
+                    : {
+                        $in: [
+                          "$$emi.status",
+                          ["Pending", "Partially Paid", "Overdue"],
+                        ],
+                      },
               ],
             },
           },
@@ -1045,7 +1047,36 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
             },
           },
         },
-        earliestDueDate: { $min: "$pendingEmisList.dueDate" },
+        earliestDueDate: {
+          $let: {
+            vars: {
+              overdueMin: { $min: "$pendingEmisList.dueDate" },
+              anyPending: {
+                $arrayElemAt: [
+                  {
+                    $sortArray: {
+                      input: {
+                        $filter: {
+                          input: "$emis",
+                          as: "e",
+                          cond: {
+                            $in: [
+                              "$$e.status",
+                              ["Pending", "Partially Paid", "Overdue"],
+                            ],
+                          },
+                        },
+                      },
+                      sortBy: { dueDate: 1 },
+                    },
+                  },
+                  0,
+                ],
+              },
+            },
+            in: { $ifNull: ["$$overdueMin", "$$anyPending.dueDate"] },
+          },
+        },
         earliestEmiId: {
           $let: {
             vars: {
