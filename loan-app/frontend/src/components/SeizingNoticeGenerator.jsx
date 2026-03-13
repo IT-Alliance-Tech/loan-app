@@ -34,10 +34,8 @@ const SeizingNoticeGenerator = ({
         loan.vehicleInformation?.engineNumber || "........................";
       const chassisNo =
         loan.vehicleInformation?.chassisNumber || "........................";
-      const modelName =
-        loan.vehicleInformation?.model || "........................";
       const modelYear =
-        loan.vehicleInformation?.ywBoard || "........................";
+        loan.vehicleInformation?.modelYear || "........................";
       const bearer = bearerName || "........................";
 
       // Calculate from date (earliest pending EMI)
@@ -196,14 +194,14 @@ const SeizingNoticeGenerator = ({
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(10);
 
-      // Row 1: Engine Number + Model
-      pdf.text(`Engine Number: ${engineNo}`, margin, y);
-      pdf.text(`Model: ${modelName}`, margin + 95, y);
+      pdf.text(`Model Year: ${modelYear}`, margin, y);
+      // Remove the duplicate model line if any, or keep it if separate field exists. 
+      // Based on user request "modul change to modul year", we focus on Model Year.
 
-      // Row 2: Registration Number + Model Year
+      // Row 2: Registration Number + Engine Number
       y += 8;
       pdf.text(`Registration Number: ${vehicleNo}`, margin, y);
-      pdf.text(`Model Year: ${modelYear}`, margin + 95, y);
+      pdf.text(`Engine Number: ${engineNo}`, margin + 95, y);
 
       // Row 3: Chassis Number
       y += 8;

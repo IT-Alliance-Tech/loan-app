@@ -23,7 +23,7 @@ const calculateEMI = (principal, roi, tenureMonths) => {
   const monthlyPrincipal = p / n;
   const emi = monthlyPrincipal + monthlyInterest;
 
-  return parseFloat(emi.toFixed(2));
+  return Math.ceil(emi);
 };
 
 const calculateEMIApi = asyncHandler(async (req, res, next) => {
@@ -224,7 +224,12 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
       {
         $addFields: {
           repaymentStats: {
-            totalCollected: { $sum: "$emis.amountPaid" },
+            totalCollected: {
+              $add: [
+                { $sum: "$emis.amountPaid" },
+                { $sum: { $ifNull: ["$emis.overdue", 0] } },
+              ],
+            },
             overdueAmount: { $sum: "$emis.overdue" },
             paidEmisCount: {
               $size: {
@@ -956,6 +961,18 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
   const now = new Date();
   now.setHours(23, 59, 59, 999);
 
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  // If not filtering by a specific follow-up date, 
+  // we exclude loans that have a follow-up scheduled for today or the future.
+  if (!nextFollowUpDate) {
+    query.$or = [
+      { nextFollowUpDate: { $exists: false } },
+      { nextFollowUpDate: null },
+      { nextFollowUpDate: { $lt: todayStart } },
+    ];
+  }
   const result = await Loan.aggregate([
     {
       $match: {
@@ -982,7 +999,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
                 { $ne: ["$$emi.status", "Paid"] },
                 // If nextFollowUpDate is provided, we include ALL Pending/Partial EMIs to ensure the loan shows up
                 // If NOT provided, we strictly filter by overdue EMIs (dueDate <= now)
-                nextFollowUpDate ? true : { $lte: ["$$emi.dueDate", now] },
+                { $lte: ["$$emi.dueDate", now] },
                 status === "Pending"
                   ? { $in: ["$$emi.status", ["Pending", "Overdue"]] }
                   : status
@@ -1001,38 +1018,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     },
     {
       $match: {
-        $or: [
-          { $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] } },
-          // IF we are searching specifically for a follow-up date,
-          // allow the loan even if no EMIs are strictly "overdue" yet,
-          // as long as it has SOME Pending/Partial EMIs
-          {
-            $and: [
-              { nextFollowUpDate: { $exists: true, $ne: null } },
-              {
-                $expr: {
-                  $gt: [
-                    {
-                      $size: {
-                        $filter: {
-                          input: "$emis",
-                          as: "e",
-                          cond: {
-                            $in: [
-                              "$$e.status",
-                              ["Pending", "Partially Paid", "Overdue"],
-                            ],
-                          },
-                        },
-                      },
-                    },
-                    0,
-                  ],
-                },
-              },
-            ],
-          },
-        ],
+        $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] },
       },
     },
     {
@@ -1046,7 +1032,13 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         guarantorMobileNumbers: 1,
         vehicleNumber: 1,
         model: 1,
-        unpaidMonths: { $size: "$pendingEmisList" },
+        unpaidMonths: {
+          $cond: {
+            if: { $gt: [{ $size: "$pendingEmisList" }, 0] },
+            then: { $size: "$pendingEmisList" },
+            else: 1, // Show at least 1 month if included via follow-up
+          },
+        },
         totalDueAmount: {
           $reduce: {
             input: "$pendingEmisList",
@@ -1059,65 +1051,13 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
             },
           },
         },
-        earliestDueDate: {
-          $let: {
-            vars: {
-              overdueMin: { $min: "$pendingEmisList.dueDate" },
-              anyPending: {
-                $arrayElemAt: [
-                  {
-                    $sortArray: {
-                      input: {
-                        $filter: {
-                          input: "$emis",
-                          as: "e",
-                          cond: {
-                            $in: [
-                              "$$e.status",
-                              ["Pending", "Partially Paid", "Overdue"],
-                            ],
-                          },
-                        },
-                      },
-                      sortBy: { dueDate: 1 },
-                    },
-                  },
-                  0,
-                ],
-              },
-            },
-            in: { $ifNull: ["$$overdueMin", "$$anyPending.dueDate"] },
-          },
-        },
+        earliestDueDate: { $min: "$pendingEmisList.dueDate" },
         earliestEmiId: {
           $let: {
             vars: {
-              // Try to get from overdue list first
               overdueEmi: { $arrayElemAt: ["$pendingEmisList", 0] },
-              // Fallback to any pending emi in the full list
-              anyPendingEmi: {
-                $arrayElemAt: [
-                  {
-                    $filter: {
-                      input: "$emis",
-                      as: "e",
-                      cond: {
-                        $in: [
-                          "$$e.status",
-                          ["Pending", "Partially Paid", "Overdue"],
-                        ],
-                      },
-                    },
-                  },
-                  0,
-                ],
-              },
             },
-            in: {
-              $toString: {
-                $ifNull: ["$$overdueEmi._id", "$$anyPendingEmi._id"],
-              },
-            },
+            in: { $toString: "$$overdueEmi._id" },
           },
         },
         clientResponse: 1,
@@ -1638,12 +1578,10 @@ const getForeclosureLoans = asyncHandler(async (req, res, next) => {
 const forecloseLoan = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const {
-    foreclosureChargeAmount,
-    foreclosureChargePercent,
-    miscellaneousFee,
-    od,
     remainingPrincipal,
     totalAmount,
+    paymentBreakdown, // Array of { mode, amount }
+    paymentDate,
     remarks,
   } = req.body;
 
@@ -1656,32 +1594,48 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Loan not found", 404));
   }
 
-  // 1. Update Loan status to Closed using findByIdAndUpdate to bypass full document validation
-  // (Prevents error if some required fields like createdBy are missing in older/test records)
+  if (loan.status === "Closed") {
+    return next(new ErrorHandler("the loan has been closed already", 400));
+  }
+
+  // 0. Amount Validation
+  const totalReceived = (paymentBreakdown || []).reduce(
+    (acc, curr) => acc + parseFloat(curr.amount || 0),
+    0,
+  );
+
+  if (totalReceived < parseFloat(totalAmount) - 0.1) {
+    return next(
+      new ErrorHandler(
+        `Received total (₹${totalReceived}) is less than total foreclosure amount (₹${totalAmount})`,
+        400,
+      ),
+    );
+  }
+
+  const pDate = paymentDate ? new Date(paymentDate) : new Date();
+  const pMode =
+    (paymentBreakdown || []).map((p) => p.mode).join(", ") || "CASH";
+
+  // 1. Update Loan status to Closed
   const updatedLoan = await Loan.findByIdAndUpdate(
     id,
     {
       status: "Closed",
-      paymentStatus: "Closed", // Set paymentStatus to Closed as requested
-      remarks: remarks || `Foreclosed on ${new Date().toLocaleDateString()}`,
+      paymentStatus: "Closed",
+      remarks: remarks || `Foreclosed on ${pDate.toLocaleDateString()}`,
       foreclosedBy: req.user?._id,
-      foreclosureDate: new Date(),
+      foreclosureDate: pDate,
       foreclosureAmount: totalAmount,
-      // Detailed Breakdown
-      foreclosureChargeAmount,
-      foreclosureChargePercent,
-      miscellaneousFee,
-      odAmount: od, // Map 'od' from payload to 'odAmount' in schema
       remainingPrincipal,
     },
     { new: true },
-  ) // Capture the updated document
+  )
     .populate("createdBy", "name")
     .populate("foreclosedBy", "name")
     .populate("updatedBy", "name");
 
   // 2. Update all pending/partial EMIs for this loan to "Paid"
-  // We mark them as Paid because the foreclosure payment covers them.
   await EMI.updateMany(
     {
       loanId: id,
@@ -1690,12 +1644,42 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
     {
       $set: {
         status: "Paid",
-        paymentDate: new Date(),
-        paymentMode: "Foreclosure",
-        remarks: `Loan foreclosed. Total Payment: ₹${totalAmount}`,
+        paymentDate: pDate,
+        paymentMode: pMode,
+        remarks: `Loan foreclosed. Total Payment: ₹${totalAmount} via ${pMode}`,
       },
     },
   );
+
+  // 3. Create Payment Records for each mode in breakdown
+  const firstPendingEmi = await EMI.findOne({
+    loanId: id,
+    status: "Paid",
+    paymentDate: pDate,
+  }).sort({ emiNumber: 1 });
+
+  const Payment = require("../models/Payment");
+  const paymentRecords = (paymentBreakdown || []).map((p) => ({
+    emiId: firstPendingEmi?._id || new mongoose.Types.ObjectId(),
+    loanId: id,
+    loanModel: loan.loanModel || "Loan",
+    amount: parseFloat(p.amount),
+    mode: p.mode,
+    paymentDate: pDate,
+    paymentType:
+      loan.loanModel === "DailyLoan"
+        ? "Daily"
+        : loan.loanModel === "WeeklyLoan"
+          ? "Weekly"
+          : "Monthly",
+    status: "Success",
+    remarks: `Foreclosure Split-Payment (${p.mode}) for Loan ${loan.loanNumber}`,
+    collectedBy: req.user._id,
+  }));
+
+  if (paymentRecords.length > 0) {
+    await Payment.insertMany(paymentRecords);
+  }
 
   sendResponse(res, 200, "success", "Loan foreclosed successfully", null, {
     loan: formatLoanResponse(updatedLoan),
@@ -2091,7 +2075,19 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
       // 4. EMI & Expenses
       Promise.all([
         EMI.aggregate([
-          { $group: { _id: null, total: { $sum: "$amountPaid" } } },
+          {
+            $group: {
+              _id: null,
+              total: {
+                $sum: {
+                  $add: [
+                    { $ifNull: ["$amountPaid", 0] },
+                    { $ifNull: ["$overdue", 0] },
+                  ],
+                },
+              },
+            },
+          },
         ]),
         mongoose
           .model("Expense")

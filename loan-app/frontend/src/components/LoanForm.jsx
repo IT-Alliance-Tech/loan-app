@@ -65,7 +65,9 @@ const validationSchema = Yup.object().shape({
       .nullable(),
     chassisNumber: Yup.string().nullable(),
     engineNumber: Yup.string().nullable(),
-    model: Yup.string().nullable(),
+    modelYear: Yup.string()
+      .matches(/^\d*$/, "Must be numeric")
+      .nullable(),
     typeOfVehicle: Yup.string().nullable(),
     ywBoard: Yup.string().nullable(),
     dealerName: Yup.string().nullable(),
@@ -170,7 +172,7 @@ const LoanForm = ({
         vehicleNumber: initialData?.vehicleInformation?.vehicleNumber || "",
         chassisNumber: initialData?.vehicleInformation?.chassisNumber || "",
         engineNumber: initialData?.vehicleInformation?.engineNumber || "",
-        model: initialData?.vehicleInformation?.model || "",
+        modelYear: initialData?.vehicleInformation?.modelYear || "",
         typeOfVehicle: initialData?.vehicleInformation?.typeOfVehicle || "",
         ywBoard: initialData?.vehicleInformation?.ywBoard || "Yellow",
         dealerName: initialData?.vehicleInformation?.dealerName || "",
@@ -431,7 +433,8 @@ const LoanForm = ({
     let total = 0;
     if (emis && emis.length > 0) {
       total = emis.reduce(
-        (sum, emi) => sum + (parseFloat(emi.amountPaid) || 0),
+        (sum, emi) =>
+          sum + (parseFloat(emi.amountPaid) || 0) + (parseFloat(emi.overdue) || 0),
         0,
       );
     }
@@ -1318,17 +1321,22 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Model
+                  Model Year
                 </label>
                 <input
                   type="text"
-                  name="vehicleInformation.model"
-                  value={formik.values.vehicleInformation.model || ""}
-                  onChange={formik.handleChange}
+                  name="vehicleInformation.modelYear"
+                  value={formik.values.vehicleInformation.modelYear || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    formik.setFieldValue("vehicleInformation.modelYear", val);
+                  }}
                   onBlur={formik.handleBlur}
                   readOnly={isViewOnly}
-                  className={getFieldClass("vehicleInformation.model")}
+                  className={getFieldClass("vehicleInformation.modelYear")}
+                  placeholder="e.g. 2024"
                 />
+                <ErrorMsg name="vehicleInformation.modelYear" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">

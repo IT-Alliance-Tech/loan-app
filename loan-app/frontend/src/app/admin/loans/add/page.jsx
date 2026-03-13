@@ -42,7 +42,7 @@ const AddLoanPage = () => {
       vehicleNumber: "",
       chassisNumber: "",
       engineNumber: "",
-      model: "",
+      modelYear: "",
       typeOfVehicle: "",
       ywBoard: "Yellow",
       dealerName: "",

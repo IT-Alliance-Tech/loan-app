@@ -18,6 +18,14 @@ const weeklyLoanSchema = new mongoose.Schema(
       required: [true, "Mobile number is required"],
       trim: true,
     },
+    guarantorName: {
+      type: String,
+      trim: true,
+    },
+    guarantorMobileNumber: {
+      type: String,
+      trim: true,
+    },
     disbursementAmount: {
       type: Number,
       required: [true, "Disbursement amount is required"],
@@ -138,7 +146,7 @@ weeklyLoanSchema.virtual("followupHistory", {
 // Pre-save middleware to handle calculations if needed, though we'll likely do them in the controller
 weeklyLoanSchema.pre("save", async function () {
   if (this.disbursementAmount && this.totalEmis) {
-    this.emiAmount = this.disbursementAmount / this.totalEmis;
+    this.emiAmount = Math.ceil(this.disbursementAmount / this.totalEmis);
     this.processingFee = this.disbursementAmount * 0.1;
     this.remainingEmis = this.totalEmis - this.paidEmis;
     this.totalAmount = this.emiAmount * this.paidEmis;

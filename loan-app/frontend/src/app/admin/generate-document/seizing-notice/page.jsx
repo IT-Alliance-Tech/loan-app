@@ -37,7 +37,11 @@ const SeizingNoticePage = () => {
           const emisRes = await getEMIsByLoanId(loanData._id);
           const allEmis = emisRes.data || [];
           const pending = allEmis.filter(
-            (e) => e.status === "Pending" || e.status === "Overdue",
+            (e) =>
+              e.status === "Overdue" ||
+              e.status === "Partially Paid" ||
+              (e.status === "Pending" &&
+                new Date(e.dueDate) <= new Date(new Date().setHours(23, 59, 59))),
           );
           setPendingEmis(pending);
 
@@ -174,13 +178,13 @@ const SeizingNoticePage = () => {
                       </div>
                       <div className="space-y-1">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          Model
+                          Model Year
                         </p>
                         <p className="text-sm font-black text-slate-900">
-                          {!loan.vehicleInformation?.model ||
-                          loan.vehicleInformation?.model === "N/A"
+                          {!loan.vehicleInformation?.modelYear ||
+                          loan.vehicleInformation?.modelYear === "N/A"
                             ? "-"
-                            : loan.vehicleInformation.model}
+                            : loan.vehicleInformation.modelYear}
                         </p>
                       </div>
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-1">

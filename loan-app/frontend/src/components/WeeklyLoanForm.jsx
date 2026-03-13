@@ -19,6 +19,11 @@ const validationSchema = Yup.object().shape({
     .required("Tenure is required"),
   startDate: Yup.string().required("Disbursement date is required"),
   emiStartDate: Yup.string().required("EMI start date is required"),
+  guarantorName: Yup.string(),
+  guarantorMobileNumber: Yup.string().matches(
+    /^[6-9]\d{9}$/,
+    "Invalid mobile number",
+  ),
 });
 
 const ErrorMsg = ({ name, touched, errors }) => {
@@ -63,7 +68,7 @@ const WeeklyLoanForm = ({
 
   // Auto-set EMI Start Date to 7 days after Disbursement Date
   useEffect(() => {
-    if (values.startDate && !formik.values._id) {
+    if (values.startDate) {
       const disbursementDate = new Date(values.startDate);
       if (!isNaN(disbursementDate.getTime())) {
         const autoEmiStart = format(addDays(disbursementDate, 7), "yyyy-MM-dd");
@@ -72,7 +77,7 @@ const WeeklyLoanForm = ({
         }
       }
     }
-  }, [values.startDate, setFieldValue, formik.values._id, values.emiStartDate]);
+  }, [values.startDate, setFieldValue, values.emiStartDate]);
 
   // Auto-calculations (Derived State)
   const amount = parseFloat(values.disbursementAmount) || 0;
@@ -84,8 +89,8 @@ const WeeklyLoanForm = ({
   // Processing Fee
   const processingFee = (amount * (feeRate / 100)).toFixed(2);
 
-  // Weekly Principal Calculation (No Interest)
-  const emiAmount = totalWeeks > 0 ? (amount / totalWeeks).toFixed(2) : "0.00";
+  // Weekly Principal Calculation (No Interest) - Round Up
+  const emiAmount = totalWeeks > 0 ? Math.ceil(amount / totalWeeks) : 0;
 
   // Dates
   let emiEndDate = "";
@@ -95,14 +100,14 @@ const WeeklyLoanForm = ({
     emiEndDate = isNaN(end.getTime()) ? "" : format(end, "yyyy-MM-dd");
   }
 
-  const totalAmount = (parseFloat(emiAmount) * paidWeeks).toFixed(2);
+  const totalAmount = (emiAmount * paidWeeks).toFixed(2);
   const totalCollected = (
     parseFloat(totalAmount) + parseFloat(processingFee)
   ).toFixed(2);
   const remainingEmis = totalWeeks - paidWeeks;
   const remainingPrincipalAmount = (
     amount -
-    (amount / totalWeeks) * paidWeeks
+    emiAmount * paidWeeks
   ).toFixed(2);
 
   const nextEmiDate =
@@ -193,6 +198,46 @@ const WeeklyLoanForm = ({
               placeholder="10-digit Number"
             />
             <ErrorMsg touched={touched} errors={errors} name="mobileNumber" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Guarantor Name
+            </label>
+            <input
+              type="text"
+              name="guarantorName"
+              value={values.guarantorName || ""}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
+              disabled={isViewOnly}
+              className={getFieldClass("guarantorName")}
+              placeholder="Enter Guarantor Name"
+            />
+            <ErrorMsg touched={touched} errors={errors} name="guarantorName" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Guarantor Mobile
+            </label>
+            <input
+              type="text"
+              name="guarantorMobileNumber"
+              value={values.guarantorMobileNumber || ""}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setFieldValue("guarantorMobileNumber", val);
+              }}
+              onBlur={handleBlur}
+              disabled={isViewOnly}
+              maxLength={10}
+              className={getFieldClass("guarantorMobileNumber")}
+              placeholder="10-digit Number"
+            />
+            <ErrorMsg
+              touched={touched}
+              errors={errors}
+              name="guarantorMobileNumber"
+            />
           </div>
         </div>
       </div>
@@ -326,6 +371,19 @@ const WeeklyLoanForm = ({
             <p className="text-[9px] text-blue-500 font-bold ml-1 italic uppercase tracking-tighter">
               Defaults to 7 days after disbursement
             </p>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              EMI End Date (Auto)
+            </label>
+            <input
+              type="date"
+              name="emiEndDate"
+              value={emiEndDate}
+              readOnly
+              disabled
+              className="w-full bg-slate-100/50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-500 italic"
+            />
           </div>
 
           {/* Conditional Management Fields */}

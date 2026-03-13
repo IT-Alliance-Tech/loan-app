@@ -12,6 +12,7 @@ import {
   updateLoan,
   toggleSeized,
 } from "../../../../../services/loan.service";
+import LoanStatusBadge from "../../../../../components/LoanStatusBadge";
 import { getEMIsByLoanId } from "../../../../../services/customer";
 import { flattenLoan } from "../../../../../utils/loanUtils";
 
@@ -164,13 +165,20 @@ const EditLoanPage = () => {
           <Navbar />
           <main className="py-8 px-4 sm:px-8">
             <div className="max-w-6xl mx-auto">
-              <div className="mb-8">
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
-                  Modify Loan Parameters
-                </h1>
-                <p className="text-slate-500 font-medium text-sm">
-                  Updating loan record: {loan?.loanNumber}
-                </p>
+              <div className="sticky top-16 z-30 bg-[#F8FAFC]/80 backdrop-blur-md py-4 mb-8 border-b border-slate-100 flex justify-between items-center transition-all duration-300">
+                <div>
+                  <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+                    Modify Loan Parameters
+                  </h1>
+                  <p className="text-slate-500 font-medium text-sm">
+                    Updating loan record: {loan?.loanNumber}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <LoanStatusBadge
+                    status={loan?.status?.status || loan?.status}
+                  />
+                </div>
               </div>
 
               {loan && (

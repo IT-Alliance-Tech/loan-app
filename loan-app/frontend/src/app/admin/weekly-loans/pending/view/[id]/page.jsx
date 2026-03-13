@@ -281,6 +281,34 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
                           {loan.mobileNumber}
                         </button>
                       </div>
+                      {(loan.guarantorName || loan.guarantorMobileNumber) && (
+                        <div>
+                          <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">
+                            Guarantor
+                          </span>
+                          <p className="text-sm font-black text-slate-900 uppercase">
+                            {loan.guarantorName || "N/A"}
+                          </p>
+                          {loan.guarantorMobileNumber && (
+                            <button
+                              onClick={(e) => {
+                                const rect =
+                                  e.currentTarget.getBoundingClientRect();
+                                setActiveContactMenu({
+                                  number: loan.guarantorMobileNumber,
+                                  name: loan.guarantorName,
+                                  type: "Guarantor",
+                                  x: rect.left,
+                                  y: rect.bottom,
+                                });
+                              }}
+                              className="text-xs font-bold text-primary mt-1 hover:underline"
+                            >
+                              {loan.guarantorMobileNumber}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
