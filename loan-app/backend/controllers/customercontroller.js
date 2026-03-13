@@ -520,6 +520,7 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
         status: 1,
         remarks: 1,
         updatedAt: 1,
+        mobileNumbers: "$loan.mobileNumbers",
         guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
         guarantorName: "$loan.guarantorName",
         updatedBy: 1,

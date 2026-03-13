@@ -19,11 +19,14 @@ const {
   getAnalyticsStats,
   updateFollowup,
   getFollowupHistory,
+  getTodoList,
+  getCollectionReport,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
   createRtoWork,
 } = require("../controllers/rtoWorkController");
+const { getExpiredDocLoans } = require("../controllers/expiredController");
 const {
   isAuthenticated,
   authorizeRoles,
@@ -34,6 +37,9 @@ router.get("/health", (req, res) =>
   res.json({ status: "ok", version: "v4-deployment-test" }),
 );
 router.get("/analytics/stats", getAnalyticsStats);
+router.get("/todo-list", getTodoList);
+router.get("/collection-report", getCollectionReport);
+router.get("/expired-docs", getExpiredDocLoans);
 
 router.use(isAuthenticated);
 

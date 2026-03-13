@@ -264,22 +264,26 @@ const DailyLoanPendingViewPage = ({ params: paramsPromise }) => {
                         <p className="text-sm font-black text-slate-900 uppercase">
                           {loan.customerName}
                         </p>
-                        <button
-                          onClick={(e) => {
-                            const rect =
-                              e.currentTarget.getBoundingClientRect();
-                            setActiveContactMenu({
-                              number: loan.mobileNumber,
-                              name: loan.customerName,
-                              type: "Applicant",
-                              x: rect.left,
-                              y: rect.bottom,
-                            });
-                          }}
-                          className="text-xs font-bold text-primary mt-1 hover:underline"
-                        >
-                          {loan.mobileNumber}
-                        </button>
+                        <div className="space-y-2 mt-1">
+                          {(Array.isArray(loan.mobileNumbers) ? loan.mobileNumbers : [loan.mobileNumber]).filter(Boolean).map((num, idx) => (
+                            <button
+                              key={idx}
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setActiveContactMenu({
+                                  number: num,
+                                  name: loan.customerName,
+                                  type: "Applicant",
+                                  x: rect.left,
+                                  y: rect.bottom,
+                                });
+                              }}
+                              className="text-xs font-bold text-primary hover:underline block"
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       {(loan.guarantorName || loan.guarantorMobileNumber) && (
                         <div>
@@ -289,24 +293,26 @@ const DailyLoanPendingViewPage = ({ params: paramsPromise }) => {
                           <p className="text-sm font-black text-slate-900 uppercase">
                             {loan.guarantorName || "N/A"}
                           </p>
-                          {loan.guarantorMobileNumber && (
-                            <button
-                              onClick={(e) => {
-                                const rect =
-                                  e.currentTarget.getBoundingClientRect();
-                                setActiveContactMenu({
-                                  number: loan.guarantorMobileNumber,
-                                  name: loan.guarantorName,
-                                  type: "Guarantor",
-                                  x: rect.left,
-                                  y: rect.bottom,
-                                });
-                              }}
-                              className="text-xs font-bold text-primary mt-1 hover:underline"
-                            >
-                              {loan.guarantorMobileNumber}
-                            </button>
-                          )}
+                          <div className="space-y-2 mt-1">
+                            {(Array.isArray(loan.guarantorMobileNumbers) ? loan.guarantorMobileNumbers : [loan.guarantorMobileNumber]).filter(Boolean).map((num, idx) => (
+                              <button
+                                key={idx}
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setActiveContactMenu({
+                                    number: num,
+                                    name: loan.guarantorName,
+                                    type: "Guarantor",
+                                    x: rect.left,
+                                    y: rect.bottom,
+                                  });
+                                }}
+                                className="text-xs font-bold text-primary hover:underline block"
+                              >
+                                {num}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>

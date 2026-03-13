@@ -10,7 +10,10 @@ const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
   { name: "Analytics", href: "/admin/analytics", icon: "📈" },
   //{ name: "Customers", href: "/admin/customers", icon: "👤" },
+  { name: "To-Do List", href: "/admin/todo", icon: "📋" },
+  { name: "Collections", href: "/admin/collections", icon: "🏦" },
   { name: "Loans", href: "/admin/loans", icon: "💰" },
+  { name: "Expired", href: "/admin/expired", icon: "⌛" },
   {
     name: "Weekly Loans",
     href: "/admin/weekly-loans",

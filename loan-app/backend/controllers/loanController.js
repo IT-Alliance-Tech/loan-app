@@ -6,6 +6,7 @@ const ClosedLoan = require("../models/ClosedLoan");
 const Followup = require("../models/Followup");
 const DailyLoan = require("../models/DailyLoan");
 const WeeklyLoan = require("../models/WeeklyLoan");
+const Payment = require("../models/Payment");
 const ErrorHandler = require("../utils/ErrorHandler");
 const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
@@ -108,7 +109,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     vehicleNumber: vehicleInformation?.vehicleNumber,
     chassisNumber: vehicleInformation?.chassisNumber,
     engineNumber: vehicleInformation?.engineNumber,
-    model: vehicleInformation?.model,
+    modelYear: vehicleInformation?.modelYear,
     typeOfVehicle: vehicleInformation?.typeOfVehicle,
     ywBoard: vehicleInformation?.ywBoard,
     dealerName: vehicleInformation?.dealerName,
@@ -196,6 +197,12 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
     } else {
       query.status = { $regex: new RegExp(`^${status}$`, "i") };
     }
+  }
+
+  // Handle Expired Loans filter
+  if (req.query.isExpired === "true") {
+    query.status = { $regex: /^active$/i };
+    query.emiEndDate = { $lt: new Date() };
   }
 
   // 1. Performance: Count documents (Fast)
@@ -676,7 +683,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       vehicleNumber: vehicleInformation.vehicleNumber,
       chassisNumber: vehicleInformation.chassisNumber,
       engineNumber: vehicleInformation.engineNumber,
-      model: vehicleInformation.model,
+      modelYear: vehicleInformation.modelYear,
       typeOfVehicle: vehicleInformation.typeOfVehicle,
       ywBoard: vehicleInformation.ywBoard,
       dealerName: vehicleInformation.dealerName,
@@ -964,15 +971,8 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  // If not filtering by a specific follow-up date, 
-  // we exclude loans that have a follow-up scheduled for today or the future.
-  if (!nextFollowUpDate) {
-    query.$or = [
-      { nextFollowUpDate: { $exists: false } },
-      { nextFollowUpDate: null },
-      { nextFollowUpDate: { $lt: todayStart } },
-    ];
-  }
+  // Removed: independence of Pending and Follow-up pages.
+  // Pending page now only cares about EMI status.
   const result = await Loan.aggregate([
     {
       $match: {
@@ -1221,6 +1221,7 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     vehicleNumber,
     mobileNumber,
     nextFollowUpDate,
+    loanType: queryLoanType,
   } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
@@ -1355,12 +1356,28 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     return pipeline;
   };
 
-  // Run aggregations for all three models
-  const [monthlyFollowups, dailyFollowups, weeklyFollowups] = await Promise.all([
-    Loan.aggregate(getPipeline("Loan", "Monthly")),
-    DailyLoan.aggregate(getPipeline("DailyLoan", "Daily")),
-    WeeklyLoan.aggregate(getPipeline("WeeklyLoan", "Weekly")),
-  ]);
+  // Run aggregations for models based on loanType filter
+  const promises = [];
+  
+  if (!queryLoanType || queryLoanType.toLowerCase() === "monthly") {
+    promises.push(Loan.aggregate(getPipeline("Loan", "Monthly")));
+  } else {
+    promises.push(Promise.resolve([]));
+  }
+  
+  if (!queryLoanType || queryLoanType.toLowerCase() === "daily") {
+    promises.push(DailyLoan.aggregate(getPipeline("DailyLoan", "Daily")));
+  } else {
+    promises.push(Promise.resolve([]));
+  }
+  
+  if (!queryLoanType || queryLoanType.toLowerCase() === "weekly") {
+    promises.push(WeeklyLoan.aggregate(getPipeline("WeeklyLoan", "Weekly")));
+  } else {
+    promises.push(Promise.resolve([]));
+  }
+
+  const [monthlyFollowups, dailyFollowups, weeklyFollowups] = await Promise.all(promises);
 
   // Combine and sort
   let allFollowups = [
@@ -1426,10 +1443,13 @@ const updateFollowup = asyncHandler(async (req, res, next) => {
 
   // Create follow-up history record
   if (clientResponse || nextFollowUpDate !== undefined) {
+    const loanType =
+      loanModel === "Loan" ? "Monthly" : loanModel.replace("Loan", "");
+
     await Followup.create({
       loanId: loan._id,
       loanModel,
-      loanType: loanType || (loanModel === "Loan" ? "Monthly" : loanModel.replace("Loan", "")),
+      loanType,
       followupDate: new Date(),
       clientResponse: clientResponse || loan.clientResponse,
       nextFollowupDate: loan.nextFollowUpDate,
@@ -2181,6 +2201,88 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
   );
 });
 
+// @desc    Get consolidated to-do list
+// @route   GET /api/loans/todo-list
+// @access  Private
+const getTodoList = asyncHandler(async (req, res, next) => {
+  const today = new Date();
+  today.setHours(23, 59, 59, 999); // Include everything until end of today
+
+  const [followups, hpEntries, rtoWorks] = await Promise.all([
+    // 1. Follow-ups (Loans with nextFollowUpDate <= today and status Active)
+    Loan.find({
+      status: "Active",
+      nextFollowUpDate: { $lte: today },
+    })
+      .select("loanNumber customerName mobileNumbers nextFollowUpDate")
+      .lean(),
+
+    // 2. HP Entry Applications
+    Loan.find({
+      status: "Active",
+      hpEntry: "Applied",
+    })
+      .select("loanNumber customerName vehicleNumber hpEntry")
+      .lean(),
+
+    // 3. RTO Work Pending
+    Loan.find({
+      status: "Active",
+      rtoWorkPending: { $exists: true, $not: { $size: 0 } },
+    })
+      .select("loanNumber customerName vehicleNumber rtoWorkPending")
+      .lean(),
+  ]);
+
+  sendResponse(res, 200, "success", "To-do list fetched successfully", null, {
+    followups,
+    hpEntries,
+    rtoWorks,
+  });
+});
+
+// @desc    Get detailed collection report
+// @route   GET /api/loans/collection-report
+// @access  Private
+const getCollectionReport = asyncHandler(async (req, res, next) => {
+  const { startDate, endDate, collectedBy } = req.query;
+  const match = {
+    date: {},
+  };
+
+  if (startDate) match.date.$gte = new Date(startDate);
+  if (endDate) match.date.$lte = new Date(endDate);
+  if (Object.keys(match.date).length === 0) delete match.date;
+  if (collectedBy) match.collectedBy = new mongoose.Types.ObjectId(collectedBy);
+
+  const collections = await mongoose.model("Payment").aggregate([
+    { $match: match },
+    {
+      $lookup: {
+        from: "users",
+        localField: "collectedBy",
+        foreignField: "_id",
+        as: "collector",
+      },
+    },
+    { $unwind: "$collector" },
+    {
+      $group: {
+        _id: {
+          date: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+          collector: "$collector.name",
+          mode: "$mode",
+        },
+        totalAmount: { $sum: "$amount" },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { "_id.date": -1, "_id.collector": 1 } },
+  ]);
+
+  sendResponse(res, 200, "success", "Collection report fetched successfully", null, collections);
+});
+
 // export all values
 module.exports = {
   createLoan,
@@ -2201,4 +2303,6 @@ module.exports = {
   getAnalyticsStats,
   updateFollowup,
   getFollowupHistory,
+  getTodoList,
+  getCollectionReport,
 };

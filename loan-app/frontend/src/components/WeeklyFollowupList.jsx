@@ -42,6 +42,7 @@ const WeeklyFollowupList = () => {
         ...filters,
         pageNum: currentPage,
         limitNum: limit,
+        loanType: "Weekly",
       };
 
       if (searchQuery.trim()) {
@@ -204,7 +205,7 @@ const WeeklyFollowupList = () => {
                   >
                     <td className="px-6 py-5 whitespace-nowrap">
                       <Link
-                        href={`/admin/weekly-loans/pending/view/${item.earliestEmiId}?from=followup`}
+                        href={`/admin/weekly-loans/edit/${item.loanId}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
                       >
                         {item.loanNumber}
@@ -217,8 +218,9 @@ const WeeklyFollowupList = () => {
                       <button
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
+                          const num = item.mobileNumbers?.[0] || item.mobileNumber;
                           setActiveContactMenu({
-                            number: item.mobileNumber,
+                            number: num,
                             name: item.customerName,
                             type: "Applicant",
                             x: rect.left,
@@ -227,7 +229,7 @@ const WeeklyFollowupList = () => {
                         }}
                         className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
                       >
-                        {item.mobileNumber}
+                        {item.mobileNumbers?.[0] || item.mobileNumber}
                       </button>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
@@ -253,19 +255,20 @@ const WeeklyFollowupList = () => {
                       <TableActionMenu
                         actions={[
                           {
-                            label: "View",
-                            onClick: () =>
-                              router.push(
-                                `/admin/weekly-loans/pending/view/${item.earliestEmiId}?from=followup`,
-                              ),
-                          },
-                          {
                             label: "Edit Loan",
                             onClick: () =>
                               router.push(
                                 `/admin/weekly-loans/edit/${item.loanId}`,
                               ),
                           },
+                          {
+                            label: "Seize Vehicle",
+                            onClick: () => {
+                                // Seize logic for weekly if needed, or just Edit and Seize as requested
+                                // Assuming toggleSeized handles it if we import it, otherwise keeping it simple
+                                router.push(`/admin/weekly-loans/edit/${item.loanId}?action=seize`);
+                            }
+                          }
                         ]}
                       />
                     </td>
