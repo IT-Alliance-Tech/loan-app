@@ -7,9 +7,14 @@ import ClientResponseSection from "./ClientResponseSection";
 const validationSchema = Yup.object().shape({
   loanNumber: Yup.string().required("Loan number is required"),
   customerName: Yup.string().required("Customer name is required"),
-  mobileNumber: Yup.string()
-    .matches(/^[6-9]\d{9}$/, "Invalid mobile number")
-    .required("Mobile number is required"),
+  mobileNumbers: Yup.array()
+    .of(
+      Yup.string()
+        .matches(/^[6-9]\d{9}$/, "Invalid mobile number")
+        .required("Mobile number is required"),
+    )
+    .min(1, "At least one mobile number is required")
+    .required("Mobile numbers are required"),
   disbursementAmount: Yup.number()
     .positive("Amount must be positive")
     .required("Amount is required"),
@@ -20,9 +25,8 @@ const validationSchema = Yup.object().shape({
   startDate: Yup.string().required("Disbursement date is required"),
   emiStartDate: Yup.string().required("EMI start date is required"),
   guarantorName: Yup.string(),
-  guarantorMobileNumber: Yup.string().matches(
-    /^[6-9]\d{9}$/,
-    "Invalid mobile number",
+  guarantorMobileNumbers: Yup.array().of(
+    Yup.string().matches(/^[6-9]\d{9}$/, "Invalid mobile number"),
   ),
 });
 
@@ -45,8 +49,22 @@ const DailyLoanForm = ({
   submitting,
   isViewOnly = false,
 }) => {
+  const initialValues = {
+    ...initialData,
+    mobileNumbers: Array.isArray(initialData?.mobileNumbers) 
+      ? initialData.mobileNumbers 
+      : initialData?.mobileNumber 
+        ? [initialData.mobileNumber] 
+        : [""],
+    guarantorMobileNumbers: Array.isArray(initialData?.guarantorMobileNumbers)
+      ? initialData.guarantorMobileNumbers
+      : initialData?.guarantorMobileNumber
+        ? [initialData.guarantorMobileNumber]
+        : [""],
+  };
+
   const formik = useFormik({
-    initialValues: initialData,
+    initialValues,
     validationSchema,
     enableReinitialize: true,
     onSubmit: (values) => {
@@ -117,12 +135,18 @@ const DailyLoanForm = ({
 
   const isEditMode = !!values?._id;
 
-  const getFieldClass = (name) => {
-    const [section, field] = name.includes(".")
-      ? name.split(".")
-      : [null, name];
-    const isTouched = section ? touched[section]?.[field] : touched[field];
-    const error = section ? errors[section]?.[field] : errors[field];
+  const getFieldClass = (name, index = null) => {
+    let isTouched, error;
+    if (index !== null) {
+      isTouched = touched[name]?.[index];
+      error = errors[name]?.[index];
+    } else {
+      const [section, field] = name.includes(".")
+        ? name.split(".")
+        : [null, name];
+      isTouched = section ? touched[section]?.[field] : touched[field];
+      error = section ? errors[section]?.[field] : errors[field];
+    }
 
     const baseClass =
       "w-full bg-slate-50 border rounded-2xl px-5 py-4 text-sm font-bold transition-all placeholder:text-slate-300 disabled:opacity-70 focus:outline-none focus:ring-2 ";
@@ -179,26 +203,65 @@ const DailyLoanForm = ({
             />
             <ErrorMsg touched={touched} errors={errors} name="customerName" />
           </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Mobile Number <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="mobileNumber"
-              value={values.mobileNumber || ""}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                setFieldValue("mobileNumber", val);
-              }}
-              onBlur={handleBlur}
-              disabled={isViewOnly}
-              maxLength={10}
-              className={getFieldClass("mobileNumber")}
-              placeholder="10-digit Number"
-            />
-            <ErrorMsg touched={touched} errors={errors} name="mobileNumber" />
+          <div className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                MOBILE NUMBERS <span className="text-red-500">*</span>
+              </label>
+            </div>
+            <div className="flex flex-col gap-4">
+              {values.mobileNumbers.map((num, idx) => (
+                <div key={idx} className="relative flex items-center gap-3 group">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      name={`mobileNumbers[${idx}]`}
+                      value={num || ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setFieldValue(`mobileNumbers[${idx}]`, val);
+                      }}
+                      onBlur={handleBlur}
+                      disabled={isViewOnly}
+                      maxLength={10}
+                      className={getFieldClass("mobileNumbers", idx)}
+                      placeholder={idx === 0 ? "Primary Mobile Member" : `Alternative Number ${idx}`}
+                    />
+                    {touched.mobileNumbers?.[idx] && errors.mobileNumbers?.[idx] && (
+                      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider ml-1">
+                        {errors.mobileNumbers[idx]}
+                      </p>
+                    )}
+                  </div>
+                  {!isViewOnly && idx > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newNums = values.mobileNumbers.filter((_, i) => i !== idx);
+                        setFieldValue("mobileNumbers", newNums);
+                      }}
+                      className="flex-none p-2 text-red-400 hover:text-red-600 transition-colors"
+                      title="Remove number"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!isViewOnly && (
+                <button
+                  type="button"
+                  onClick={() => setFieldValue("mobileNumbers", [...values.mobileNumbers, ""])}
+                  className="flex items-center gap-2 text-[11px] font-black text-primary uppercase hover:opacity-80 transition-all w-fit px-1 py-1"
+                >
+                  <span className="text-lg">+</span> ADD CONTACT NUMBER
+                </button>
+              )}
+            </div>
           </div>
+
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
               Guarantor Name
@@ -215,29 +278,64 @@ const DailyLoanForm = ({
             />
             <ErrorMsg touched={touched} errors={errors} name="guarantorName" />
           </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Guarantor Mobile
-            </label>
-            <input
-              type="text"
-              name="guarantorMobileNumber"
-              value={values.guarantorMobileNumber || ""}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                setFieldValue("guarantorMobileNumber", val);
-              }}
-              onBlur={handleBlur}
-              disabled={isViewOnly}
-              maxLength={10}
-              className={getFieldClass("guarantorMobileNumber")}
-              placeholder="10-digit Number"
-            />
-            <ErrorMsg
-              touched={touched}
-              errors={errors}
-              name="guarantorMobileNumber"
-            />
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                GUARANTOR MOBILE NUMBERS <span className="text-red-500">*</span>
+              </label>
+            </div>
+            <div className="flex flex-col gap-4 max-w-2xl">
+              {values.guarantorMobileNumbers.map((num, idx) => (
+                <div key={idx} className="relative flex items-center gap-3 group">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      name={`guarantorMobileNumbers[${idx}]`}
+                      value={num || ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setFieldValue(`guarantorMobileNumbers[${idx}]`, val);
+                      }}
+                      onBlur={handleBlur}
+                      disabled={isViewOnly}
+                      maxLength={10}
+                      className={getFieldClass("guarantorMobileNumbers", idx)}
+                      placeholder={idx === 0 ? "Primary Guarantor Mobile" : `Alternative Number ${idx}`}
+                    />
+                    {touched.guarantorMobileNumbers?.[idx] && errors.guarantorMobileNumbers?.[idx] && (
+                      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider ml-1">
+                        {errors.guarantorMobileNumbers[idx]}
+                      </p>
+                    )}
+                  </div>
+                  {!isViewOnly && idx > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newNums = values.guarantorMobileNumbers.filter((_, i) => i !== idx);
+                        setFieldValue("guarantorMobileNumbers", newNums);
+                      }}
+                      className="flex-none p-2 text-red-400 hover:text-red-600 transition-colors"
+                      title="Remove number"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!isViewOnly && (
+                <button
+                  type="button"
+                  onClick={() => setFieldValue("guarantorMobileNumbers", [...values.guarantorMobileNumbers, ""])}
+                  className="flex items-center gap-2 text-[11px] font-black text-primary uppercase hover:opacity-80 transition-all w-fit px-1 py-2"
+                >
+                  <span className="text-lg">+</span> ADD GUARANTOR CONTACT
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

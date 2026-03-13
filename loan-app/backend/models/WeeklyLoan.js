@@ -13,18 +13,16 @@ const weeklyLoanSchema = new mongoose.Schema(
       required: [true, "Customer name is required"],
       trim: true,
     },
-    mobileNumber: {
-      type: String,
+    mobileNumbers: {
+      type: [String],
       required: [true, "Mobile number is required"],
-      trim: true,
     },
     guarantorName: {
       type: String,
       trim: true,
     },
-    guarantorMobileNumber: {
-      type: String,
-      trim: true,
+    guarantorMobileNumbers: {
+      type: [String],
     },
     disbursementAmount: {
       type: Number,

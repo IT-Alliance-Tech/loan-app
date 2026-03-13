@@ -66,7 +66,7 @@ const FollowupPaymentsPage = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       // Ensure strict date filtering by always including nextFollowUpDate
-      const params = { ...filters, page: currentPage, limit };
+      const params = { ...filters, page: currentPage, limit, loanType: "Monthly" };
       if (searchQuery.trim()) {
         params.loanNumber = searchQuery;
       }
@@ -209,12 +209,12 @@ const FollowupPaymentsPage = () => {
   };
 
   const getLoanDetailPath = (item) => {
-    if (item.loanModel === "Loan") return `/admin/loans/${item.loanId}`;
+    if (item.loanModel === "Loan") return `/admin/loans/edit/${item.loanId}`;
     if (item.loanModel === "DailyLoan")
-      return `/admin/daily-loans/${item.loanId}`;
+      return `/admin/daily-loans/edit/${item.loanId}`;
     if (item.loanModel === "WeeklyLoan")
-      return `/admin/weekly-loans/${item.loanId}`;
-    return `/admin/loans/${item.loanId}`;
+      return `/admin/weekly-loans/edit/${item.loanId}`;
+    return `/admin/loans/edit/${item.loanId}`;
   };
 
   return (
@@ -417,18 +417,10 @@ const FollowupPaymentsPage = () => {
                               <TableActionMenu
                                 actions={[
                                   {
-                                    label: "View Loan",
+                                    label: "Edit Loan",
                                     onClick: () => {
                                       router.push(getLoanDetailPath(item));
                                     },
-                                  },
-                                  {
-                                    label: "Update Response",
-                                    onClick: () => handleUpdateClick(item),
-                                  },
-                                  {
-                                    label: "Clear Follow-up",
-                                    onClick: () => handleClearClick(item),
                                   },
                                   {
                                     label: "Seize Vehicle",

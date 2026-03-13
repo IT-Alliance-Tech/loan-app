@@ -149,7 +149,7 @@ const DailyFollowupList = () => {
                   >
                     <td className="px-6 py-5 whitespace-nowrap">
                       <Link
-                        href={`/admin/daily-loans/pending/view/${loan.earliestEmiId}?from=followup`}
+                        href={`/admin/daily-loans/edit/${loan.loanId}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
                       >
                         {loan.loanNumber}
@@ -162,8 +162,9 @@ const DailyFollowupList = () => {
                       <button
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
+                          const num = loan.mobileNumbers?.[0] || loan.mobileNumber;
                           setActiveContactMenu({
-                            number: loan.mobileNumber,
+                            number: num,
                             name: loan.customerName,
                             type: "Applicant",
                             x: rect.left,
@@ -172,7 +173,7 @@ const DailyFollowupList = () => {
                         }}
                         className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
                       >
-                        {loan.mobileNumber}
+                        {loan.mobileNumbers?.[0] || loan.mobileNumber}
                       </button>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
@@ -212,19 +213,18 @@ const DailyFollowupList = () => {
                       <TableActionMenu
                         actions={[
                           {
-                            label: "View",
-                            onClick: () =>
-                              router.push(
-                                `/admin/daily-loans/pending/view/${loan.earliestEmiId}?from=followup`,
-                              ),
-                          },
-                          {
                             label: "Edit Loan",
                             onClick: () =>
                               router.push(
                                 `/admin/daily-loans/edit/${loan.loanId}`,
                               ),
                           },
+                          {
+                            label: "Seize Vehicle",
+                            onClick: () => {
+                                 router.push(`/admin/daily-loans/edit/${loan.loanId}?action=seize`);
+                            }
+                          }
                         ]}
                       />
                     </td>

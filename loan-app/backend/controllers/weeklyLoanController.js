@@ -13,7 +13,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
   const {
     loanNumber,
     customerName,
-    mobileNumber,
+    mobileNumbers,
     disbursementAmount,
     startDate,
     totalEmis,
@@ -25,13 +25,14 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     emiStartDate,
     status,
     guarantorName,
-    guarantorMobileNumber,
+    guarantorMobileNumbers,
   } = req.body;
 
   if (
     !loanNumber ||
     !customerName ||
-    !mobileNumber ||
+    !mobileNumbers ||
+    !mobileNumbers.length ||
     !disbursementAmount ||
     !startDate ||
     !totalEmis
@@ -76,7 +77,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
   const weeklyLoan = await WeeklyLoan.create({
     loanNumber,
     customerName,
-    mobileNumber,
+    mobileNumbers,
     disbursementAmount: amount,
     startDate: disburseDate,
     emiStartDate: eStartDate,
@@ -98,7 +99,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     remarks,
     clientResponse,
     guarantorName,
-    guarantorMobileNumber,
+    guarantorMobileNumbers,
     status: status || "Active",
     createdBy: req.user._id,
   });
@@ -199,7 +200,8 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
     query.$or = [
       { loanNumber: { $regex: searchQuery, $options: "i" } },
       { customerName: { $regex: searchQuery, $options: "i" } },
-      { mobileNumber: { $regex: searchQuery, $options: "i" } },
+      { mobileNumbers: { $regex: searchQuery, $options: "i" } },
+      { guarantorMobileNumbers: { $regex: searchQuery, $options: "i" } },
     ];
   }
 
@@ -246,7 +248,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   const {
     loanNumber,
     customerName,
-    mobileNumber,
+    mobileNumbers,
     disbursementAmount,
     startDate,
     totalEmis,
@@ -257,13 +259,17 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     status,
     processingFeeRate,
     emiStartDate,
+    guarantorName,
+    guarantorMobileNumbers,
   } = req.body;
 
   // Update logic with recalculations
   const updateData = {
     loanNumber: loanNumber || weeklyLoan.loanNumber,
     customerName: customerName || weeklyLoan.customerName,
-    mobileNumber: mobileNumber || weeklyLoan.mobileNumber,
+    mobileNumbers: mobileNumbers || weeklyLoan.mobileNumbers,
+    guarantorName: guarantorName !== undefined ? guarantorName : weeklyLoan.guarantorName,
+    guarantorMobileNumbers: guarantorMobileNumbers || weeklyLoan.guarantorMobileNumbers,
     disbursementAmount:
       disbursementAmount !== undefined
         ? parseFloat(disbursementAmount)
@@ -437,7 +443,7 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
     query.customerName = { $regex: customerName, $options: "i" };
   if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
   if (mobileNumber)
-    query.mobileNumber = { $regex: mobileNumber, $options: "i" };
+    query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
 
   const now = new Date();
   now.setHours(23, 59, 59, 999);
@@ -493,7 +499,7 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
         loanId: "$_id",
         loanNumber: 1,
         customerName: 1,
-        mobileNumber: 1,
+        mobileNumbers: 1,
         status: 1,
         unpaidWeeks: { $size: "$pendingEmisList" },
         totalDueAmount: {
@@ -574,7 +580,7 @@ exports.getWeeklyFollowupLoans = asyncHandler(async (req, res, next) => {
     query.customerName = { $regex: customerName, $options: "i" };
   if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
   if (mobileNumber)
-    query.mobileNumber = { $regex: mobileNumber, $options: "i" };
+    query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
 
   // Mandatory date filtering for follow-ups
   const dateToFilter =
@@ -621,7 +627,7 @@ exports.getWeeklyFollowupLoans = asyncHandler(async (req, res, next) => {
         loanId: "$_id",
         loanNumber: 1,
         customerName: 1,
-        mobileNumber: 1,
+        mobileNumbers: 1,
         status: 1,
         unpaidWeeks: {
           $cond: {

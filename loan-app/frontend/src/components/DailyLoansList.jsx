@@ -299,7 +299,7 @@ const DailyLoansList = ({ type, title }) => {
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
                         <span className="text-slate-600 font-bold text-[10px]">
-                          {loan.mobileNumber}
+                          {loan.mobileNumbers?.[0] || loan.mobileNumber}
                         </span>
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
@@ -309,7 +309,7 @@ const DailyLoansList = ({ type, title }) => {
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
                         <span className="text-slate-600 font-bold text-[10px]">
-                          {loan.guarantorMobile || "—"}
+                          {loan.guarantorMobileNumbers?.[0] || loan.guarantorMobile || "—"}
                         </span>
                       </td>
                       <td className="px-4 py-5 text-center whitespace-nowrap">
@@ -498,7 +498,7 @@ const DailyLoansList = ({ type, title }) => {
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
                       <span className="text-slate-600 font-bold text-xs tracking-widest">
-                        {loan.mobileNumber}
+                        {loan.mobileNumbers?.[0] || loan.mobileNumber}
                       </span>
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">

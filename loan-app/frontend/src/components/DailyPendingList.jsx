@@ -170,8 +170,9 @@ const DailyPendingList = () => {
                       <button
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
+                          const num = item.mobileNumbers?.[0] || item.mobileNumber;
                           setActiveContactMenu({
-                            number: item.mobileNumber,
+                            number: num,
                             name: item.customerName,
                             type: "Applicant",
                             x: rect.left,
@@ -180,7 +181,7 @@ const DailyPendingList = () => {
                         }}
                         className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
                       >
-                        {item.mobileNumber}
+                        {item.mobileNumbers?.[0] || item.mobileNumber}
                       </button>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
