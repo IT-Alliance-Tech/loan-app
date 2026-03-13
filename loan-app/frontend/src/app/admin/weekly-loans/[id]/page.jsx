@@ -42,6 +42,8 @@ const ViewWeeklyLoanPage = ({ params: paramsPromise }) => {
           data.startDate = format(new Date(data.startDate), "yyyy-MM-dd");
         if (data.emiStartDate)
           data.emiStartDate = format(new Date(data.emiStartDate), "yyyy-MM-dd");
+        if (data.emiEndDate)
+          data.emiEndDate = format(new Date(data.emiEndDate), "yyyy-MM-dd");
         if (data.nextFollowUpDate)
           data.nextFollowUpDate = format(
             new Date(data.nextFollowUpDate),

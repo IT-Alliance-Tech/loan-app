@@ -352,10 +352,10 @@ const LoanPendingViewPage = () => {
                       </div>
                       <div>
                         <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest block mb-1">
-                          Model
+                          Model Year
                         </span>
                         <p className="text-xs font-black text-slate-800 uppercase">
-                          {loan.model}
+                          {loan.modelYear}
                         </p>
                       </div>
                       <div>

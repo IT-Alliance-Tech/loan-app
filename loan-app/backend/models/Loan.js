@@ -112,7 +112,7 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    model: {
+    modelYear: {
       type: String,
       trim: true,
     },

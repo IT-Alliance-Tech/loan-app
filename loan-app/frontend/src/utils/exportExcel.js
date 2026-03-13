@@ -112,7 +112,7 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
       "Chassis No", // U
       "Engine No", // V
       "Type of Vehicle", // W
-      "Model", // X
+      "Model Year", // X
       "YW Board", // Y
       "PAN Number", // Z
       "Aadhar Number", // AA
@@ -171,7 +171,7 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
         vInfo.chassisNumber || "-", // U: Chassis No
         vInfo.engineNumber || "-", // V: Engine No
         vInfo.typeOfVehicle || "-", // W: Type of Vehicle
-        vInfo.model || "-", // X: Model
+        vInfo.modelYear || "-", // X: Model
         vInfo.ywBoard || "-", // Y: YW Board
         customer.panNumber || "-", // Z: PAN Number
         customer.aadharNumber || "-", // AA: Aadhar Number

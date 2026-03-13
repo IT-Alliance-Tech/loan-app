@@ -150,7 +150,13 @@ const NOCGenerator = ({ loan, showSeal }) => {
 
       y += 10;
       pdf.setFont("helvetica", "normal");
-      pdf.text(`Ref : Vehicle Bearing No.  ${vehicleNo}`, margin + 10, y);
+      const modelYear =
+        loan.vehicleInformation?.modelYear || "........................";
+      pdf.text(
+        `Ref : Vehicle Bearing No.  ${vehicleNo}  (Model Year: ${modelYear})`,
+        margin + 10,
+        y,
+      );
 
       y += 7;
       pdf.text(`Hirer / Loanee name :  ${customerName}`, margin + 10, y);

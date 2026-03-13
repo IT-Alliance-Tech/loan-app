@@ -363,29 +363,41 @@ const PendingPaymentsPage = () => {
                               </div>
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
-                              {(() => {
-                                const days = item.earliestDueDate
-                                  ? Math.floor(
-                                      (new Date().setHours(23, 59, 59, 999) -
-                                        new Date(item.earliestDueDate)) /
-                                        (1000 * 60 * 60 * 24),
-                                    )
-                                  : 0;
-                                let colorClass = "text-slate-600";
-                                if (days >= 71) colorClass = "text-red-600";
-                                else if (days >= 36)
-                                  colorClass = "text-orange-600";
-                                else if (days >= 1)
-                                  colorClass = "text-yellow-600";
+                                {(() => {
+                                  const diffTime =
+                                    new Date().setHours(23, 59, 59, 999) -
+                                    new Date(item.earliestDueDate);
+                                  const days = Math.floor(
+                                    diffTime / (1000 * 60 * 60 * 24),
+                                  );
 
-                                return (
-                                  <span
-                                    className={`text-[10px] font-black tracking-tight px-3 py-1.5 rounded-lg inline-block min-w-[80px] text-white ${colorClass.replace("text-", "bg-")}`}
-                                  >
-                                    {days > 0 ? `${days} Days` : "0 Days"}
-                                  </span>
-                                );
-                              })()}
+                                  let colorClass = "bg-slate-500";
+                                  let label = "0 Days";
+
+                                  if (days > 0) {
+                                    if (days >= 71) colorClass = "bg-red-600";
+                                    else if (days >= 36)
+                                      colorClass = "bg-orange-600";
+                                    else if (days >= 1)
+                                      colorClass = "bg-amber-500";
+                                    label = `${days} Days`;
+                                  } else if (days < 0) {
+                                    colorClass = "bg-emerald-500";
+                                    label = `In ${Math.abs(days)} Days`;
+                                  } else {
+                                    // Exactly today
+                                    colorClass = "bg-blue-500";
+                                    label = "Today";
+                                  }
+
+                                  return (
+                                    <span
+                                      className={`text-[10px] font-black tracking-tight px-3 py-1.5 rounded-lg inline-block min-w-[80px] text-white shadow-sm ${colorClass}`}
+                                    >
+                                      {label}
+                                    </span>
+                                  );
+                                })()}
                             </td>
                             <td className="px-6 py-5 text-center">
                               <div className="flex items-center justify-center">

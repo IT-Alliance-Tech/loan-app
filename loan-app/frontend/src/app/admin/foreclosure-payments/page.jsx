@@ -20,6 +20,7 @@ const ForeclosurePage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [modalStep, setModalStep] = useState(1); // 1: Preview, 2: Payment
 
   const [formData, setFormData] = useState({
     foreclosureChargePercent: 0,
@@ -27,6 +28,11 @@ const ForeclosurePage = () => {
     od: 0,
     miscellaneousFee: 0,
     remarks: "",
+  });
+
+  const [paymentData, setPaymentData] = useState({
+    paymentBreakdown: [{ mode: "CASH", amount: 0 }],
+    paymentDate: new Date().toISOString().split("T")[0],
   });
 
   useEffect(() => {
@@ -48,6 +54,12 @@ const ForeclosurePage = () => {
     try {
       const res = await getLoanById(loan._id);
       if (res.data) {
+        if (res.data.status === "Closed") {
+          showToast("the loan has been closed already", "error");
+          setSelectedLoan(null);
+          setSearchTerm("");
+          return;
+        }
         setSelectedLoan(res.data);
         setSearchTerm(res.data.loanTerms?.loanNumber || "");
       }
@@ -80,6 +92,31 @@ const ForeclosurePage = () => {
     });
   };
 
+  const handlePaymentChange = (index, field, value) => {
+    setPaymentData((prev) => {
+      const newBreakdown = [...prev.paymentBreakdown];
+      newBreakdown[index] = {
+        ...newBreakdown[index],
+        [field]: field === "amount" ? parseFloat(value) || 0 : value,
+      };
+      return { ...prev, paymentBreakdown: newBreakdown };
+    });
+  };
+
+  const addPaymentRow = () => {
+    setPaymentData((prev) => ({
+      ...prev,
+      paymentBreakdown: [...prev.paymentBreakdown, { mode: "CASH", amount: 0 }],
+    }));
+  };
+
+  const removePaymentRow = (index) => {
+    setPaymentData((prev) => ({
+      ...prev,
+      paymentBreakdown: prev.paymentBreakdown.filter((_, i) => i !== index),
+    }));
+  };
+
   const remainingPrincipal =
     selectedLoan?.loanTerms?.remainingPrincipalAmount || 0;
   const totalAmount =
@@ -90,14 +127,25 @@ const ForeclosurePage = () => {
 
   const handleProceed = async () => {
     setLoading(true);
+    const totalReceived = paymentData.paymentBreakdown.reduce(
+      (acc, curr) => acc + curr.amount,
+      0,
+    );
+    if (totalReceived < totalAmount - 0.1) {
+      showToast("Received amount is less than total amount", "error");
+      return;
+    }
+
     try {
       await forecloseLoan(selectedLoan._id, {
         ...formData,
+        ...paymentData,
         totalAmount,
         remainingPrincipal,
       });
       showToast("Loan foreclosed successfully", "success");
       setShowPreview(false);
+      setModalStep(1);
       setSelectedLoan(null);
       setSearchTerm("");
       setFormData({
@@ -106,6 +154,10 @@ const ForeclosurePage = () => {
         od: 0,
         miscellaneousFee: 0,
         remarks: "",
+      });
+      setPaymentData({
+        paymentBreakdown: [{ mode: "CASH", amount: 0 }],
+        paymentDate: new Date().toISOString().split("T")[0],
       });
     } catch (err) {
       showToast(err.message || "Failed to foreclose loan", "error");
@@ -334,6 +386,20 @@ const ForeclosurePage = () => {
                 </table>
               </div>
 
+              {/* Remarks Section */}
+              <div className="p-6 bg-white">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4">
+                  Remarks
+                </label>
+                <textarea
+                  name="remarks"
+                  value={formData.remarks}
+                  onChange={handleInputChange}
+                  className="w-full p-6 bg-slate-50/50 border border-slate-100 rounded-3xl text-sm font-bold text-slate-600 focus:outline-none focus:border-primary/20 transition-all resize-none h-24 placeholder:text-slate-300"
+                  placeholder="Add a remark for this foreclosure..."
+                ></textarea>
+              </div>
+
               {/* Separated Total Pay Card */}
               <div className="px-6 py-6 flex justify-end bg-slate-50/10">
                 <div className="bg-slate-900 rounded-[1.8rem] overflow-hidden flex items-center shadow-2xl shadow-slate-900/40 w-full max-w-sm h-24">
@@ -360,20 +426,6 @@ const ForeclosurePage = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Remarks Section */}
-              <div className="p-6 bg-white">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4">
-                  Remarks
-                </label>
-                <textarea
-                  name="remarks"
-                  value={formData.remarks}
-                  onChange={handleInputChange}
-                  className="w-full p-6 bg-slate-50/50 border border-slate-100 rounded-3xl text-sm font-bold text-slate-600 focus:outline-none focus:border-primary/20 transition-all resize-none h-24 placeholder:text-slate-300"
-                  placeholder="Add a remark for this foreclosure..."
-                ></textarea>
-              </div>
             </div>
           </main>
 
@@ -383,10 +435,15 @@ const ForeclosurePage = () => {
               <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
                 <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                   <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                    Foreclosure Preview
+                    {modalStep === 1
+                      ? "Foreclosure Preview"
+                      : "Payment Details"}
                   </h3>
                   <button
-                    onClick={() => setShowPreview(false)}
+                    onClick={() => {
+                      setShowPreview(false);
+                      setModalStep(1);
+                    }}
                     className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-500 transition-all"
                   >
                     ✕
@@ -394,85 +451,279 @@ const ForeclosurePage = () => {
                 </div>
 
                 <div className="p-8 space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        Customer
-                      </label>
-                      <p className="text-xs font-black text-slate-900 uppercase">
-                        {selectedLoan?.customerDetails?.customerName}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        Loan Number
-                      </label>
-                      <p className="text-xs font-black text-primary uppercase">
-                        {selectedLoan?.loanTerms?.loanNumber}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        Vehicle
-                      </label>
-                      <p className="text-xs font-black text-slate-900 uppercase">
-                        {selectedLoan?.vehicleInformation?.vehicleNumber} (
-                        {selectedLoan?.vehicleInformation?.model || "—"})
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        Remaining Principal
-                      </label>
-                      <p className="text-xs font-black text-slate-900">
-                        ₹
-                        {remainingPrincipal.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </p>
-                    </div>
-                  </div>
+                  {modalStep === 1 ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            Customer
+                          </label>
+                          <p className="text-xs font-black text-slate-900 uppercase">
+                            {selectedLoan?.customerDetails?.customerName}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            Loan Number
+                          </label>
+                          <p className="text-xs font-black text-primary uppercase">
+                            {selectedLoan?.loanTerms?.loanNumber}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            Vehicle
+                          </label>
+                          <p className="text-xs font-black text-slate-900 uppercase">
+                            {selectedLoan?.vehicleInformation?.vehicleNumber} (
+                            {selectedLoan?.vehicleInformation?.model || "—"})
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            Remaining Principal
+                          </label>
+                          <p className="text-xs font-black text-slate-900">
+                            ₹
+                            {remainingPrincipal.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </p>
+                        </div>
+                      </div>
 
-                  <div className="bg-slate-900 rounded-[1.2rem] p-4 text-center space-y-0.5 max-w-[220px] mx-auto">
-                    <label className="text-[7px] font-black text-slate-500 uppercase tracking-[0.3em]">
-                      Total Foreclosure Amount
-                    </label>
-                    <p className="text-lg font-black text-white tracking-tighter">
-                      ₹
-                      {totalAmount.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </p>
-                  </div>
+                      <div className="bg-slate-900 rounded-[1.2rem] p-4 text-center space-y-0.5 max-w-[220px] mx-auto">
+                        <label className="text-[7px] font-black text-slate-500 uppercase tracking-[0.3em]">
+                          Total Foreclosure Amount
+                        </label>
+                        <p className="text-lg font-black text-white tracking-tighter">
+                          ₹
+                          {totalAmount.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </p>
+                      </div>
 
-                  <div className="flex flex-col gap-4">
-                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
-                      <span className="text-lg">⚠️</span>
-                      <p className="text-[9px] font-bold text-amber-800 leading-relaxed uppercase tracking-tight">
-                        Warning: This action will close the loan permanently.
-                        All pending EMIs will be marked as paid. This process
-                        cannot be undone.
-                      </p>
-                    </div>
+                      <div className="flex flex-col gap-4">
+                        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
+                          <span className="text-lg">⚠️</span>
+                          <p className="text-[9px] font-bold text-amber-800 leading-relaxed uppercase tracking-tight">
+                            Warning: This action will close the loan
+                            permanently. All pending EMIs will be marked as
+                            paid. This process cannot be undone.
+                          </p>
+                        </div>
 
-                    <div className="flex gap-4 pt-2">
-                      <button
-                        onClick={() => setShowPreview(false)}
-                        className="flex-1 py-4 border-2 border-slate-100 rounded-2xl font-black text-[9px] uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
-                      >
-                        BACK TO EDIT
-                      </button>
-                      <button
-                        onClick={handleProceed}
-                        disabled={loading}
-                        className="flex-[2] py-4 bg-primary text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50"
-                      >
-                        {loading ? "PROCESSING..." : "PROCEED & CLOSE LOAN"}
-                      </button>
-                    </div>
-                  </div>
+                        <div className="flex gap-4 pt-2">
+                          <button
+                            onClick={() => setShowPreview(false)}
+                            className="flex-1 py-4 border-2 border-slate-100 rounded-2xl font-black text-[9px] uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
+                          >
+                            BACK TO EDIT
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPaymentData((prev) => ({
+                                ...prev,
+                                paymentBreakdown: [
+                                  { mode: "CASH", amount: totalAmount },
+                                ],
+                              }));
+                              setModalStep(2);
+                            }}
+                            className="flex-[2] py-4 bg-primary text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all"
+                          >
+                            PROCEED TO PAYMENT
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-5">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                            Payment Date
+                          </label>
+                          <input
+                            type="date"
+                            name="paymentDate"
+                            value={paymentData.paymentDate}
+                            onChange={(e) =>
+                              setPaymentData({
+                                ...paymentData,
+                                paymentDate: e.target.value,
+                              })
+                            }
+                            className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary/20 transition-all"
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center ml-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              Payment Breakdown
+                            </label>
+                            <button
+                              onClick={addPaymentRow}
+                              className="text-[9px] font-black text-primary uppercase tracking-tighter hover:underline"
+                            >
+                              + Add Mode
+                            </button>
+                          </div>
+
+                          <div className="space-y-3 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                            {paymentData.paymentBreakdown.map((row, index) => (
+                              <div
+                                key={index}
+                                className="flex gap-2 items-center animate-in slide-in-from-left-2 duration-300"
+                              >
+                                <select
+                                  value={row.mode}
+                                  onChange={(e) =>
+                                    handlePaymentChange(
+                                      index,
+                                      "mode",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="w-1/3 px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-primary/20"
+                                >
+                                  <option value="CASH">CASH</option>
+                                  <option value="BANK">BANK</option>
+                                  <option value="GPAY">GPAY</option>
+                                  <option value="PHONEPE">PHONEPE</option>
+                                  <option value="PAYTM">PAYTM</option>
+                                  <option value="CHEQUE">CHEQUE</option>
+                                  <option value="OTHERS">OTHERS</option>
+                                </select>
+                                <div className="flex-1 relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">
+                                    ₹
+                                  </span>
+                                  <input
+                                    type="number"
+                                    value={row.amount}
+                                    onChange={(e) =>
+                                      handlePaymentChange(
+                                        index,
+                                        "amount",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full pl-7 pr-3 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-black text-slate-700 focus:outline-none focus:border-primary/20"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                                {paymentData.paymentBreakdown.length > 1 && (
+                                  <button
+                                    onClick={() => removePaymentRow(index)}
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Total Summary */}
+                        <div className="pt-4 border-t border-slate-100">
+                          <div className="flex justify-between items-center px-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              Received Total
+                            </span>
+                            <span
+                              className={`text-sm font-black tracking-tight ${
+                                paymentData.paymentBreakdown.reduce(
+                                  (acc, curr) => acc + curr.amount,
+                                  0,
+                                ) <
+                                totalAmount - 0.1
+                                  ? "text-red-500"
+                                  : "text-green-600"
+                              }`}
+                            >
+                              ₹
+                              {paymentData.paymentBreakdown
+                                .reduce((acc, curr) => acc + curr.amount, 0)
+                                .toLocaleString()}
+                            </span>
+                          </div>
+                          {paymentData.paymentBreakdown.reduce(
+                            (acc, curr) => acc + curr.amount,
+                            0,
+                          ) <
+                            totalAmount - 0.1 && (
+                            <p className="text-[9px] font-black text-red-500 uppercase tracking-tight text-right pr-2 mt-1 animate-pulse">
+                              Must be at least: ₹{totalAmount.toLocaleString()}
+                            </p>
+                          )}
+                          {paymentData.paymentBreakdown.reduce(
+                            (acc, curr) => acc + curr.amount,
+                            0,
+                          ) >
+                            totalAmount + 0.1 && (
+                            <p className="text-[9px] font-black text-green-600 uppercase tracking-tight text-right pr-2 mt-1">
+                              Excess Amount: ₹
+                              {(
+                                paymentData.paymentBreakdown.reduce(
+                                  (acc, curr) => acc + curr.amount,
+                                  0,
+                                ) - totalAmount
+                              ).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+
+                        {paymentData.paymentBreakdown.reduce(
+                          (acc, curr) => acc + curr.amount,
+                          0,
+                        ) >=
+                          totalAmount - 0.1 && (
+                          <div className="p-4 bg-green-50 rounded-2xl border border-green-100 flex gap-3 animate-in fade-in duration-300">
+                            <span className="text-lg">✅</span>
+                            <p className="text-[9px] font-bold text-green-800 leading-relaxed uppercase tracking-tight">
+                              Amounts verified.{" "}
+                              {paymentData.paymentBreakdown.reduce(
+                                (acc, curr) => acc + curr.amount,
+                                0,
+                              ) >
+                                totalAmount + 0.1 &&
+                                "Excess payment being recorded. "}
+                              Ready to close the loan.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-4 pt-4">
+                        <button
+                          onClick={() => setModalStep(1)}
+                          className="flex-1 py-4 border-2 border-slate-100 rounded-2xl font-black text-[9px] uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
+                        >
+                          BACK
+                        </button>
+                        <button
+                          onClick={handleProceed}
+                          disabled={
+                            loading ||
+                            paymentData.paymentBreakdown.reduce(
+                              (acc, curr) => acc + curr.amount,
+                              0,
+                            ) <
+                              totalAmount - 0.1
+                          }
+                          className="flex-[2] py-4 bg-primary text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-30 disabled:grayscale"
+                        >
+                          {loading ? "PROCESSING..." : "CONFIRM & CLOSE LOAN"}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

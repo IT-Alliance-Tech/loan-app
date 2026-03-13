@@ -24,6 +24,8 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     processingFeeRate,
     emiStartDate,
     status,
+    guarantorName,
+    guarantorMobileNumber,
   } = req.body;
 
   if (
@@ -53,7 +55,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
 
   // Interest Calculation (Removed as requested)
   const weeklyPrincipal = amount / totalWeeks;
-  const emiAmount = weeklyPrincipal;
+  const emiAmount = Math.ceil(weeklyPrincipal);
   const totalInterestAmount = 0;
 
   // Dates
@@ -62,8 +64,6 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     ? new Date(emiStartDate)
     : new Date(disburseDate);
   const nextEmiDate = new Date(eStartDate);
-  // Next EMI is usually the same as start date or one week after?
-  // Standard app behavior usually sets emiStartDate as the date of first payment.
 
   const eEndDate = new Date(eStartDate);
   eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
@@ -71,7 +71,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
   const totalAmount = emiAmount * currentPaidEmis;
   const totalCollected = totalAmount + processingFee;
   const remainingEmis = totalWeeks - currentPaidEmis;
-  const remainingPrincipalAmount = amount - weeklyPrincipal * currentPaidEmis;
+  const remainingPrincipalAmount = amount - (emiAmount * currentPaidEmis); // Using rounded EMI
 
   const weeklyLoan = await WeeklyLoan.create({
     loanNumber,
@@ -86,7 +86,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     paidEmis: currentPaidEmis,
     remainingEmis,
     totalAmount,
-    nextEmiDate: eStartDate, // Setting next EMI to start date initially
+    nextEmiDate: eStartDate,
     processingFee,
     processingFeeRate: feeRate,
     interestRate: 0,
@@ -97,13 +97,15 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     nextFollowUpDate: nextFollowUpDate ? new Date(nextFollowUpDate) : null,
     remarks,
     clientResponse,
+    guarantorName,
+    guarantorMobileNumber,
     status: status || "Active",
     createdBy: req.user._id,
   });
 
   // Generate EMIs
   const emis = [];
-  let currentEmiDateArr = new Date(startDate);
+  let currentEmiDateArr = new Date(eStartDate);
 
   for (let i = 1; i <= parseInt(totalEmis); i++) {
     const isPaid = i <= currentPaidEmis;
@@ -114,10 +116,10 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
       customerName: weeklyLoan.customerName,
       emiNumber: i,
       dueDate: new Date(currentEmiDateArr),
-      emiAmount: emiAmount.toFixed(2),
+      emiAmount: emiAmount,
       status: isPaid ? "Paid" : "Pending",
-      amountPaid: isPaid ? emiAmount.toFixed(2) : 0,
-      paymentDate: isPaid ? new Date(startDate) : null,
+      amountPaid: isPaid ? emiAmount : 0,
+      paymentDate: isPaid ? new Date(eStartDate) : null,
       paymentMode: isPaid ? "CASH" : "",
     });
     currentEmiDateArr.setDate(currentEmiDateArr.getDate() + 7);
@@ -296,14 +298,13 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   const totalWeeks = updateData.totalEmis;
   const currentPaidEmis = updateData.paidEmis;
   const feeRate = updateData.processingFeeRate;
-  const intRate = updateData.interestRate;
 
   // Processing Fee
   const processingFee = amount * (feeRate / 100);
 
   // Interest Calculation (Removed)
   const weeklyPrincipal = amount / totalWeeks;
-  const emiAmount = weeklyPrincipal;
+  const emiAmount = Math.ceil(weeklyPrincipal);
   const totalInterestAmount = 0;
 
   // EMI End Date
@@ -315,7 +316,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   const totalAmount = emiAmount * currentPaidEmis;
   const totalCollected = totalAmount + processingFee;
   const remainingEmis = totalWeeks - currentPaidEmis;
-  const remainingPrincipalAmount = amount - weeklyPrincipal * currentPaidEmis;
+  const remainingPrincipalAmount = amount - (emiAmount * currentPaidEmis);
 
   Object.assign(updateData, {
     emiAmount,
@@ -441,11 +442,20 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
   const now = new Date();
   now.setHours(23, 59, 59, 999);
 
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const result = await WeeklyLoan.aggregate([
     {
       $match: {
         ...query,
         status: { $ne: "Closed" },
+        // Exclude loans with future/today follow-up scheduled
+        $or: [
+          { nextFollowUpDate: { $exists: false } },
+          { nextFollowUpDate: null },
+          { nextFollowUpDate: { $lt: todayStart } },
+        ],
       },
     },
     {
@@ -496,7 +506,7 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
                 {
                   $subtract: [
                     { $toDouble: "$$this.emiAmount" },
-                    { $toDouble: "$$this.amountPaid" },
+                    { $toDouble: { $ifNull: ["$$this.amountPaid", 0] } },
                   ],
                 },
               ],
@@ -505,26 +515,12 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
         },
         earliestDueDate: { $min: "$pendingEmisList.dueDate" },
         earliestEmiId: {
-          $arrayElemAt: [
-            {
-              $map: {
-                input: {
-                  $filter: {
-                    input: "$pendingEmisList",
-                    as: "e",
-                    cond: {
-                      $eq: [
-                        "$$e.dueDate",
-                        { $min: "$pendingEmisList.dueDate" },
-                      ],
-                    },
-                  },
-                },
-                in: "$$this._id",
-              },
+          $let: {
+            vars: {
+              overdueEmi: { $arrayElemAt: ["$pendingEmisList", 0] },
             },
-            0,
-          ],
+            in: { $toString: "$$overdueEmi._id" },
+          },
         },
         clientResponse: 1,
       },
@@ -627,46 +623,123 @@ exports.getWeeklyFollowupLoans = asyncHandler(async (req, res, next) => {
         customerName: 1,
         mobileNumber: 1,
         status: 1,
-        unpaidWeeks: { $size: "$pendingEmisList" },
+        unpaidWeeks: {
+          $cond: {
+            if: { $gt: [{ $size: "$pendingEmisList" }, 0] },
+            then: { $size: "$pendingEmisList" },
+            else: 1,
+          },
+        },
         totalDueAmount: {
-          $reduce: {
-            input: "$pendingEmisList",
-            initialValue: 0,
+          $let: {
+            vars: {
+              sumOverdue: {
+                $reduce: {
+                  input: "$pendingEmisList",
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $subtract: [
+                          { $toDouble: "$$this.emiAmount" },
+                          { $toDouble: "$$this.amountPaid" },
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+              nextEmi: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: "$emis",
+                      as: "e",
+                      cond: {
+                        $and: [
+                          { $ne: ["$$e.status", "Paid"] },
+                          { $eq: ["$$e.loanModel", "WeeklyLoan"] },
+                        ],
+                      },
+                    },
+                  },
+                  0,
+                ],
+              },
+            },
             in: {
-              $add: [
-                "$$value",
-                {
+              $cond: {
+                if: { $gt: [{ $size: "$pendingEmisList" }, 0] },
+                then: "$$sumOverdue",
+                else: {
                   $subtract: [
-                    { $toDouble: "$$this.emiAmount" },
-                    { $toDouble: "$$this.amountPaid" },
+                    { $toDouble: { $ifNull: ["$$nextEmi.emiAmount", 0] } },
+                    { $toDouble: { $ifNull: ["$$nextEmi.amountPaid", 0] } },
                   ],
                 },
-              ],
+              },
             },
           },
         },
-        earliestDueDate: { $min: "$pendingEmisList.dueDate" },
-        earliestEmiId: {
-          $arrayElemAt: [
-            {
-              $map: {
-                input: {
-                  $filter: {
-                    input: "$pendingEmisList",
-                    as: "e",
-                    cond: {
-                      $eq: [
-                        "$$e.dueDate",
-                        { $min: "$pendingEmisList.dueDate" },
-                      ],
+        earliestDueDate: {
+          $let: {
+            vars: {
+              overdueMin: { $min: "$pendingEmisList.dueDate" },
+              anyPending: {
+                $arrayElemAt: [
+                  {
+                    $sortArray: {
+                      input: {
+                        $filter: {
+                          input: "$emis",
+                          as: "e",
+                          cond: {
+                            $and: [
+                              { $ne: ["$$e.status", "Paid"] },
+                              { $eq: ["$$e.loanModel", "WeeklyLoan"] },
+                            ],
+                          },
+                        },
+                      },
+                      sortBy: { dueDate: 1 },
                     },
                   },
-                },
-                in: "$$this._id",
+                  0,
+                ],
               },
             },
-            0,
-          ],
+            in: { $ifNull: ["$$overdueMin", "$$anyPending.dueDate"] },
+          },
+        },
+        earliestEmiId: {
+          $let: {
+            vars: {
+              overdueEmi: { $arrayElemAt: ["$pendingEmisList", 0] },
+              anyPendingEmi: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: "$emis",
+                      as: "e",
+                      cond: {
+                        $and: [
+                          { $ne: ["$$e.status", "Paid"] },
+                          { $eq: ["$$e.loanModel", "WeeklyLoan"] },
+                        ],
+                      },
+                    },
+                  },
+                  0,
+                ],
+              },
+            },
+            in: {
+              $toString: {
+                $ifNull: ["$$overdueEmi._id", "$$anyPendingEmi._id"],
+              },
+            },
+          },
         },
         clientResponse: 1,
         nextFollowUpDate: 1,
