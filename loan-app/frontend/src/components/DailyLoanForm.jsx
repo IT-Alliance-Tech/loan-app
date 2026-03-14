@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -61,6 +61,8 @@ const DailyLoanForm = ({
       : initialData?.guarantorMobileNumber
         ? [initialData.guarantorMobileNumber]
         : [""],
+    clientResponse: initialData?.clientResponse || "",
+    nextFollowUpDate: initialData?.nextFollowUpDate || "",
   };
 
   const formik = useFormik({
@@ -170,6 +172,7 @@ const DailyLoanForm = ({
           </span>
           Customer & Basic Info
         </h2>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -558,14 +561,12 @@ const DailyLoanForm = ({
         </div>
       </div>
 
-      {values?._id && (
-        <ClientResponseSection
-          clientResponse={values.clientResponse}
-          nextFollowUpDate={values.nextFollowUpDate}
-          onChange={formik.handleChange}
-          isViewOnly={isViewOnly}
-        />
-      )}
+      <ClientResponseSection
+        clientResponse={values.clientResponse}
+        nextFollowUpDate={values.nextFollowUpDate}
+        onChange={formik.handleChange}
+        isViewOnly={isViewOnly}
+      />
 
       {!isViewOnly && (
         <div className="flex justify-end items-center gap-8 pt-6">

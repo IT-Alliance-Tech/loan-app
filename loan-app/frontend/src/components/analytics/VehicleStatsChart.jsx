@@ -28,10 +28,11 @@ const VehicleStatsChart = ({ data }) => {
   const groupWidth = chartW / BAR_LABELS.length;
 
   // Y-axis tick values
+  // Y-axis tick values (Ensure uniqueness to avoid duplicate keys)
   const tickCount = 5;
-  const ticks = Array.from({ length: tickCount + 1 }, (_, i) =>
-    Math.round((maxVal * i) / tickCount),
-  );
+  const ticks = [...new Set(Array.from({ length: tickCount + 1 }, (_, i) =>
+    Math.round((maxVal * i) / tickCount)
+  ))];
 
   return (
     <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
