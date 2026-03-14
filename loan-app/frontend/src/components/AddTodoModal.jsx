@@ -1,53 +1,23 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Modal from "./Modal";
 import { getEmployees } from "../services/userService";
 
 const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null }) => {
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    status: "Todo",
-    priority: "Medium",
-    dueDate: "",
-    assignedTo: "",
+    title: todoToEdit?.title || "",
+    description: todoToEdit?.description || "",
+    status: todoToEdit?.status || "Todo",
+    priority: todoToEdit?.priority || "Medium",
+    dueDate: todoToEdit?.dueDate ? new Date(todoToEdit.dueDate).toISOString().split("T")[0] : "",
+    assignedTo: todoToEdit?.assignedTo?._id || todoToEdit?.assignedTo || "",
   });
 
-  useEffect(() => {
-    if (todoToEdit) {
-      setFormData({
-        title: todoToEdit.title || "",
-        description: todoToEdit.description || "",
-        status: todoToEdit.status || "Todo",
-        priority: todoToEdit.priority || "Medium",
-        dueDate: todoToEdit.dueDate ? new Date(todoToEdit.dueDate).toISOString().split("T")[0] : "",
-        assignedTo: todoToEdit.assignedTo?._id || todoToEdit.assignedTo || "",
-      });
-      setEmployeeSearch(todoToEdit.assignedTo?.name || "");
-    } else {
-      setFormData({
-        title: "",
-        description: "",
-        status: "Todo",
-        priority: "Medium",
-        dueDate: "",
-        assignedTo: "",
-      });
-      setEmployeeSearch("");
-    }
-  }, [todoToEdit, isOpen]);
-
   const [employees, setEmployees] = useState([]);
-  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState(todoToEdit?.assignedTo?.name || "");
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchEmployees();
-    }
-  }, [isOpen]);
-
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       const res = await getEmployees();
       if (res.data && Array.isArray(res.data.employees)) {
@@ -58,12 +28,16 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
     } catch (err) {
       console.error("Failed to fetch employees", err);
     }
-  };
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+
+
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -167,7 +141,10 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
               setEmployeeSearch(e.target.value);
               setShowEmployeeDropdown(true);
             }}
-            onFocus={() => setShowEmployeeDropdown(true)}
+            onFocus={() => {
+              setShowEmployeeDropdown(true);
+              fetchEmployees();
+            }}
           />
           {showEmployeeDropdown && employeeSearch.trim() && (
             <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl max-h-48 overflow-y-auto">

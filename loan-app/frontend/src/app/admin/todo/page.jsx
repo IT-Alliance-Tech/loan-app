@@ -48,7 +48,7 @@ const TodoListPage = () => {
       const params = {
         page,
         limit: pagination.limit,
-        ...Object.fromEntries(Object.entries(currentFilters).filter(([_, v]) => v !== "")),
+        ...Object.fromEntries(Object.entries(currentFilters).filter(([, v]) => v !== "")),
       };
       const res = await getTodos(params);
       if (res.data) {
@@ -401,6 +401,7 @@ const TodoListPage = () => {
         </div>
 
         <AddTodoModal
+          key={`${todoToEdit?._id || "new"}-${isModalOpen}`}
           isOpen={isModalOpen}
           onClose={closeModal}
           onSubmit={handleAddOrUpdateTodo}
