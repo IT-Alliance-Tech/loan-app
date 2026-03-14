@@ -12,6 +12,7 @@ const expenseRoutes = require("./routes/expenseRoutes");
 const weeklyLoanRoutes = require("./routes/weeklyLoanRoutes");
 const dailyLoanRoutes = require("./routes/dailyLoanRoutes");
 const loanEmiRoutes = require("./routes/loanEmiRoutes");
+const todoRoutes = require("./routes/todoRoutes");
 const compression = require("compression");
 
 const app = express();
@@ -79,6 +80,7 @@ app.use("/api/expenses", expenseRoutes);
 app.use("/api/weekly-loans", weeklyLoanRoutes);
 app.use("/api/daily-loans", dailyLoanRoutes);
 app.use("/api/emi-mgmt", loanEmiRoutes);
+app.use("/api/todos", todoRoutes);
 
 // Error Middleware
 app.use(errorMiddleware);
