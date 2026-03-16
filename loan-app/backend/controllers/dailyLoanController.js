@@ -204,7 +204,8 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
   const dailyLoans = await DailyLoan.find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(Number(limit));
+    .limit(Number(limit))
+    .populate("updatedBy", "name");
 
   sendResponse(res, 200, "success", "Daily loans fetched successfully", null, {
     dailyLoans,
@@ -222,7 +223,8 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
 exports.getDailyLoanById = asyncHandler(async (req, res, next) => {
   const dailyLoan = await DailyLoan.findById(req.params.id)
     .populate("closureDetails")
-    .populate("followupHistory");
+    .populate("followupHistory")
+    .populate("updatedBy", "name");
 
   if (!dailyLoan) {
     return next(new ErrorHandler("Daily loan not found", 404));
@@ -288,6 +290,7 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     clientResponse:
       clientResponse !== undefined ? clientResponse : dailyLoan.clientResponse,
     status: status || dailyLoan.status,
+    updatedBy: req.user._id,
   };
 
   const amount = updateData.disbursementAmount;
@@ -358,7 +361,8 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
   // Refetch to include virtuals
   dailyLoan = await DailyLoan.findById(dailyLoan._id)
     .populate("closureDetails")
-    .populate("followupHistory");
+    .populate("followupHistory")
+    .populate("updatedBy", "name");
 
   if (
     emiStartDate ||
@@ -454,6 +458,19 @@ exports.getDailyPendingPayments = asyncHandler(async (req, res, next) => {
       },
     },
     {
+      $lookup: {
+        from: "users",
+        localField: "updatedBy",
+        foreignField: "_id",
+        as: "updatedByInfo",
+      },
+    },
+    {
+      $addFields: {
+        updatedBy: { $arrayElemAt: ["$updatedByInfo", 0] },
+      },
+    },
+    {
       $addFields: {
         pendingEmisList: {
           $filter: {
@@ -510,6 +527,13 @@ exports.getDailyPendingPayments = asyncHandler(async (req, res, next) => {
           },
         },
         clientResponse: 1,
+        nextFollowUpDate: 1,
+        updatedBy: {
+          _id: 1,
+          name: 1,
+        },
+        updatedAt: 1,
+        loanModel: { $literal: "DailyLoan" },
       },
     },
     { $sort: { earliestDueDate: 1 } },
@@ -806,7 +830,7 @@ exports.getDailyPendingEmiDetails = asyncHandler(async (req, res, next) => {
     {
       $lookup: {
         from: "users",
-        localField: "updatedBy",
+        localField: "loan.updatedBy",
         foreignField: "_id",
         as: "updatedUserInfo",
       },
@@ -839,8 +863,8 @@ exports.getDailyPendingEmiDetails = asyncHandler(async (req, res, next) => {
         emiNumber: 1,
         overdue: "$overdue",
         paymentHistory: "$paymentHistory",
-        updatedAt: 1,
-        updatedBy: { $ifNull: ["$updatedUserInfo.name", "$updatedBy"] },
+        updatedAt: "$loan.updatedAt",
+        updatedBy: { $ifNull: ["$updatedUserInfo.name", "$loan.updatedBy"] },
         paymentRecords: 1,
       },
     },

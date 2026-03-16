@@ -65,9 +65,7 @@ const validationSchema = Yup.object().shape({
       .nullable(),
     chassisNumber: Yup.string().nullable(),
     engineNumber: Yup.string().nullable(),
-    modelYear: Yup.string()
-      .matches(/^\d*$/, "Must be numeric")
-      .nullable(),
+    modelYear: Yup.string().matches(/^\d*$/, "Must be numeric").nullable(),
     typeOfVehicle: Yup.string().nullable(),
     ywBoard: Yup.string().nullable(),
     dealerName: Yup.string().nullable(),
@@ -434,7 +432,9 @@ const LoanForm = ({
     if (emis && emis.length > 0) {
       total = emis.reduce(
         (sum, emi) =>
-          sum + (parseFloat(emi.amountPaid) || 0) + (parseFloat(emi.overdue) || 0),
+          sum +
+          (parseFloat(emi.amountPaid) || 0) +
+          (parseFloat(emi.overdue) || 0),
         0,
       );
     }
@@ -493,29 +493,31 @@ const LoanForm = ({
       <div className="p-8">
         <form onSubmit={formik.handleSubmit} className="space-y-8">
           {/* Basic Info */}
-          <div className="space-y-4">
+          <div className="space-y-4 relative">
             <div className="flex items-center justify-between gap-3 border-b border-primary/10 pb-2">
               <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">
                 Basic Information
               </h3>
               {formik.values.status?.updatedBy && (
-                <div className="flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-lg px-3 py-1">
-                  <span className="text-[8px] font-black text-primary/50 uppercase tracking-widest">
-                    Last Updated By:
+                <div className="flex flex-col items-end pointer-events-none">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                    Last Updated By
                   </span>
-                  <span className="text-[9px] font-bold text-slate-600">
-                    {typeof formik.values.status.updatedBy === "string"
-                      ? formik.values.status.updatedBy
-                      : formik.values.status.updatedBy.name}{" "}
-                    on{" "}
-                    {new Date(
-                      formik.values.status.updatedAt,
-                    ).toLocaleDateString("en-IN", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    })}
-                  </span>
+                  <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
+                    <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                      {typeof formik.values.status.updatedBy === "string"
+                        ? formik.values.status.updatedBy
+                        : formik.values.status.updatedBy.name}
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-red-500/40" />
+                    <span className="text-[9px] font-bold text-slate-400 font-mono">
+                      {formik.values.status.updatedAt &&
+                        format(
+                          new Date(formik.values.status.updatedAt),
+                          "dd/MM/yy HH:mm",
+                        )}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -1872,6 +1874,8 @@ const LoanForm = ({
                     nameResponse="status.clientResponse"
                     nameDate="status.nextFollowUpDate"
                     isViewOnly={isViewOnly}
+                    updatedBy={formik.values.status.updatedBy}
+                    updatedAt={formik.values.status.updatedAt}
                   />
                 </div>
               )}

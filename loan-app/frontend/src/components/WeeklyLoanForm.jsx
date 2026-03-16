@@ -60,7 +60,7 @@ const WeeklyLoanForm = ({
       ? initialData.guarantorMobileNumbers
       : initialData?.guarantorMobileNumber
         ? [initialData.guarantorMobileNumber]
-        : [""],
+        : [],
     clientResponse: initialData?.clientResponse || "",
     nextFollowUpDate: initialData?.nextFollowUpDate || "",
   };
@@ -165,13 +165,33 @@ const WeeklyLoanForm = ({
       className="space-y-8 animate-in fade-in duration-500 pb-20"
     >
       {/* Customer Info */}
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative">
         <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-3 uppercase tracking-tight">
           <span className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center text-lg">
             👤
           </span>
           Customer & Basic Info
         </h2>
+
+        {values.updatedBy && (
+          <div className="absolute top-4 right-4 flex flex-col items-end pointer-events-none">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+              Last Updated By
+            </span>
+            <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                {typeof values.updatedBy === "string"
+                  ? values.updatedBy
+                  : values.updatedBy.name}
+              </span>
+              <span className="w-1 h-1 rounded-full bg-red-500/40" />
+              <span className="text-[9px] font-bold text-slate-400 font-mono">
+                {values.updatedAt &&
+                  format(new Date(values.updatedAt), "dd/MM/yy HH:mm")}
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
@@ -566,6 +586,8 @@ const WeeklyLoanForm = ({
         nextFollowUpDate={values.nextFollowUpDate}
         onChange={formik.handleChange}
         isViewOnly={isViewOnly}
+        updatedBy={values.updatedBy}
+        updatedAt={values.updatedAt}
       />
 
       {!isViewOnly && (

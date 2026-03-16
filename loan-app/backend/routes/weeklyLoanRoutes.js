@@ -11,6 +11,7 @@ const {
   getWeeklyFollowupLoans,
   getWeeklyPendingEmiDetails,
 } = require("../controllers/weeklyLoanController");
+const { updateFollowup } = require("../controllers/loanController");
 const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
 
 router.use(isAuthenticated);
@@ -18,6 +19,11 @@ router.use(isAuthenticated);
 router.get("/pending-payments", getWeeklyPendingPayments);
 router.get("/followup-payments", getWeeklyFollowupLoans);
 router.get("/pending-details/:id", getWeeklyPendingEmiDetails);
+router.patch(
+  "/update-followup/:id",
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  updateFollowup,
+);
 
 router
   .route("/")

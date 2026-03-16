@@ -989,6 +989,24 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
       },
     },
     {
+      $lookup: {
+        from: "users",
+        localField: "updatedBy",
+        foreignField: "_id",
+        as: "updatedByInfo",
+      },
+    },
+    {
+      $addFields: {
+        updatedBy: { $arrayElemAt: ["$updatedByInfo", 0] },
+      },
+    },
+    {
+      $addFields: {
+        updatedBy: { $arrayElemAt: ["$updatedByInfo", 0] },
+      },
+    },
+    {
       $addFields: {
         pendingEmisList: {
           $filter: {
@@ -1061,7 +1079,14 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
           },
         },
         clientResponse: 1,
+        nextFollowUpDate: 1,
+        updatedBy: {
+          _id: 1,
+          name: 1,
+        },
+        updatedAt: 1,
         paymentStatus: 1,
+        loanModel: { $literal: "Loan" },
       },
     },
     { $sort: { earliestDueDate: 1 } },
@@ -1141,6 +1166,20 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
     },
     { $unwind: "$loan" },
     {
+      $lookup: {
+        from: "users",
+        localField: "loan.updatedBy",
+        foreignField: "_id",
+        as: "updatedUserInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$updatedUserInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
       $project: {
         _id: 1,
         loanId: "$loan._id",
@@ -1166,6 +1205,8 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
         paymentHistory: "$paymentHistory",
         clientResponse: "$loan.clientResponse",
         nextFollowUpDate: "$loan.nextFollowUpDate",
+        updatedAt: "$loan.updatedAt",
+        updatedBy: { $ifNull: ["$updatedUserInfo.name", "$loan.updatedBy"] },
         emiNumber: 1,
         paymentRecords: 1,
       },
@@ -1270,6 +1311,19 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
         },
       },
       {
+        $lookup: {
+          from: "users",
+          localField: "updatedBy",
+          foreignField: "_id",
+          as: "updatedByInfo",
+        },
+      },
+      {
+        $addFields: {
+          updatedBy: { $arrayElemAt: ["$updatedByInfo", 0] },
+        },
+      },
+      {
         $addFields: {
           pendingEmisList: {
             $filter: {
@@ -1350,6 +1404,11 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
           },
           clientResponse: 1,
           nextFollowUpDate: 1,
+          updatedBy: {
+            _id: 1,
+            name: 1,
+          },
+          updatedAt: 1,
         },
       },
     );
@@ -1439,6 +1498,7 @@ const updateFollowup = asyncHandler(async (req, res, next) => {
         : null
       : loan.nextFollowUpDate;
 
+  loan.updatedBy = req.user?._id;
   await loan.save();
 
   // Create follow-up history record

@@ -137,7 +137,13 @@ export const updateSeizedStatus = async (
 };
 
 export const updateFollowup = async (id, data) => {
-  return await apiHandler(`/api/loans/update-followup/${id}`, {
+  const { loanModel } = data;
+  let endpoint = "/api/loans";
+
+  if (loanModel === "DailyLoan") endpoint = "/api/daily-loans";
+  else if (loanModel === "WeeklyLoan") endpoint = "/api/weekly-loans";
+
+  return await apiHandler(`${endpoint}/update-followup/${id}`, {
     method: "PATCH",
     body: JSON.stringify(data),
   });

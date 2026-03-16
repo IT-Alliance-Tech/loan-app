@@ -51,16 +51,16 @@ const DailyLoanForm = ({
 }) => {
   const initialValues = {
     ...initialData,
-    mobileNumbers: Array.isArray(initialData?.mobileNumbers) 
-      ? initialData.mobileNumbers 
-      : initialData?.mobileNumber 
-        ? [initialData.mobileNumber] 
+    mobileNumbers: Array.isArray(initialData?.mobileNumbers)
+      ? initialData.mobileNumbers
+      : initialData?.mobileNumber
+        ? [initialData.mobileNumber]
         : [""],
     guarantorMobileNumbers: Array.isArray(initialData?.guarantorMobileNumbers)
       ? initialData.guarantorMobileNumbers
       : initialData?.guarantorMobileNumber
         ? [initialData.guarantorMobileNumber]
-        : [""],
+        : [],
     clientResponse: initialData?.clientResponse || "",
     nextFollowUpDate: initialData?.nextFollowUpDate || "",
   };
@@ -125,10 +125,7 @@ const DailyLoanForm = ({
     parseFloat(totalAmount) + parseFloat(processingFee)
   ).toFixed(2);
   const remainingEmis = totalDays - paidDays;
-  const remainingPrincipalAmount = (
-    amount -
-    emiAmount * paidDays
-  ).toFixed(2);
+  const remainingPrincipalAmount = (amount - emiAmount * paidDays).toFixed(2);
 
   const nextEmiDate =
     eStartDate && !isNaN(eStartDate.getTime())
@@ -165,13 +162,33 @@ const DailyLoanForm = ({
       className="space-y-8 animate-in fade-in duration-500"
     >
       {/* Customer Info */}
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative">
         <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-3 uppercase tracking-tight">
           <span className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center text-lg">
             👤
           </span>
           Customer & Basic Info
         </h2>
+
+        {values.updatedBy && (
+          <div className="absolute top-4 right-4 flex flex-col items-end pointer-events-none">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+              Last Updated By
+            </span>
+            <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                {typeof values.updatedBy === "string"
+                  ? values.updatedBy
+                  : values.updatedBy.name}
+              </span>
+              <span className="w-1 h-1 rounded-full bg-red-500/40" />
+              <span className="text-[9px] font-bold text-slate-400 font-mono">
+                {values.updatedAt &&
+                  format(new Date(values.updatedAt), "dd/MM/yy HH:mm")}
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
@@ -214,40 +231,62 @@ const DailyLoanForm = ({
             </div>
             <div className="flex flex-col gap-4">
               {values.mobileNumbers.map((num, idx) => (
-                <div key={idx} className="relative flex items-center gap-3 group">
+                <div
+                  key={idx}
+                  className="relative flex items-center gap-3 group"
+                >
                   <div className="flex-1">
                     <input
                       type="text"
                       name={`mobileNumbers[${idx}]`}
                       value={num || ""}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        const val = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10);
                         setFieldValue(`mobileNumbers[${idx}]`, val);
                       }}
                       onBlur={handleBlur}
                       disabled={isViewOnly}
                       maxLength={10}
                       className={getFieldClass("mobileNumbers", idx)}
-                      placeholder={idx === 0 ? "Primary Mobile Member" : `Alternative Number ${idx}`}
+                      placeholder={
+                        idx === 0
+                          ? "Primary Mobile Member"
+                          : `Alternative Number ${idx}`
+                      }
                     />
-                    {touched.mobileNumbers?.[idx] && errors.mobileNumbers?.[idx] && (
-                      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider ml-1">
-                        {errors.mobileNumbers[idx]}
-                      </p>
-                    )}
+                    {touched.mobileNumbers?.[idx] &&
+                      errors.mobileNumbers?.[idx] && (
+                        <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider ml-1">
+                          {errors.mobileNumbers[idx]}
+                        </p>
+                      )}
                   </div>
                   {!isViewOnly && idx > 0 && (
                     <button
                       type="button"
                       onClick={() => {
-                        const newNums = values.mobileNumbers.filter((_, i) => i !== idx);
+                        const newNums = values.mobileNumbers.filter(
+                          (_, i) => i !== idx,
+                        );
                         setFieldValue("mobileNumbers", newNums);
                       }}
                       className="flex-none p-2 text-red-400 hover:text-red-600 transition-colors"
                       title="Remove number"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
                       </svg>
                     </button>
                   )}
@@ -256,7 +295,12 @@ const DailyLoanForm = ({
               {!isViewOnly && (
                 <button
                   type="button"
-                  onClick={() => setFieldValue("mobileNumbers", [...values.mobileNumbers, ""])}
+                  onClick={() =>
+                    setFieldValue("mobileNumbers", [
+                      ...values.mobileNumbers,
+                      "",
+                    ])
+                  }
                   className="flex items-center gap-2 text-[11px] font-black text-primary uppercase hover:opacity-80 transition-all w-fit px-1 py-1"
                 >
                   <span className="text-lg">+</span> ADD CONTACT NUMBER
@@ -290,40 +334,62 @@ const DailyLoanForm = ({
             </div>
             <div className="flex flex-col gap-4 max-w-2xl">
               {values.guarantorMobileNumbers.map((num, idx) => (
-                <div key={idx} className="relative flex items-center gap-3 group">
+                <div
+                  key={idx}
+                  className="relative flex items-center gap-3 group"
+                >
                   <div className="flex-1">
                     <input
                       type="text"
                       name={`guarantorMobileNumbers[${idx}]`}
                       value={num || ""}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        const val = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10);
                         setFieldValue(`guarantorMobileNumbers[${idx}]`, val);
                       }}
                       onBlur={handleBlur}
                       disabled={isViewOnly}
                       maxLength={10}
                       className={getFieldClass("guarantorMobileNumbers", idx)}
-                      placeholder={idx === 0 ? "Primary Guarantor Mobile" : `Alternative Number ${idx}`}
+                      placeholder={
+                        idx === 0
+                          ? "Primary Guarantor Mobile"
+                          : `Alternative Number ${idx}`
+                      }
                     />
-                    {touched.guarantorMobileNumbers?.[idx] && errors.guarantorMobileNumbers?.[idx] && (
-                      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider ml-1">
-                        {errors.guarantorMobileNumbers[idx]}
-                      </p>
-                    )}
+                    {touched.guarantorMobileNumbers?.[idx] &&
+                      errors.guarantorMobileNumbers?.[idx] && (
+                        <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider ml-1">
+                          {errors.guarantorMobileNumbers[idx]}
+                        </p>
+                      )}
                   </div>
                   {!isViewOnly && idx > 0 && (
                     <button
                       type="button"
                       onClick={() => {
-                        const newNums = values.guarantorMobileNumbers.filter((_, i) => i !== idx);
+                        const newNums = values.guarantorMobileNumbers.filter(
+                          (_, i) => i !== idx,
+                        );
                         setFieldValue("guarantorMobileNumbers", newNums);
                       }}
                       className="flex-none p-2 text-red-400 hover:text-red-600 transition-colors"
                       title="Remove number"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
                       </svg>
                     </button>
                   )}
@@ -332,7 +398,12 @@ const DailyLoanForm = ({
               {!isViewOnly && (
                 <button
                   type="button"
-                  onClick={() => setFieldValue("guarantorMobileNumbers", [...values.guarantorMobileNumbers, ""])}
+                  onClick={() =>
+                    setFieldValue("guarantorMobileNumbers", [
+                      ...values.guarantorMobileNumbers,
+                      "",
+                    ])
+                  }
                   className="flex items-center gap-2 text-[11px] font-black text-primary uppercase hover:opacity-80 transition-all w-fit px-1 py-2"
                 >
                   <span className="text-lg">+</span> ADD GUARANTOR CONTACT
@@ -566,6 +637,8 @@ const DailyLoanForm = ({
         nextFollowUpDate={values.nextFollowUpDate}
         onChange={formik.handleChange}
         isViewOnly={isViewOnly}
+        updatedBy={values.updatedBy}
+        updatedAt={values.updatedAt}
       />
 
       {!isViewOnly && (

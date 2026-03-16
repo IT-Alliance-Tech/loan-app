@@ -10,6 +10,7 @@ const {
   getDailyFollowupLoans,
   getDailyPendingEmiDetails,
 } = require("../controllers/dailyLoanController");
+const { updateFollowup } = require("../controllers/loanController");
 const { isAuthenticated } = require("../middlewares/auth");
 const authorizeRoles = require("../middlewares/role");
 
@@ -49,6 +50,11 @@ router.get(
   getDailyLoanById,
 );
 router.put("/:id", authorizeRoles("SUPER_ADMIN", "ADMIN"), updateDailyLoan);
+router.patch(
+  "/update-followup/:id",
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  updateFollowup,
+);
 router.delete("/:id", authorizeRoles("SUPER_ADMIN", "ADMIN"), deleteDailyLoan);
 
 module.exports = router;
