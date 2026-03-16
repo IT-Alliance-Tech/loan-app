@@ -5,7 +5,12 @@ import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import ContactActionMenu from "../../../components/ContactActionMenu";
-import { getSeizedPending, toggleSeized } from "../../../services/loan.service";
+import {
+  getSeizedPending,
+  toggleSeized,
+  updateFollowup,
+} from "../../../services/loan.service";
+import ClientResponseSection from "../../../components/ClientResponseSection";
 import Pagination from "../../../components/Pagination";
 import { useToast } from "../../../context/ToastContext";
 import Link from "next/link";
@@ -30,6 +35,15 @@ const PartialPaymentsPage = () => {
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
   const [showSeizeModal, setShowSeizeModal] = useState(false);
   const [selectedLoanId, setSelectedLoanId] = useState(null);
+  const [showResponseModal, setShowResponseModal] = useState(false);
+  const [responseDetails, setResponseDetails] = useState({
+    loanId: "",
+    loanModel: "Loan",
+    clientResponse: "",
+    nextFollowUpDate: "",
+    updatedBy: null,
+    updatedAt: null,
+  });
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -135,16 +149,41 @@ const PartialPaymentsPage = () => {
   };
 
   const confirmSeize = async () => {
-    if (!selectedLoanId) return;
-
     try {
+      if (!selectedLoanId) return;
       await toggleSeized(selectedLoanId);
       showToast("Vehicle marked as seized", "success");
-      router.push("/admin/seized-vehicles");
       setShowSeizeModal(false);
-      setSelectedLoanId(null);
+      fetchSeizedPending({ page: currentPage, status: "Partially Paid" });
     } catch (err) {
       showToast(err.message || "Failed to seize vehicle", "error");
+    }
+  };
+
+  const handleResponseClick = (item) => {
+    setResponseDetails({
+      loanId: item.loanId,
+      loanModel: item.loanModel || "Loan",
+      clientResponse: item.clientResponse || (item.status?.clientResponse || ""),
+      nextFollowUpDate: item.nextFollowUpDate || (item.status?.nextFollowUpDate || "").split("T")[0],
+      updatedBy: item.updatedBy || item.status?.updatedBy,
+      updatedAt: item.updatedAt || item.status?.updatedAt,
+    });
+    setShowResponseModal(true);
+  };
+
+  const handleResponseUpdate = async () => {
+    try {
+      await updateFollowup(responseDetails.loanId, {
+        loanModel: responseDetails.loanModel,
+        clientResponse: responseDetails.clientResponse,
+        nextFollowUpDate: responseDetails.nextFollowUpDate,
+      });
+      showToast("Response updated successfully", "success");
+      setShowResponseModal(false);
+      fetchSeizedPending({ page: currentPage, status: "Partially Paid" });
+    } catch (err) {
+      showToast(err.message || "Failed to update response", "error");
     }
   };
 
@@ -574,6 +613,60 @@ const PartialPaymentsPage = () => {
           title="Confirm Seizure"
           message="Are you sure you want to mark this vehicle as seized? This action cannot be undone."
         />
+
+        {/* Update Response Modal */}
+        {showResponseModal && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+              onClick={() => setShowResponseModal(false)}
+            ></div>
+            <div className="relative w-full max-w-xl animate-scale-up">
+              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100">
+                <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+                  <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                    Update Client Response
+                  </h2>
+                  <button
+                    onClick={() => setShowResponseModal(false)}
+                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-slate-600 border border-slate-100"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="p-8 bg-slate-50/50">
+                  <ClientResponseSection
+                    clientResponse={responseDetails.clientResponse}
+                    nextFollowUpDate={responseDetails.nextFollowUpDate}
+                    updatedBy={responseDetails.updatedBy}
+                    updatedAt={responseDetails.updatedAt}
+                    onChange={(e) => {
+                      const { name, value } = e.target;
+                      setResponseDetails((prev) => ({
+                        ...prev,
+                        [name]: value,
+                      }));
+                    }}
+                  />
+                  <div className="mt-8 flex justify-end gap-3">
+                    <button
+                      onClick={() => setShowResponseModal(false)}
+                      className="px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:bg-slate-200 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleResponseUpdate}
+                      className="bg-primary text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                    >
+                      Save Response
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AuthGuard>
   );

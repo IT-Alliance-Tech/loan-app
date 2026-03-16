@@ -382,7 +382,24 @@ const LoanPendingViewPage = () => {
                   </div>
 
                   {/* Payment Update Section */}
-                  <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200">
+                  <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200 relative">
+                    {loan.updatedBy && (
+                      <div className="absolute top-4 right-4 flex flex-col items-end pointer-events-none">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                          Last Updated By
+                        </span>
+                        <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
+                          <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                            {loan.updatedBy}
+                          </span>
+                          <span className="w-1 h-1 rounded-full bg-red-500/40" />
+                          <span className="text-[9px] font-bold text-slate-400 font-mono">
+                            {loan.updatedAt &&
+                              format(new Date(loan.updatedAt), "dd/MM/yy HH:mm")}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">
                       Status Update (Client Response)
                     </h3>

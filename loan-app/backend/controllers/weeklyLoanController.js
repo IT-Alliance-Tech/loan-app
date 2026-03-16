@@ -210,7 +210,8 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
   const weeklyLoans = await WeeklyLoan.find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(Number(limit));
+    .limit(Number(limit))
+    .populate("updatedBy", "name");
 
   sendResponse(res, 200, "success", "Weekly loans fetched successfully", null, {
     weeklyLoans,
@@ -228,7 +229,8 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
 exports.getWeeklyLoanById = asyncHandler(async (req, res, next) => {
   const weeklyLoan = await WeeklyLoan.findById(req.params.id)
     .populate("closureDetails")
-    .populate("followupHistory");
+    .populate("followupHistory")
+    .populate("updatedBy", "name");
 
   if (!weeklyLoan) {
     return next(new ErrorHandler("Weekly loan not found", 404));
@@ -297,6 +299,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     status: status || weeklyLoan.status,
     interestRate: 0,
     expenses: 0,
+    updatedBy: req.user._id,
   };
 
   // Recalculate
@@ -374,7 +377,8 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   // Refetch to include virtuals
   weeklyLoan = await WeeklyLoan.findById(weeklyLoan._id)
     .populate("closureDetails")
-    .populate("followupHistory");
+    .populate("followupHistory")
+    .populate("updatedBy", "name");
 
   // Synchronize EMIs if date or principal changed
   if (
@@ -473,6 +477,19 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
       },
     },
     {
+      $lookup: {
+        from: "users",
+        localField: "updatedBy",
+        foreignField: "_id",
+        as: "updatedByInfo",
+      },
+    },
+    {
+      $addFields: {
+        updatedBy: { $arrayElemAt: ["$updatedByInfo", 0] },
+      },
+    },
+    {
       $addFields: {
         pendingEmisList: {
           $filter: {
@@ -529,6 +546,13 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
           },
         },
         clientResponse: 1,
+        nextFollowUpDate: 1,
+        updatedBy: {
+          _id: 1,
+          name: 1,
+        },
+        updatedAt: 1,
+        loanModel: { $literal: "WeeklyLoan" },
       },
     },
     { $sort: { earliestDueDate: 1 } },
@@ -827,7 +851,7 @@ exports.getWeeklyPendingEmiDetails = asyncHandler(async (req, res, next) => {
     {
       $lookup: {
         from: "users",
-        localField: "updatedBy",
+        localField: "loan.updatedBy",
         foreignField: "_id",
         as: "updatedUserInfo",
       },
@@ -860,8 +884,8 @@ exports.getWeeklyPendingEmiDetails = asyncHandler(async (req, res, next) => {
         emiNumber: 1,
         overdue: "$overdue",
         paymentHistory: "$paymentHistory",
-        updatedAt: 1,
-        updatedBy: { $ifNull: ["$updatedUserInfo.name", "$updatedBy"] },
+        updatedAt: "$loan.updatedAt",
+        updatedBy: { $ifNull: ["$updatedUserInfo.name", "$loan.updatedBy"] },
         paymentRecords: 1,
       },
     },

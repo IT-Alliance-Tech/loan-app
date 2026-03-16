@@ -9,7 +9,9 @@ import {
   getSeizedPending,
   updateLoan,
   toggleSeized,
+  updateFollowup,
 } from "../../../services/loan.service";
+import ClientResponseSection from "../../../components/ClientResponseSection";
 import Pagination from "../../../components/Pagination";
 import { useToast } from "../../../context/ToastContext";
 import Link from "next/link";
@@ -135,14 +137,12 @@ const PendingPaymentsPage = () => {
   };
 
   const confirmSeize = async () => {
-    if (!selectedLoanId) return;
-
     try {
+      if (!selectedLoanId) return;
       await toggleSeized(selectedLoanId);
       showToast("Vehicle marked as seized", "success");
-      router.push("/admin/seized-vehicles");
       setShowSeizeModal(false);
-      setSelectedLoanId(null);
+      fetchSeizedPending({ page: currentPage, status: "Pending" });
     } catch (err) {
       showToast(err.message || "Failed to seize vehicle", "error");
     }

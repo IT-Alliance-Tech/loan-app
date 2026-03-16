@@ -401,22 +401,19 @@ const LoansPage = () => {
                               <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <span
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${
-                                    loan.status.isSeized ||
-                                    loan.status.status?.toLowerCase() ===
-                                      "seized"
-                                      ? "bg-red-50 text-red-500 border-red-100"
-                                      : loan.status.status?.toLowerCase() ===
-                                          "closed"
-                                        ? "bg-slate-100 text-slate-500 border-slate-200"
+                                    loan.status.status?.toLowerCase() === "closed"
+                                      ? "bg-slate-100 text-slate-500 border-slate-200"
+                                      : loan.status.isSeized ||
+                                          loan.status.status?.toLowerCase() === "seized"
+                                        ? "bg-red-50 text-red-500 border-red-100"
                                         : "bg-emerald-50 text-emerald-600 border-emerald-100"
                                   }`}
                                 >
-                                  {loan.status.isSeized ||
-                                  loan.status.status?.toLowerCase() === "seized"
-                                    ? "Seized"
-                                    : loan.status.status?.toLowerCase() ===
-                                        "closed"
-                                      ? "Closed"
+                                  {loan.status.status?.toLowerCase() === "closed"
+                                    ? "Closed"
+                                    : loan.status.isSeized ||
+                                        loan.status.status?.toLowerCase() === "seized"
+                                      ? "Seized"
                                       : "Active"}
                                 </span>
                               </td>
@@ -588,7 +585,7 @@ const LoansPage = () => {
                               className={`cursor-pointer transition-colors group ${
                                 selectedRowId === loan._id
                                   ? "bg-blue-50/80"
-                                  : loan.isSeized
+                                  : loan.status?.isSeized && loan.status?.status?.toLowerCase() !== "closed"
                                     ? "bg-red-50/50"
                                     : "hover:bg-slate-50"
                               }`}
@@ -597,7 +594,7 @@ const LoansPage = () => {
                                 className={`px-6 py-4 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
                                   selectedRowId === loan._id
                                     ? "bg-blue-50/80"
-                                    : loan.isSeized
+                                    : loan.status?.isSeized && loan.status?.status?.toLowerCase() !== "closed"
                                       ? "bg-red-50/50"
                                       : "bg-white hover:bg-slate-50"
                                 }`}
@@ -679,22 +676,19 @@ const LoansPage = () => {
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <span
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${
-                                    loan.status.isSeized ||
-                                    loan.status.status?.toLowerCase() ===
-                                      "seized"
-                                      ? "bg-red-100 text-red-600 border-red-200"
-                                      : loan.status.status?.toLowerCase() ===
-                                          "closed"
-                                        ? "bg-slate-100 text-slate-500 border-slate-200"
+                                    loan.status.status?.toLowerCase() === "closed"
+                                      ? "bg-slate-100 text-slate-500 border-slate-200"
+                                      : loan.status.isSeized ||
+                                          loan.status.status?.toLowerCase() === "seized"
+                                        ? "bg-red-100 text-red-600 border-red-200"
                                         : "bg-green-100 text-green-600 border-green-200"
                                   }`}
                                 >
-                                  {loan.status.isSeized ||
-                                  loan.status.status?.toLowerCase() === "seized"
-                                    ? "Seized"
-                                    : loan.status.status?.toLowerCase() ===
-                                        "closed"
-                                      ? "Closed"
+                                  {loan.status.status?.toLowerCase() === "closed"
+                                    ? "Closed"
+                                    : loan.status.isSeized ||
+                                        loan.status.status?.toLowerCase() === "seized"
+                                      ? "Seized"
                                       : "Active"}
                                 </span>
                               </td>

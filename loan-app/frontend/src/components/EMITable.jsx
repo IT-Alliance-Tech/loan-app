@@ -352,6 +352,11 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                           day: "2-digit",
                           month: "2-digit",
                           year: "numeric",
+                        })}{" "}
+                        {new Date(emi.updatedAt).toLocaleTimeString("en-IN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
                         })}
                       </span>
                     </div>
