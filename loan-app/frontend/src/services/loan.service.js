@@ -167,15 +167,8 @@ export const getTodoList = async () => {
   });
 };
 
-export const getCollectionReport = async (params = {}) => {
-  const queryString = new URLSearchParams(params).toString();
-  return await apiHandler(
-    `/api/loans/collection-report${queryString ? `?${queryString}` : ""}`,
-    {
-      method: "GET",
-    },
-  );
-};
+
+
 
 export const deleteLoan = async (id) => {
   return await apiHandler(`/api/loans/${id}`, {

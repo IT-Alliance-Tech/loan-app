@@ -2317,48 +2317,6 @@ const getTodoList = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Get detailed collection report
-// @route   GET /api/loans/collection-report
-// @access  Private
-const getCollectionReport = asyncHandler(async (req, res, next) => {
-  const { startDate, endDate, collectedBy } = req.query;
-  const match = {
-    date: {},
-  };
-
-  if (startDate) match.date.$gte = new Date(startDate);
-  if (endDate) match.date.$lte = new Date(endDate);
-  if (Object.keys(match.date).length === 0) delete match.date;
-  if (collectedBy) match.collectedBy = new mongoose.Types.ObjectId(collectedBy);
-
-  const collections = await mongoose.model("Payment").aggregate([
-    { $match: match },
-    {
-      $lookup: {
-        from: "users",
-        localField: "collectedBy",
-        foreignField: "_id",
-        as: "collector",
-      },
-    },
-    { $unwind: "$collector" },
-    {
-      $group: {
-        _id: {
-          date: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-          collector: "$collector.name",
-          mode: "$mode",
-        },
-        totalAmount: { $sum: "$amount" },
-        count: { $sum: 1 },
-      },
-    },
-    { $sort: { "_id.date": -1, "_id.collector": 1 } },
-  ]);
-
-  sendResponse(res, 200, "success", "Collection report fetched successfully", null, collections);
-});
-
 // @desc    Delete a loan
 // @route   DELETE /api/loans/:id
 // @access  Private/Admin
@@ -2404,6 +2362,5 @@ module.exports = {
   updateFollowup,
   getFollowupHistory,
   getTodoList,
-  getCollectionReport,
   deleteLoan,
 };

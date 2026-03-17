@@ -20,7 +20,6 @@ const {
   updateFollowup,
   getFollowupHistory,
   getTodoList,
-  getCollectionReport,
   deleteLoan,
 } = require("../controllers/loanController");
 const {
@@ -39,7 +38,6 @@ router.get("/health", (req, res) =>
 );
 router.get("/analytics/stats", getAnalyticsStats);
 router.get("/todo-list", getTodoList);
-router.get("/collection-report", getCollectionReport);
 router.get("/expired-docs", getExpiredDocLoans);
 
 router.use(isAuthenticated);
