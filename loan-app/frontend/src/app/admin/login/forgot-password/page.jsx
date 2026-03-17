@@ -123,15 +123,17 @@ const ForgotPasswordPage = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-bold uppercase"
+                  className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-bold"
                   placeholder="e.g. administrator@sf.com"
                   required
+                  suppressHydrationWarning
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full relative group overflow-hidden"
+                suppressHydrationWarning
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-all group-hover:scale-105 active:scale-95 duration-300"></div>
                 <div className="relative py-4 w-full flex items-center justify-center gap-3 text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-500/25">
@@ -153,6 +155,7 @@ const ForgotPasswordPage = () => {
                   placeholder="000000"
                   required
                   maxLength={6}
+                  suppressHydrationWarning
                 />
               </div>
               <div className="space-y-2">
@@ -166,6 +169,7 @@ const ForgotPasswordPage = () => {
                   className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800"
                   placeholder="••••••••"
                   required
+                  suppressHydrationWarning
                 />
               </div>
               <div className="flex flex-col items-center space-y-4">
@@ -183,6 +187,7 @@ const ForgotPasswordPage = () => {
                     onClick={handleRequestOtp}
                     className="text-[10px] font-black text-blue-600 uppercase hover:underline tracking-widest bg-blue-50 px-4 py-2 rounded-xl transition-all"
                     disabled={loading}
+                    suppressHydrationWarning
                   >
                     {loading ? "Retransmitting..." : "Resend Security Code"}
                   </button>
@@ -193,6 +198,7 @@ const ForgotPasswordPage = () => {
                 type="submit"
                 disabled={loading || timer === 0}
                 className={`w-full relative group overflow-hidden ${loading || timer === 0 ? "opacity-50 grayscale" : ""}`}
+                suppressHydrationWarning
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-600 transition-all group-hover:scale-105 active:scale-95 duration-300"></div>
                 <div className="relative py-4 w-full flex items-center justify-center gap-3 text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/25">
@@ -206,6 +212,7 @@ const ForgotPasswordPage = () => {
             <button
               onClick={() => router.push("/admin/login")}
               className="group flex items-center justify-center gap-2 mx-auto text-[10px] font-black text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-[0.2em]"
+              suppressHydrationWarning
             >
               <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
