@@ -57,18 +57,18 @@ const Services = () => {
               <div className={`mb-8 p-4 rounded-2xl inline-block ${service.highlight ? "bg-white/10" : "bg-white shadow-sm text-navy"}`}>
                 {service.icon}
               </div>
-              <h3 className="text-2xl font-black uppercase tracking-tight mb-4">{service.title}</h3>
-              <p className={`text-lg font-medium leading-relaxed mb-8 ${service.highlight ? "text-slate-300" : "text-slate-500"}`}>
+              <h3 className="text-lg sm:text-2xl font-black uppercase tracking-tight mb-4 leading-tight">{service.title}</h3>
+              <p className={`text-base sm:text-lg font-medium leading-relaxed mb-8 ${service.highlight ? "text-slate-300" : "text-slate-500"}`}>
                 {service.description}
               </p>
               <a
                 href="#contact"
-                className={`inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] group/link ${
+                className={`inline-flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] group/link ${
                   service.highlight ? "text-white" : "text-accent-red"
                 }`}
               >
                 Enquire About {service.title.split(' ')[0]} Loan
-                <ArrowRight className="w-4 h-4 transition-transform group-hover/link:translate-x-1" />
+                <ArrowRight className="w-4 h-4 transition-transform group-hover/link:translate-x-1 shrink-0" />
               </a>
               {/* Red Accent Bar */}
               <div className="absolute bottom-0 left-0 right-0 h-1 hidden group-hover:block bg-accent-red rounded-full transition-all"></div>

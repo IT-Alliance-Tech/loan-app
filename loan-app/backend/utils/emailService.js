@@ -116,4 +116,90 @@ const sendOTP = async (email, otp) => {
   }
 };
 
-module.exports = { sendOTP };
+const sendInquiryEmail = async (inquiryData) => {
+  if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN || !GMAIL_USER) {
+    throw new Error("Email configuration missing");
+  }
+
+  const { fullName, phoneNumber, loanType, message } = inquiryData;
+
+  try {
+    const subject = `New Loan Inquiry: ${loanType} - ${fullName}`;
+    const from = GMAIL_USER;
+    const to = "squarefinance2025@gmail.com";
+
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f9fafb; margin: 0; padding: 20px; }
+                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; padding: 30px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+                .header { border-bottom: 2px solid #2563eb; margin-bottom: 20px; padding-bottom: 10px; }
+                .header h1 { color: #2563eb; margin: 0; font-size: 20px; }
+                .field { margin-bottom: 15px; }
+                .label { font-weight: bold; color: #4b5563; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+                .value { font-size: 16px; color: #111827; margin-top: 4px; }
+                .message-box { background: #f3f4f6; padding: 15px; border-radius: 8px; margin-top: 20px; }
+                .footer { margin-top: 30px; font-size: 12px; color: #9ca3af; text-align: center; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>New Vehicle Loan Inquiry</h1>
+                </div>
+                <div class="field">
+                    <div class="label">Full Name</div>
+                    <div class="value">${fullName}</div>
+                </div>
+                <div class="field">
+                    <div class="label">Phone Number</div>
+                    <div class="value">${phoneNumber}</div>
+                </div>
+                <div class="field">
+                    <div class="label">Loan Type</div>
+                    <div class="value">${loanType}</div>
+                </div>
+                <div class="message-box">
+                    <div class="label">Message</div>
+                    <div class="value">${message || "No additional message provided."}</div>
+                </div>
+                <div class="footer">
+                    <p>&copy; 2026 Square Finance. Received from Landing Page.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    const str = [
+      'Content-Type: text/html; charset="UTF-8"\n',
+      "MIME-Version: 1.0\n",
+      "Content-Transfer-Encoding: 7bit\n",
+      "to: ", to, "\n",
+      "from: ", from, "\n",
+      "subject: ", subject, "\n\n",
+      htmlContent,
+    ].join("");
+
+    const encodedMessage = Buffer.from(str)
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    await gmail.users.messages.send({
+      userId: "me",
+      requestBody: { raw: encodedMessage },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error sending inquiry email:", error);
+    throw error;
+  }
+};
+
+module.exports = { sendOTP, sendInquiryEmail };
