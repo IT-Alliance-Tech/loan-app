@@ -1,8 +1,12 @@
 const mongoose = require("mongoose");
 const DailyLoan = require("../models/DailyLoan");
+const Loan = require("../models/Loan");
+const WeeklyLoan = require("../models/WeeklyLoan");
 const EMI = require("../models/EMI");
 const ClosedLoan = require("../models/ClosedLoan");
 const Followup = require("../models/Followup");
+const Payment = require("../models/Payment");
+const SeizedVehicle = require("../models/SeizedVehicle");
 const ErrorHandler = require("../utils/ErrorHandler");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
@@ -39,8 +43,13 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Please provide all required fields", 400));
   }
 
-  const existingLoan = await DailyLoan.findOne({ loanNumber });
-  if (existingLoan) {
+  const existingLoan = await Promise.all([
+    Loan.findOne({ loanNumber }),
+    WeeklyLoan.findOne({ loanNumber }),
+    DailyLoan.findOne({ loanNumber }),
+  ]);
+
+  if (existingLoan.some((loan) => loan !== null)) {
     return next(new ErrorHandler("Loan number already exists", 400));
   }
 
@@ -259,6 +268,19 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     guarantorMobileNumbers,
   } = req.body;
 
+  // Global Loan Number Uniqueness Check
+  if (loanNumber && loanNumber !== dailyLoan.loanNumber) {
+    const existingLoanWithNumber = await Promise.all([
+      Loan.findOne({ loanNumber }),
+      WeeklyLoan.findOne({ loanNumber }),
+      DailyLoan.findOne({ loanNumber }),
+    ]);
+
+    if (existingLoanWithNumber.some((l) => l !== null)) {
+      return next(new ErrorHandler("Loan number already exists", 400));
+    }
+  }
+
   const updateData = {
     loanNumber: loanNumber || dailyLoan.loanNumber,
     customerName: customerName || dailyLoan.customerName,
@@ -405,6 +427,18 @@ exports.deleteDailyLoan = asyncHandler(async (req, res, next) => {
   if (!dailyLoan) {
     return next(new ErrorHandler("Daily loan not found", 404));
   }
+
+  // Delete associated records
+  await Promise.all([
+    EMI.deleteMany({ loanId: dailyLoan._id, loanModel: "DailyLoan" }),
+    Payment.deleteMany({ loanId: dailyLoan._id, loanModel: "DailyLoan" }),
+    require("../models/SeizedVehicle").deleteMany({
+      loanId: dailyLoan._id,
+      loanModel: "DailyLoan",
+    }),
+    ClosedLoan.deleteMany({ loanId: dailyLoan._id, loanModel: "DailyLoan" }),
+    Followup.deleteMany({ loanId: dailyLoan._id, loanModel: "DailyLoan" }),
+  ]);
 
   await dailyLoan.deleteOne();
   sendResponse(res, 200, "success", "Daily loan deleted successfully");

@@ -3,11 +3,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { getWeeklyFollowupLoans } from "../services/weeklyLoan.service";
+import {
+  getWeeklyFollowupLoans,
+  deleteWeeklyLoan,
+} from "../services/weeklyLoan.service";
 import Pagination from "./Pagination";
 import { useToast } from "../context/ToastContext";
 import TableActionMenu from "./TableActionMenu";
 import ContactActionMenu from "./ContactActionMenu";
+import { getUserFromToken } from "../utils/auth";
 
 const WeeklyFollowupList = () => {
   const router = useRouter();
@@ -34,6 +38,8 @@ const WeeklyFollowupList = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   const fetchFollowups = async () => {
     try {
@@ -61,6 +67,18 @@ const WeeklyFollowupList = () => {
       showToast(err.message, "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this weekly loan?")) {
+      try {
+        await deleteWeeklyLoan(id);
+        showToast("Weekly loan deleted", "success");
+        fetchFollowups();
+      } catch (err) {
+        showToast(err.message || "Failed to delete", "error");
+      }
     }
   };
 
@@ -268,7 +286,16 @@ const WeeklyFollowupList = () => {
                                 // Assuming toggleSeized handles it if we import it, otherwise keeping it simple
                                 router.push(`/admin/weekly-loans/edit/${item.loanId}?action=seize`);
                             }
-                          }
+                          },
+                          ...(isSuperAdmin
+                            ? [
+                                {
+                                  label: "Delete Loan",
+                                  onClick: () => handleDelete(item.loanId),
+                                  variant: "danger",
+                                },
+                              ]
+                            : []),
                         ]}
                       />
                     </td>

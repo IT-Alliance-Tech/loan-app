@@ -6,7 +6,8 @@ import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import { getUserFromToken } from "../../../utils/auth";
-import { getLoans, searchLoan } from "../../../services/loan.service";
+import { getLoans, searchLoan, deleteLoan } from "../../../services/loan.service";
+import { Trash2 } from "lucide-react";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
 import Pagination from "../../../components/Pagination";
 import ContactActionMenu from "../../../components/ContactActionMenu";
@@ -141,6 +142,23 @@ const LoansPage = () => {
     } catch (err) {
       console.error("Export failed:", err);
       alert("Failed to export loans. Please try again.");
+    }
+  };
+
+  const handleDelete = async (loanId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this loan? This action will permanently remove all associated EMI and payment records.",
+      )
+    )
+      return;
+
+    try {
+      await deleteLoan(loanId);
+      // Refetch current page
+      fetchLoans({ ...filters, page: currentPage });
+    } catch (err) {
+      alert("Error deleting loan: " + err.message);
     }
   };
 
@@ -503,6 +521,18 @@ const LoansPage = () => {
                                       </svg>
                                     </button>
                                   )}
+                                  {isSuperAdmin && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(loan._id);
+                                      }}
+                                      className="text-rose-500 hover:scale-110 transition-transform"
+                                      title="Delete Loan"
+                                    >
+                                      <Trash2 className="w-5 h-5" />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -770,6 +800,18 @@ const LoansPage = () => {
                                           d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                                         />
                                       </svg>
+                                    </button>
+                                  )}
+                                  {isSuperAdmin && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(loan._id);
+                                      }}
+                                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 border border-red-100 transition-all"
+                                      title="Delete Loan"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
                                     </button>
                                   )}
                                 </div>

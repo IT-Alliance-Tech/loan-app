@@ -7,6 +7,7 @@ import { useToast } from "../context/ToastContext";
 import { format } from "date-fns";
 import TableActionMenu from "./TableActionMenu";
 import Pagination from "./Pagination";
+import { Trash2 } from "lucide-react";
 import { exportLoansToExcel } from "../utils/excelExport";
 import { getUserFromToken } from "../utils/auth";
 
@@ -400,6 +401,15 @@ const DailyLoansList = ({ type, title }) => {
                               </svg>
                             </button>
                           )}
+                          {isSuperAdmin && (
+                            <button
+                              onClick={() => handleDelete(loan._id)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 border border-red-100"
+                              title="Delete Loan"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -594,6 +604,15 @@ const DailyLoansList = ({ type, title }) => {
                                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                               />
                             </svg>
+                          </button>
+                        )}
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => handleDelete(loan._id)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 border border-red-100 transition-all"
+                            title="Delete Loan"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </div>

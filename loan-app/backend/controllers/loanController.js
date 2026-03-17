@@ -63,10 +63,13 @@ const createLoan = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Please provide all required fields", 400));
   }
 
-  const existingLoan = await Loan.findOne({
-    loanNumber: loanTerms.loanNumber,
-  });
-  if (existingLoan) {
+  const existingLoan = await Promise.all([
+    Loan.findOne({ loanNumber: loanTerms.loanNumber }),
+    WeeklyLoan.findOne({ loanNumber: loanTerms.loanNumber }),
+    DailyLoan.findOne({ loanNumber: loanTerms.loanNumber }),
+  ]);
+
+  if (existingLoan.some((loan) => loan !== null)) {
     return next(new ErrorHandler("Loan number already exists", 400));
   }
 
@@ -631,6 +634,19 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     clientResponse: topLevelClientResponse,
     nextFollowUpDate: topLevelNextFollowUpDate,
   } = req.body;
+
+  // Global Loan Number Uniqueness Check
+  if (loanTerms?.loanNumber && loanTerms.loanNumber !== loan.loanNumber) {
+    const existingLoanWithNumber = await Promise.all([
+      Loan.findOne({ loanNumber: loanTerms.loanNumber }),
+      WeeklyLoan.findOne({ loanNumber: loanTerms.loanNumber }),
+      DailyLoan.findOne({ loanNumber: loanTerms.loanNumber }),
+    ]);
+
+    if (existingLoanWithNumber.some((l) => l !== null)) {
+      return next(new ErrorHandler("Loan number already exists", 400));
+    }
+  }
 
   // Support nested foreclosureDetails in status object
   const foreclosureDetails = statusObj?.foreclosureDetails;
@@ -2343,6 +2359,30 @@ const getCollectionReport = asyncHandler(async (req, res, next) => {
   sendResponse(res, 200, "success", "Collection report fetched successfully", null, collections);
 });
 
+// @desc    Delete a loan
+// @route   DELETE /api/loans/:id
+// @access  Private/Admin
+const deleteLoan = asyncHandler(async (req, res, next) => {
+  const loan = await Loan.findById(req.params.id);
+
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // Delete associated records
+  await Promise.all([
+    EMI.deleteMany({ loanId: loan._id, loanModel: "Loan" }),
+    Payment.deleteMany({ loanId: loan._id, loanModel: "Loan" }),
+    SeizedVehicle.deleteMany({ loanId: loan._id, loanModel: "Loan" }),
+    ClosedLoan.deleteMany({ loanId: loan._id, loanModel: "Loan" }),
+    Followup.deleteMany({ loanId: loan._id, loanModel: "Loan" }),
+  ]);
+
+  await loan.deleteOne();
+
+  sendResponse(res, 200, "success", "Loan and all associated records deleted successfully");
+});
+
 // export all values
 module.exports = {
   createLoan,
@@ -2365,4 +2405,5 @@ module.exports = {
   getFollowupHistory,
   getTodoList,
   getCollectionReport,
+  deleteLoan,
 };

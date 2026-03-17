@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, differenceInDays } from "date-fns";
-import { getDailyPendingPayments } from "../services/dailyLoan.service";
+import { getDailyPendingPayments, deleteDailyLoan } from "../services/dailyLoan.service";
 import Pagination from "./Pagination";
 import { useToast } from "../context/ToastContext";
 import TableActionMenu from "./TableActionMenu";
 import ContactActionMenu from "./ContactActionMenu";
 import { updateFollowup } from "../services/loan.service";
 import ClientResponseSection from "./ClientResponseSection";
+import { getUserFromToken } from "../utils/auth";
 
 const DailyPendingList = () => {
   const router = useRouter();
@@ -25,6 +26,8 @@ const DailyPendingList = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [responseDetails, setResponseDetails] = useState({
@@ -57,6 +60,18 @@ const DailyPendingList = () => {
       showToast(err.message, "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this daily loan?")) {
+      try {
+        await deleteDailyLoan(id);
+        showToast("Daily loan deleted", "success");
+        fetchPending();
+      } catch (err) {
+        showToast(err.message || "Failed to delete", "error");
+      }
     }
   };
 
@@ -291,6 +306,15 @@ const DailyPendingList = () => {
                             label: "Update Response",
                             onClick: () => handleResponseClick(item),
                           },
+                          ...(isSuperAdmin
+                            ? [
+                                {
+                                  label: "Delete Loan",
+                                  onClick: () => handleDelete(item.loanId),
+                                  variant: "danger",
+                                },
+                              ]
+                            : []),
                         ]}
                       />
                     </td>
