@@ -173,7 +173,7 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
     status,
   } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 12; // Increased slightly for UI density
+  const limit = parseInt(req.query.limit, 10) || 25; // Increased to 25 for standardized pagination
   const skip = (page - 1) * limit;
 
   const query = {};
@@ -953,7 +953,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     nextFollowUpDate,
   } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 10;
+  const limit = parseInt(req.query.limit, 10) || 25;
   const skip = (page - 1) * limit;
 
   let query = {};
@@ -1281,7 +1281,7 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     loanType: queryLoanType,
   } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 10;
+  const limit = parseInt(req.query.limit, 10) || 25;
   const skip = (page - 1) * limit;
 
   // Filter for nextFollowUpDate
@@ -1562,7 +1562,7 @@ const getFollowupHistory = asyncHandler(async (req, res, next) => {
 const getForeclosureLoans = asyncHandler(async (req, res, next) => {
   const { loanNumber, customerName, mobileNumber, vehicleNumber } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 10;
+  const limit = parseInt(req.query.limit, 10) || 25;
   const skip = (page - 1) * limit;
 
   const query = {};
@@ -1785,7 +1785,7 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
 const getSeizedVehicles = asyncHandler(async (req, res, next) => {
   const { loanNumber, customerName, vehicleNumber, mobileNumber } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 10;
+  const limit = parseInt(req.query.limit, 10) || 25;
   const skip = (page - 1) * limit;
 
   const query = { isSeized: true };
