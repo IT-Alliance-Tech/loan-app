@@ -13,7 +13,12 @@ type FormData = {
 
 const ContactForm = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isMounted, setIsMounted] = React.useState(false);
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<FormData>();
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const onSubmit = async (data: FormData) => {
     console.log("Form Submitted:", data);
@@ -115,6 +120,7 @@ const ContactForm = () => {
                   {...register("fullName", { required: "Full Name is required" })}
                   className={`w-full bg-white border-2 px-6 py-4 rounded-2xl outline-none transition-all font-bold text-slate-700 ${errors.fullName ? "border-red-500" : "border-transparent focus:border-navy"}`}
                   placeholder="John Doe"
+                  suppressHydrationWarning
                 />
                 {errors.fullName && <p className="text-red-500 text-xs font-bold mt-1 ml-1">{errors.fullName.message}</p>}
               </div>
@@ -129,6 +135,7 @@ const ContactForm = () => {
                   })}
                   className={`w-full bg-white border-2 px-6 py-4 rounded-2xl outline-none transition-all font-bold text-slate-700 ${errors.phoneNumber ? "border-red-500" : "border-transparent focus:border-navy"}`}
                   placeholder="98765 43210"
+                  suppressHydrationWarning
                 />
                 {errors.phoneNumber && <p className="text-red-500 text-xs font-bold mt-1 ml-1">{errors.phoneNumber.message}</p>}
               </div>
@@ -140,6 +147,7 @@ const ContactForm = () => {
                   <select
                     {...register("loanType", { required: "Please select a loan type" })}
                     className={`w-full bg-white border-2 px-6 py-4 rounded-2xl outline-none appearance-none transition-all font-bold text-slate-700 ${errors.loanType ? "border-red-500" : "border-transparent focus:border-navy"}`}
+                    suppressHydrationWarning
                   >
                     <option value="">Select Loan Type</option>
                     <option value="Car Loan">Car Loan</option>
@@ -166,6 +174,7 @@ const ContactForm = () => {
                 type="submit"
                 disabled={isSubmitting}
                 className="w-full bg-accent-red text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-red-100 hover:bg-[#7a322e] transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:pointer-events-none"
+                suppressHydrationWarning
               >
                 {isSubmitting ? "Sending..." : "Send Enquiry"}
               </button>
