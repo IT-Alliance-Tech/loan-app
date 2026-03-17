@@ -179,7 +179,7 @@ const ContactForm = () => {
                     className="flex items-center gap-3 bg-green-500 text-white p-4 rounded-xl"
                   >
                     <CheckCircle2 className="w-5 h-5 shrink-0" />
-                    <p className="text-xs font-black uppercase tracking-widest">Enquiry Sent! We'll contact you within 24 hours.</p>
+                    <p className="text-xs font-black uppercase tracking-widest">Enquiry Sent! We&apos;ll contact you within 24 hours.</p>
                   </motion.div>
                 )}
               </AnimatePresence>

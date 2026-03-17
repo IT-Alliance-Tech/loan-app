@@ -20,7 +20,7 @@ const Footer = () => {
               </div>
             </Link>
             <p className="text-slate-400 font-medium text-base max-w-xs transition-colors hover:text-slate-300">
-              Bengaluru's trusted vehicle loan partner specializing in Car and Auto-Rickshaw financing.
+              Bengaluru&apos;s trusted vehicle loan partner specializing in Car and Auto-Rickshaw financing.
             </p>
           </div>
 

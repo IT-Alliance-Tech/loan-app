@@ -26,7 +26,7 @@ const Testimonials = () => {
             viewport={{ once: true }}
             className="text-3xl sm:text-4xl font-black text-navy uppercase tracking-tight"
           >
-            Trusted by Bengaluru's Drivers
+            Trusted by Bengaluru&apos;s Drivers
           </motion.h2>
         </div>
 
@@ -47,7 +47,7 @@ const Testimonials = () => {
                   ))}
                 </div>
                 <p className="text-xl font-medium text-slate-700 leading-relaxed italic mb-8">
-                  "{review.quote}"
+                  &quot;{review.quote}&quot;
                 </p>
               </div>
               <div>

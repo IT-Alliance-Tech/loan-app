@@ -22,7 +22,7 @@ const About = () => {
           >
             <span className="text-accent-red text-xs font-black uppercase tracking-[0.3em] mb-4 block">Who We Are</span>
             <h2 className="text-4xl sm:text-5xl font-black text-navy uppercase tracking-tighter leading-[1.1] mb-8">
-              Bengaluru's Trusted <br />Vehicle Loan Partner
+              Bengaluru&apos;s Trusted <br />Vehicle Loan Partner
             </h2>
             <div className="space-y-6 text-slate-500 font-medium text-lg leading-relaxed">
               <p>
