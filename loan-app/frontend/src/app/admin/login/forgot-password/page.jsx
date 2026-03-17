@@ -86,7 +86,7 @@ const ForgotPasswordPage = () => {
       <div className="absolute inset-0 z-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
 
       <div className="relative z-10 w-full max-w-md px-4 py-12 animate-fade-in">
-        <div className="glass backdrop-blur-2xl bg-white/80 border border-white/20 rounded-[2.5rem] shadow-2xl p-8 sm:p-12 transition-all">
+        <div className="glass backdrop-blur-2xl bg-white/95 border border-white/20 rounded-[2.5rem] shadow-2xl p-8 sm:p-12 transition-all">
           <div className="mb-10 text-center flex flex-col items-center">
             <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
               Reset Password
@@ -116,14 +116,14 @@ const ForgotPasswordPage = () => {
           {step === 1 ? (
             <form onSubmit={handleRequestOtp} className="space-y-6">
               <div className="space-y-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 tracking-[0.15em] ml-1">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1.5 tracking-[0.15em] ml-1">
                   Registered Registry Email
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-5 py-4 bg-slate-50/50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-slate-700 placeholder:text-slate-300 placeholder:font-bold uppercase"
+                  className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-bold uppercase"
                   placeholder="e.g. administrator@sf.com"
                   required
                 />
@@ -142,28 +142,28 @@ const ForgotPasswordPage = () => {
           ) : (
             <form onSubmit={handleResetPassword} className="space-y-6">
               <div className="space-y-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 tracking-[0.15em] ml-1">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1.5 tracking-[0.15em] ml-1">
                   6-Digit Auth Code
                 </label>
                 <input
                   type="text"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
-                  className="w-full px-5 py-4 bg-slate-50/50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-slate-700 tracking-[0.5em] text-center"
+                  className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 tracking-[0.5em] text-center"
                   placeholder="000000"
                   required
                   maxLength={6}
                 />
               </div>
               <div className="space-y-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 tracking-[0.15em] ml-1">
+                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1.5 tracking-[0.15em] ml-1">
                   New Secure Credentials
                 </label>
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-5 py-4 bg-slate-50/50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold text-slate-700"
+                  className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800"
                   placeholder="••••••••"
                   required
                 />
