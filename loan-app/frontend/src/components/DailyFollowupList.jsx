@@ -3,11 +3,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { getDailyFollowupLoans } from "../services/dailyLoan.service";
+import { getDailyFollowupLoans, deleteDailyLoan } from "../services/dailyLoan.service";
 import Pagination from "./Pagination";
 import { useToast } from "../context/ToastContext";
 import TableActionMenu from "./TableActionMenu";
 import ContactActionMenu from "./ContactActionMenu";
+import { getUserFromToken } from "../utils/auth";
 
 const DailyFollowupList = () => {
   const router = useRouter();
@@ -23,6 +24,8 @@ const DailyFollowupList = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   const fetchFollowups = async () => {
     try {
@@ -46,6 +49,18 @@ const DailyFollowupList = () => {
       showToast(err.message, "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this daily loan?")) {
+      try {
+        await deleteDailyLoan(id);
+        showToast("Daily loan deleted", "success");
+        fetchFollowups();
+      } catch (err) {
+        showToast(err.message || "Failed to delete", "error");
+      }
     }
   };
 
@@ -224,7 +239,16 @@ const DailyFollowupList = () => {
                             onClick: () => {
                                  router.push(`/admin/daily-loans/edit/${loan.loanId}?action=seize`);
                             }
-                          }
+                          },
+                          ...(isSuperAdmin
+                            ? [
+                                {
+                                  label: "Delete Loan",
+                                  onClick: () => handleDelete(loan.loanId),
+                                  variant: "danger",
+                                },
+                              ]
+                            : []),
                         ]}
                       />
                     </td>

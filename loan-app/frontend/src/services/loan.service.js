@@ -176,3 +176,9 @@ export const getCollectionReport = async (params = {}) => {
     },
   );
 };
+
+export const deleteLoan = async (id) => {
+  return await apiHandler(`/api/loans/${id}`, {
+    method: "DELETE",
+  });
+};

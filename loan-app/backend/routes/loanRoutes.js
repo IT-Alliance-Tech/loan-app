@@ -21,6 +21,7 @@ const {
   getFollowupHistory,
   getTodoList,
   getCollectionReport,
+  deleteLoan,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
@@ -106,7 +107,8 @@ router
     authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
     authorizePermissions("loans.edit"),
     updateLoan,
-  );
+  )
+  .delete(authorizeRoles("SUPER_ADMIN", "ADMIN"), deleteLoan);
 
 router.patch(
   "/:id/seized",
