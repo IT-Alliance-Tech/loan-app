@@ -59,7 +59,24 @@ const createExpense = asyncHandler(async (req, res, next) => {
 // @route   GET /api/expenses
 // @access  Private
 const getAllExpenses = asyncHandler(async (req, res, next) => {
-  const expenses = await Expense.find().sort({ date: -1, createdAt: -1 });
+  const { startDate, endDate } = req.query;
+  const match = {};
+
+  if (startDate || endDate) {
+    match.date = {};
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      match.date.$gte = start;
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      match.date.$lte = end;
+    }
+  }
+
+  const expenses = await Expense.find(match).sort({ date: -1, createdAt: -1 });
 
   sendResponse(
     res,

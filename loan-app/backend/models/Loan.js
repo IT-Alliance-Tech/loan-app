@@ -11,11 +11,13 @@ const loanSchema = new mongoose.Schema(
       required: [true, "Loan number is required"],
       unique: true,
       trim: true,
+      index: true,
     },
     customerName: {
       type: String,
       required: [true, "Customer name is required"],
       trim: true,
+      index: true,
     },
     address: {
       type: String,
@@ -30,6 +32,7 @@ const loanSchema = new mongoose.Schema(
     mobileNumbers: {
       type: [String],
       required: [true, "At least one customer mobile number is required"],
+      index: true,
       validate: {
         validator: function (v) {
           return v && v.length > 0;
@@ -109,7 +112,7 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    model: {
+    modelYear: {
       type: String,
       trim: true,
     },
@@ -181,6 +184,7 @@ const loanSchema = new mongoose.Schema(
       },
       default: "Active",
       trim: true,
+      index: true,
     },
     paymentStatus: {
       type: String,
@@ -275,5 +279,14 @@ loanSchema.virtual("followupHistory", {
   localField: "_id",
   foreignField: "loanId",
 });
+
+// Additional indexes for analytics and faster searching
+loanSchema.index({ principalAmount: 1 });
+loanSchema.index({ foreclosureAmount: 1 });
+loanSchema.index({ "soldDetails.totalAmount": 1 });
+loanSchema.index({ "soldDetails.sellAmount": 1 });
+loanSchema.index({ paymentStatus: 1 });
+loanSchema.index({ isSeized: 1 });
+loanSchema.index({ seizedStatus: 1 });
 
 module.exports = mongoose.model("Loan", loanSchema);

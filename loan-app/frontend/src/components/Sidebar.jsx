@@ -10,7 +10,10 @@ const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
   { name: "Analytics", href: "/admin/analytics", icon: "📈" },
   //{ name: "Customers", href: "/admin/customers", icon: "👤" },
+  { name: "To-Do List", href: "/admin/todo", icon: "📋" },
+  { name: "Collections", href: "/admin/collections", icon: "🏦" },
   { name: "Loans", href: "/admin/loans", icon: "💰" },
+  { name: "Expired", href: "/admin/expired", icon: "⌛" },
   {
     name: "Weekly Loans",
     href: "/admin/weekly-loans",
@@ -89,9 +92,38 @@ const Sidebar = () => {
     setExpandedMenus((prev) => ({ ...prev, [name]: !prev[name] }));
   };
 
-  const filteredNavItems = navItems.filter(
-    (item) => !item.roles || item.roles.includes(user?.role),
-  );
+  const filteredNavItems = navItems.filter((item) => {
+    // 1. Role-based restriction (existing)
+    if (item.roles && !item.roles.includes(user?.role)) {
+      return false;
+    }
+
+    // 2. Permission-based restriction for employees
+    if (user?.role === "EMPLOYEE") {
+      // Map item name to permission module key
+      const permissionMap = {
+        Dashboard: "dashboard",
+        Analytics: "analytics",
+        "To-Do List": "dashboard", // To-do is part of dashboard/general access often
+        Collections: "payments",
+        Loans: "loans",
+        Expired: "documents",
+        "Weekly Loans": "weeklyLoans",
+        "Daily Loans": "dailyLoans",
+        "Seized Vehicles": "vehicles",
+        Payments: "payments",
+        Expenses: "expenses",
+        Documents: "documents",
+      };
+
+      const moduleKey = permissionMap[item.name];
+      if (moduleKey && user.permissions?.[moduleKey]) {
+        return user.permissions[moduleKey].view;
+      }
+    }
+
+    return true;
+  });
 
   return (
     <>

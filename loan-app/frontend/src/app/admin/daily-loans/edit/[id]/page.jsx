@@ -12,6 +12,7 @@ import {
   getDailyLoanEMIs,
 } from "../../../../../services/dailyLoan.service";
 import { useToast } from "../../../../../context/ToastContext";
+import LoanStatusBadge from "../../../../../components/LoanStatusBadge";
 
 const EditDailyLoanPage = () => {
   const router = useRouter();
@@ -80,13 +81,21 @@ const EditDailyLoanPage = () => {
           <Navbar />
           <main className="flex-1 py-8 px-4 sm:px-8">
             <div className="max-w-5xl mx-auto">
-              <div className="mb-8">
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
-                  Edit Daily Loan
-                </h1>
-                <p className="text-slate-500 font-medium text-sm">
-                  Update daily repayment loan record details
-                </p>
+              <div className="sticky top-16 z-30 bg-[#F8FAFC]/80 backdrop-blur-md py-4 mb-8 border-b border-slate-100 flex justify-between items-center transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <span className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center text-2xl">
+                    📝
+                  </span>
+                  <div>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+                      Edit Daily Loan
+                    </h1>
+                    <p className="text-slate-500 font-medium text-sm text-left">
+                      Loan Number: {loanData?.loanNumber}
+                    </p>
+                  </div>
+                </div>
+                <LoanStatusBadge status={loanData?.status} />
               </div>
 
               {loading ? (

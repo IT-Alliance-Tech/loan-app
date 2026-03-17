@@ -229,10 +229,6 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   }
 
   // CREATE PAYMENT RECORDS FOR NEW PAYMENTS
-  // Since updateEMI can replace history via dateGroups or add via addedAmount,
-  // we check what's new. For simplicity in this refactor, if dateGroups is provided,
-  // we ensure the Payment collection matches the history.
-  // In a more robust implementation, we'd track exactly what was added.
   if (dateGroups && Array.isArray(dateGroups)) {
     // Delete existing payment records for this EMI to sync with the new history
     await Payment.deleteMany({ emiId: emi._id });
@@ -263,26 +259,74 @@ const updateEMI = asyncHandler(async (req, res, next) => {
         });
       }
     });
+
+    // Add overdue/penalty as a payment record if it exists
+    if (overdue && parseFloat(overdue) > 0) {
+      paymentRecords.push({
+        emiId: emi._id,
+        loanId: emi.loanId,
+        loanModel: emi.loanModel,
+        amount: parseFloat(overdue),
+        mode: paymentMode || "CASH",
+        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+        paymentType:
+          emi.loanModel === "DailyLoan"
+            ? "Daily"
+            : emi.loanModel === "WeeklyLoan"
+              ? "Weekly"
+              : "Monthly",
+        status: "Success",
+        remarks: "Overdue/Penalty Payment",
+        collectedBy: req.user._id,
+      });
+    }
+
     if (paymentRecords.length > 0) {
       await Payment.insertMany(paymentRecords);
     }
-  } else if (addedAmount && parseFloat(addedAmount) > 0) {
-    await Payment.create({
-      emiId: emi._id,
-      loanId: emi.loanId,
-      loanModel: emi.loanModel,
-      amount: parseFloat(addedAmount),
-      mode: paymentMode || "CASH",
-      paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-      paymentType:
-        emi.loanModel === "DailyLoan"
-          ? "Daily"
-          : emi.loanModel === "WeeklyLoan"
-            ? "Weekly"
-            : "Monthly",
-      status: "Success",
-      collectedBy: req.user._id,
-    });
+  } else {
+    // Handle single payment updates (standard adding logic)
+    if (addedAmount && parseFloat(addedAmount) > 0) {
+      await Payment.create({
+        emiId: emi._id,
+        loanId: emi.loanId,
+        loanModel: emi.loanModel,
+        amount: parseFloat(addedAmount),
+        mode: paymentMode || "CASH",
+        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+        paymentType:
+          emi.loanModel === "DailyLoan"
+            ? "Daily"
+            : emi.loanModel === "WeeklyLoan"
+              ? "Weekly"
+              : "Monthly",
+        status: "Success",
+        collectedBy: req.user._id,
+      });
+    }
+
+    // Add overdue/penalty as a separate record if it exists and wasn't part of dateGroups
+    if (overdue && parseFloat(overdue) > 0) {
+      // Check if a penalty payment already exists to avoid duplication if not using dateGroups
+      // For simplicity, we create it here if it's a direct overdue update
+      await Payment.create({
+        emiId: emi._id,
+        loanId: emi.loanId,
+        loanModel: emi.loanModel,
+        amount: parseFloat(overdue),
+        mode: paymentMode || "CASH",
+        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+        paymentType:
+          emi.loanModel === "DailyLoan"
+            ? "Daily"
+            : emi.loanModel === "WeeklyLoan"
+              ? "Weekly"
+              : "Monthly",
+        status: "Success",
+        remarks: "Overdue/Penalty Payment",
+        collectedBy: req.user._id,
+      });
+    }
   }
 
   // Recalculate amountPaid and paymentMode from full history
@@ -476,6 +520,7 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
         status: 1,
         remarks: 1,
         updatedAt: 1,
+        mobileNumbers: "$loan.mobileNumbers",
         guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
         guarantorName: "$loan.guarantorName",
         updatedBy: 1,

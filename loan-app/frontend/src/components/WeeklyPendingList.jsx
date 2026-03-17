@@ -3,11 +3,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, differenceInDays } from "date-fns";
-import { getWeeklyPendingPayments } from "../services/weeklyLoan.service";
+import { getWeeklyPendingPayments, deleteWeeklyLoan } from "../services/weeklyLoan.service";
 import Pagination from "./Pagination";
 import { useToast } from "../context/ToastContext";
 import TableActionMenu from "./TableActionMenu";
 import ContactActionMenu from "./ContactActionMenu";
+import { updateFollowup } from "../services/loan.service";
+import ClientResponseSection from "./ClientResponseSection";
+import { getUserFromToken } from "../utils/auth";
 
 const WeeklyPendingList = () => {
   const router = useRouter();
@@ -23,6 +26,18 @@ const WeeklyPendingList = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  const [showResponseModal, setShowResponseModal] = useState(false);
+  const [responseDetails, setResponseDetails] = useState({
+    loanId: "",
+    loanModel: "WeeklyLoan",
+    clientResponse: "",
+    nextFollowUpDate: "",
+    updatedBy: null,
+    updatedAt: null,
+  });
 
   const fetchPending = async () => {
     try {
@@ -48,6 +63,18 @@ const WeeklyPendingList = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this weekly loan?")) {
+      try {
+        await deleteWeeklyLoan(id);
+        showToast("Weekly loan deleted", "success");
+        fetchPending();
+      } catch (err) {
+        showToast(err.message || "Failed to delete", "error");
+      }
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchPending();
@@ -57,6 +84,41 @@ const WeeklyPendingList = () => {
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
+  };
+
+  const handleResponseClick = (item) => {
+    setResponseDetails({
+      loanId: item.loanId,
+      loanModel: "WeeklyLoan",
+      clientResponse: item.clientResponse || "",
+      nextFollowUpDate: item.nextFollowUpDate
+        ? item.nextFollowUpDate.split("T")[0]
+        : "",
+      updatedBy: item.updatedBy,
+      updatedAt: item.updatedAt,
+    });
+    setShowResponseModal(true);
+  };
+
+  const handleResponseUpdate = async () => {
+    try {
+      if (!responseDetails.clientResponse || !responseDetails.nextFollowUpDate) {
+        showToast("Please fill all fields", "error");
+        return;
+      }
+
+      await updateFollowup(responseDetails.loanId, {
+        clientResponse: responseDetails.clientResponse,
+        nextFollowUpDate: responseDetails.nextFollowUpDate,
+        loanModel: "WeeklyLoan",
+      });
+
+      showToast("Response updated successfully", "success");
+      setShowResponseModal(false);
+      fetchPending();
+    } catch (err) {
+      showToast(err.message || "Failed to update response", "error");
+    }
   };
 
   return (
@@ -170,8 +232,9 @@ const WeeklyPendingList = () => {
                       <button
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
+                          const num = item.mobileNumbers?.[0] || item.mobileNumber;
                           setActiveContactMenu({
-                            number: item.mobileNumber,
+                            number: num,
                             name: item.customerName,
                             type: "Applicant",
                             x: rect.left,
@@ -180,7 +243,7 @@ const WeeklyPendingList = () => {
                         }}
                         className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
                       >
-                        {item.mobileNumber}
+                        {item.mobileNumbers?.[0] || item.mobileNumber}
                       </button>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
@@ -262,6 +325,60 @@ const WeeklyPendingList = () => {
         contact={activeContactMenu}
         onClose={() => setActiveContactMenu(null)}
       />
+
+      {/* Update Response Modal */}
+      {showResponseModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+            onClick={() => setShowResponseModal(false)}
+          ></div>
+          <div className="relative w-full max-w-xl animate-scale-up">
+            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100">
+              <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                  Update Client Response
+                </h2>
+                <button
+                  onClick={() => setShowResponseModal(false)}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-slate-600 border border-slate-100"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-8 bg-slate-50/50">
+                <ClientResponseSection
+                  clientResponse={responseDetails.clientResponse}
+                  nextFollowUpDate={responseDetails.nextFollowUpDate}
+                  updatedBy={responseDetails.updatedBy}
+                  updatedAt={responseDetails.updatedAt}
+                  onChange={(e) => {
+                    const { name, value } = e.target;
+                    setResponseDetails((prev) => ({
+                      ...prev,
+                      [name]: value,
+                    }));
+                  }}
+                />
+                <div className="mt-8 flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowResponseModal(false)}
+                    className="px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:bg-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleResponseUpdate}
+                    className="bg-primary text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                  >
+                    Save Response
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

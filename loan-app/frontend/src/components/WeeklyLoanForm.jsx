@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -7,9 +7,14 @@ import ClientResponseSection from "./ClientResponseSection";
 const validationSchema = Yup.object().shape({
   loanNumber: Yup.string().required("Loan number is required"),
   customerName: Yup.string().required("Customer name is required"),
-  mobileNumber: Yup.string()
-    .matches(/^[6-9]\d{9}$/, "Invalid mobile number")
-    .required("Mobile number is required"),
+  mobileNumbers: Yup.array()
+    .of(
+      Yup.string()
+        .matches(/^[6-9]\d{9}$/, "Invalid mobile number")
+        .required("Mobile number is required"),
+    )
+    .min(1, "At least one mobile number is required")
+    .required("Mobile numbers are required"),
   disbursementAmount: Yup.number()
     .positive("Amount must be positive")
     .required("Amount is required"),
@@ -19,6 +24,10 @@ const validationSchema = Yup.object().shape({
     .required("Tenure is required"),
   startDate: Yup.string().required("Disbursement date is required"),
   emiStartDate: Yup.string().required("EMI start date is required"),
+  guarantorName: Yup.string(),
+  guarantorMobileNumbers: Yup.array().of(
+    Yup.string().matches(/^[6-9]\d{9}$/, "Invalid mobile number"),
+  ),
 });
 
 const ErrorMsg = ({ name, touched, errors }) => {
@@ -40,8 +49,24 @@ const WeeklyLoanForm = ({
   submitting,
   isViewOnly = false,
 }) => {
+  const initialValues = {
+    ...initialData,
+    mobileNumbers: Array.isArray(initialData?.mobileNumbers) 
+      ? initialData.mobileNumbers 
+      : initialData?.mobileNumber 
+        ? [initialData.mobileNumber] 
+        : [""],
+    guarantorMobileNumbers: Array.isArray(initialData?.guarantorMobileNumbers)
+      ? initialData.guarantorMobileNumbers
+      : initialData?.guarantorMobileNumber
+        ? [initialData.guarantorMobileNumber]
+        : [],
+    clientResponse: initialData?.clientResponse || "",
+    nextFollowUpDate: initialData?.nextFollowUpDate || "",
+  };
+
   const formik = useFormik({
-    initialValues: initialData,
+    initialValues,
     validationSchema,
     enableReinitialize: true,
     onSubmit: (values) => {
@@ -63,7 +88,7 @@ const WeeklyLoanForm = ({
 
   // Auto-set EMI Start Date to 7 days after Disbursement Date
   useEffect(() => {
-    if (values.startDate && !formik.values._id) {
+    if (values.startDate) {
       const disbursementDate = new Date(values.startDate);
       if (!isNaN(disbursementDate.getTime())) {
         const autoEmiStart = format(addDays(disbursementDate, 7), "yyyy-MM-dd");
@@ -72,7 +97,7 @@ const WeeklyLoanForm = ({
         }
       }
     }
-  }, [values.startDate, setFieldValue, formik.values._id, values.emiStartDate]);
+  }, [values.startDate, setFieldValue, values.emiStartDate]);
 
   // Auto-calculations (Derived State)
   const amount = parseFloat(values.disbursementAmount) || 0;
@@ -84,8 +109,8 @@ const WeeklyLoanForm = ({
   // Processing Fee
   const processingFee = (amount * (feeRate / 100)).toFixed(2);
 
-  // Weekly Principal Calculation (No Interest)
-  const emiAmount = totalWeeks > 0 ? (amount / totalWeeks).toFixed(2) : "0.00";
+  // Weekly Principal Calculation (No Interest) - Round Up
+  const emiAmount = totalWeeks > 0 ? Math.ceil(amount / totalWeeks) : 0;
 
   // Dates
   let emiEndDate = "";
@@ -95,14 +120,14 @@ const WeeklyLoanForm = ({
     emiEndDate = isNaN(end.getTime()) ? "" : format(end, "yyyy-MM-dd");
   }
 
-  const totalAmount = (parseFloat(emiAmount) * paidWeeks).toFixed(2);
+  const totalAmount = (emiAmount * paidWeeks).toFixed(2);
   const totalCollected = (
     parseFloat(totalAmount) + parseFloat(processingFee)
   ).toFixed(2);
   const remainingEmis = totalWeeks - paidWeeks;
   const remainingPrincipalAmount = (
     amount -
-    (amount / totalWeeks) * paidWeeks
+    emiAmount * paidWeeks
   ).toFixed(2);
 
   const nextEmiDate =
@@ -112,12 +137,18 @@ const WeeklyLoanForm = ({
 
   const isEditMode = !!values?._id;
 
-  const getFieldClass = (name) => {
-    const [section, field] = name.includes(".")
-      ? name.split(".")
-      : [null, name];
-    const isTouched = section ? touched[section]?.[field] : touched[field];
-    const error = section ? errors[section]?.[field] : errors[field];
+  const getFieldClass = (name, index = null) => {
+    let isTouched, error;
+    if (index !== null) {
+      isTouched = touched[name]?.[index];
+      error = errors[name]?.[index];
+    } else {
+      const [section, field] = name.includes(".")
+        ? name.split(".")
+        : [null, name];
+      isTouched = section ? touched[section]?.[field] : touched[field];
+      error = section ? errors[section]?.[field] : errors[field];
+    }
 
     const baseClass =
       "w-full bg-slate-50 border rounded-2xl px-5 py-4 text-sm font-bold transition-all placeholder:text-slate-300 disabled:opacity-70 focus:outline-none focus:ring-2 ";
@@ -134,13 +165,34 @@ const WeeklyLoanForm = ({
       className="space-y-8 animate-in fade-in duration-500 pb-20"
     >
       {/* Customer Info */}
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative">
         <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-3 uppercase tracking-tight">
           <span className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center text-lg">
             👤
           </span>
           Customer & Basic Info
         </h2>
+
+        {values.updatedBy && (
+          <div className="absolute top-4 right-4 flex flex-col items-end pointer-events-none">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+              Last Updated By
+            </span>
+            <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                {typeof values.updatedBy === "string"
+                  ? values.updatedBy
+                  : values.updatedBy.name}
+              </span>
+              <span className="w-1 h-1 rounded-full bg-red-500/40" />
+              <span className="text-[9px] font-bold text-slate-400 font-mono">
+                {values.updatedAt &&
+                  format(new Date(values.updatedAt), "dd/MM/yy HH:mm")}
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -174,25 +226,139 @@ const WeeklyLoanForm = ({
             />
             <ErrorMsg touched={touched} errors={errors} name="customerName" />
           </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                MOBILE NUMBERS <span className="text-red-500">*</span>
+              </label>
+            </div>
+            <div className="flex flex-col gap-4">
+              {values.mobileNumbers.map((num, idx) => (
+                <div key={idx} className="relative flex items-center gap-3 group">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      name={`mobileNumbers[${idx}]`}
+                      value={num || ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setFieldValue(`mobileNumbers[${idx}]`, val);
+                      }}
+                      onBlur={handleBlur}
+                      disabled={isViewOnly}
+                      maxLength={10}
+                      className={getFieldClass("mobileNumbers", idx)}
+                      placeholder={idx === 0 ? "Primary Mobile Member" : `Alternative Number ${idx}`}
+                    />
+                    {touched.mobileNumbers?.[idx] && errors.mobileNumbers?.[idx] && (
+                      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider ml-1">
+                        {errors.mobileNumbers[idx]}
+                      </p>
+                    )}
+                  </div>
+                  {!isViewOnly && idx > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newNums = values.mobileNumbers.filter((_, i) => i !== idx);
+                        setFieldValue("mobileNumbers", newNums);
+                      }}
+                      className="flex-none p-2 text-red-400 hover:text-red-600 transition-colors"
+                      title="Remove number"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!isViewOnly && (
+                <button
+                  type="button"
+                  onClick={() => setFieldValue("mobileNumbers", [...values.mobileNumbers, ""])}
+                  className="flex items-center gap-2 text-[11px] font-black text-primary uppercase hover:opacity-80 transition-all w-fit px-1 py-1"
+                >
+                  <span className="text-lg">+</span> ADD CONTACT NUMBER
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Mobile Number <span className="text-red-500">*</span>
+              Guarantor Name
             </label>
             <input
               type="text"
-              name="mobileNumber"
-              value={values.mobileNumber || ""}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                setFieldValue("mobileNumber", val);
-              }}
+              name="guarantorName"
+              value={values.guarantorName || ""}
+              onChange={formik.handleChange}
               onBlur={handleBlur}
               disabled={isViewOnly}
-              maxLength={10}
-              className={getFieldClass("mobileNumber")}
-              placeholder="10-digit Number"
+              className={getFieldClass("guarantorName")}
+              placeholder="Enter Guarantor Name"
             />
-            <ErrorMsg touched={touched} errors={errors} name="mobileNumber" />
+            <ErrorMsg touched={touched} errors={errors} name="guarantorName" />
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                GUARANTOR MOBILE NUMBERS <span className="text-red-500">*</span>
+              </label>
+            </div>
+            <div className="flex flex-col gap-4 max-w-2xl">
+              {values.guarantorMobileNumbers.map((num, idx) => (
+                <div key={idx} className="relative flex items-center gap-3 group">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      name={`guarantorMobileNumbers[${idx}]`}
+                      value={num || ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setFieldValue(`guarantorMobileNumbers[${idx}]`, val);
+                      }}
+                      onBlur={handleBlur}
+                      disabled={isViewOnly}
+                      maxLength={10}
+                      className={getFieldClass("guarantorMobileNumbers", idx)}
+                      placeholder={idx === 0 ? "Primary Guarantor Mobile" : `Alternative Number ${idx}`}
+                    />
+                    {touched.guarantorMobileNumbers?.[idx] && errors.guarantorMobileNumbers?.[idx] && (
+                      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider ml-1">
+                        {errors.guarantorMobileNumbers[idx]}
+                      </p>
+                    )}
+                  </div>
+                  {!isViewOnly && idx > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newNums = values.guarantorMobileNumbers.filter((_, i) => i !== idx);
+                        setFieldValue("guarantorMobileNumbers", newNums);
+                      }}
+                      className="flex-none p-2 text-red-400 hover:text-red-600 transition-colors"
+                      title="Remove number"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!isViewOnly && (
+                <button
+                  type="button"
+                  onClick={() => setFieldValue("guarantorMobileNumbers", [...values.guarantorMobileNumbers, ""])}
+                  className="flex items-center gap-2 text-[11px] font-black text-primary uppercase hover:opacity-80 transition-all w-fit px-1 py-2"
+                >
+                  <span className="text-lg">+</span> ADD GUARANTOR CONTACT
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -327,6 +493,19 @@ const WeeklyLoanForm = ({
               Defaults to 7 days after disbursement
             </p>
           </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              EMI End Date (Auto)
+            </label>
+            <input
+              type="date"
+              name="emiEndDate"
+              value={emiEndDate}
+              readOnly
+              disabled
+              className="w-full bg-slate-100/50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-500 italic"
+            />
+          </div>
 
           {/* Conditional Management Fields */}
           {isEditMode && (
@@ -402,14 +581,14 @@ const WeeklyLoanForm = ({
         </div>
       </div>
 
-      {values?._id && (
-        <ClientResponseSection
-          clientResponse={values.clientResponse}
-          nextFollowUpDate={values.nextFollowUpDate}
-          onChange={formik.handleChange}
-          isViewOnly={isViewOnly}
-        />
-      )}
+      <ClientResponseSection
+        clientResponse={values.clientResponse}
+        nextFollowUpDate={values.nextFollowUpDate}
+        onChange={formik.handleChange}
+        isViewOnly={isViewOnly}
+        updatedBy={values.updatedBy}
+        updatedAt={values.updatedAt}
+      />
 
       {!isViewOnly && (
         <div className="flex justify-end items-center gap-8 pt-6">

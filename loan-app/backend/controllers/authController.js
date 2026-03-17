@@ -35,8 +35,12 @@ const login = asyncHandler(async (req, res, next) => {
 
   const user = await User.findOne({ email }).select("+password");
 
-  if (!user || !(await user.comparePassword(password))) {
-    return next(new ErrorHandler("Invalid email or password", 401));
+  if (!user) {
+    return next(new ErrorHandler("Email is incorrect", 401));
+  }
+
+  if (!(await user.comparePassword(password))) {
+    return next(new ErrorHandler("Password is incorrect", 401));
   }
 
   if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") {
@@ -45,12 +49,7 @@ const login = asyncHandler(async (req, res, next) => {
       (user.role === "SUPER_ADMIN" ? process.env.SUPER_ADMIN_ACCESS_KEY : null);
 
     if (!accessKey || accessKey !== validAccessKey) {
-      return next(
-        new ErrorHandler(
-          `Invalid ${user.role.replace("_", " ")} access key`,
-          403,
-        ),
-      );
+      return next(new ErrorHandler("Access key is incorrect", 403));
     }
   }
 
@@ -181,6 +180,8 @@ const logout = asyncHandler(async (req, res, next) => {
   );
 });
 
+const { sendOTP } = require("../utils/emailService");
+
 const forgotPassword = asyncHandler(async (req, res, next) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
@@ -189,15 +190,29 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   user.resetPasswordOTP = otp;
-  user.resetPasswordOTPExpire = Date.now() + 15 * 60 * 1000;
+  user.resetPasswordOTPExpire = Date.now() + 2 * 60 * 1000;
   await user.save();
 
-  console.log(`OTP for ${email}: ${otp}`);
-  return sendResponse(res, 200, "success", "OTP sent to email", null, null);
+  const emailStart = performance.now();
+  try {
+    await sendOTP(email, otp);
+    const emailEnd = performance.now();
+    console.log(
+      `[PERF] OTP email sent to ${email} in ${(emailEnd - emailStart).toFixed(2)}ms`,
+    );
+    return sendResponse(res, 200, "success", "OTP sent to email", null, null);
+  } catch (error) {
+    console.error("FORGOT_PASSWORD_ERROR:", error.message || error);
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordOTPExpire = undefined;
+    await user.save();
+    return next(new ErrorHandler("Email could not be sent", 500));
+  }
 });
 
 const resetPassword = asyncHandler(async (req, res, next) => {
   const { email, otp, newPassword } = req.body;
+  const resetStart = performance.now();
   const user = await User.findOne({
     email,
     resetPasswordOTP: otp,
@@ -211,6 +226,10 @@ const resetPassword = asyncHandler(async (req, res, next) => {
   user.resetPasswordOTPExpire = undefined;
   await user.save();
 
+  const resetEnd = performance.now();
+  console.log(
+    `[PERF] Password reset for ${email} in ${(resetEnd - resetStart).toFixed(2)}ms`,
+  );
   return sendResponse(
     res,
     200,

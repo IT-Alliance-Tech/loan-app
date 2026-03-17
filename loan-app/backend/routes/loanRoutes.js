@@ -17,11 +17,16 @@ const {
   getSeizedVehicles,
   updateSeizedStatus,
   getAnalyticsStats,
+  updateFollowup,
+  getFollowupHistory,
+  getTodoList,
+  deleteLoan,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
   createRtoWork,
 } = require("../controllers/rtoWorkController");
+const { getExpiredDocLoans } = require("../controllers/expiredController");
 const {
   isAuthenticated,
   authorizeRoles,
@@ -32,6 +37,8 @@ router.get("/health", (req, res) =>
   res.json({ status: "ok", version: "v4-deployment-test" }),
 );
 router.get("/analytics/stats", getAnalyticsStats);
+router.get("/todo-list", getTodoList);
+router.get("/expired-docs", getExpiredDocLoans);
 
 router.use(isAuthenticated);
 
@@ -41,7 +48,7 @@ router.post("/rto-works", createRtoWork);
 router
   .route("/")
   .get(getAllLoans)
-  .post(authorizeRoles("SUPER_ADMIN", "ADMIN"), createLoan);
+  .post(authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("loans.create"), createLoan);
 
 router.post("/calculate-emi", calculateEMIApi);
 router.get(
@@ -70,10 +77,25 @@ router.patch(
   updatePaymentStatus,
 );
 
+router.patch(
+  "/update-followup/:id",
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("loans.edit"),
+  updateFollowup,
+);
+
+router.get(
+  "/followup-history/:id",
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("loans.view"),
+  getFollowupHistory,
+);
+
 router.get("/search/:loanNumber", getLoanByLoanNumber);
 router.post(
   "/:id/foreclose",
-  authorizeRoles("SUPER_ADMIN", "ADMIN"),
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("loans.create"),
   forecloseLoan,
 );
 
@@ -84,7 +106,8 @@ router
     authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
     authorizePermissions("loans.edit"),
     updateLoan,
-  );
+  )
+  .delete(authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("loans.delete"), deleteLoan);
 
 router.patch(
   "/:id/seized",

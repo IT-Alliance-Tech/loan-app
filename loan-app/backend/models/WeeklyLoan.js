@@ -13,10 +13,16 @@ const weeklyLoanSchema = new mongoose.Schema(
       required: [true, "Customer name is required"],
       trim: true,
     },
-    mobileNumber: {
-      type: String,
+    mobileNumbers: {
+      type: [String],
       required: [true, "Mobile number is required"],
+    },
+    guarantorName: {
+      type: String,
       trim: true,
+    },
+    guarantorMobileNumbers: {
+      type: [String],
     },
     disbursementAmount: {
       type: Number,
@@ -104,6 +110,10 @@ const weeklyLoanSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   {
     timestamps: true,
@@ -138,12 +148,20 @@ weeklyLoanSchema.virtual("followupHistory", {
 // Pre-save middleware to handle calculations if needed, though we'll likely do them in the controller
 weeklyLoanSchema.pre("save", async function () {
   if (this.disbursementAmount && this.totalEmis) {
-    this.emiAmount = this.disbursementAmount / this.totalEmis;
+    this.emiAmount = Math.ceil(this.disbursementAmount / this.totalEmis);
     this.processingFee = this.disbursementAmount * 0.1;
     this.remainingEmis = this.totalEmis - this.paidEmis;
     this.totalAmount = this.emiAmount * this.paidEmis;
     this.totalCollected = this.totalAmount + this.processingFee;
   }
 });
+
+// Indexes for analytics and faster searching
+weeklyLoanSchema.index({ status: 1 });
+weeklyLoanSchema.index({ disbursementAmount: 1 });
+weeklyLoanSchema.index({ totalAmount: 1 });
+weeklyLoanSchema.index({ paidEmis: 1 });
+weeklyLoanSchema.index({ remainingEmis: 1 });
+weeklyLoanSchema.index({ loanNumber: 1 });
 
 module.exports = mongoose.model("WeeklyLoan", weeklyLoanSchema);

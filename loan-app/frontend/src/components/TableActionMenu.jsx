@@ -62,7 +62,11 @@ const TableActionMenu = ({ actions }) => {
                     action.onClick();
                     setIsOpen(false);
                   }}
-                  className="w-full text-left px-4 py-2.5 text-[11px] font-black text-slate-700 hover:bg-slate-50 uppercase tracking-wider transition-colors whitespace-nowrap"
+                  className={`w-full text-left px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-colors whitespace-nowrap ${
+                    action.variant === "danger"
+                      ? "text-rose-600 hover:bg-rose-50"
+                      : "text-slate-700 hover:bg-slate-50"
+                  }`}
                 >
                   {action.label}
                 </button>

@@ -10,14 +10,14 @@ const {
   getDailyFollowupLoans,
   getDailyPendingEmiDetails,
 } = require("../controllers/dailyLoanController");
-const { isAuthenticated } = require("../middlewares/auth");
-const authorizeRoles = require("../middlewares/role");
+const { updateFollowup } = require("../controllers/loanController");
+const { isAuthenticated, authorizeRoles, authorizePermissions } = require("../middlewares/auth");
 
 const router = express.Router();
 
 router.use(isAuthenticated);
 
-router.post("/", authorizeRoles("SUPER_ADMIN", "ADMIN"), createDailyLoan);
+router.post("/", authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("dailyLoans.create"), createDailyLoan);
 router.get(
   "/",
   authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
@@ -48,7 +48,12 @@ router.get(
   authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
   getDailyLoanById,
 );
-router.put("/:id", authorizeRoles("SUPER_ADMIN", "ADMIN"), updateDailyLoan);
-router.delete("/:id", authorizeRoles("SUPER_ADMIN", "ADMIN"), deleteDailyLoan);
+router.put("/:id", authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("dailyLoans.edit"), updateDailyLoan);
+router.patch(
+  "/update-followup/:id",
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  updateFollowup,
+);
+router.delete("/:id", authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("dailyLoans.delete"), deleteDailyLoan);
 
 module.exports = router;

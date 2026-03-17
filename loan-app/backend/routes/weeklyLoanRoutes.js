@@ -11,24 +11,30 @@ const {
   getWeeklyFollowupLoans,
   getWeeklyPendingEmiDetails,
 } = require("../controllers/weeklyLoanController");
-const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
+const { updateFollowup } = require("../controllers/loanController");
+const { isAuthenticated, authorizeRoles, authorizePermissions } = require("../middlewares/auth");
 
 router.use(isAuthenticated);
 
 router.get("/pending-payments", getWeeklyPendingPayments);
 router.get("/followup-payments", getWeeklyFollowupLoans);
 router.get("/pending-details/:id", getWeeklyPendingEmiDetails);
+router.patch(
+  "/update-followup/:id",
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  updateFollowup,
+);
 
 router
   .route("/")
   .get(getAllWeeklyLoans)
-  .post(authorizeRoles("SUPER_ADMIN", "ADMIN"), createWeeklyLoan);
+  .post(authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("weeklyLoans.create"), createWeeklyLoan);
 
 router
   .route("/:id")
   .get(getWeeklyLoanById)
-  .put(authorizeRoles("SUPER_ADMIN", "ADMIN"), updateWeeklyLoan)
-  .delete(authorizeRoles("SUPER_ADMIN", "ADMIN"), deleteWeeklyLoan);
+  .put(authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("weeklyLoans.edit"), updateWeeklyLoan)
+  .delete(authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("weeklyLoans.delete"), deleteWeeklyLoan);
 
 router.get("/emis/:id", getWeeklyLoanEMIs);
 

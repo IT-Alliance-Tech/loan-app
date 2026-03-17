@@ -7,28 +7,38 @@ import Sidebar from "../../../../components/Sidebar";
 import LoanForm from "../../../../components/LoanForm";
 import EMITable from "../../../../components/EMITable";
 import { useToast } from "../../../../context/ToastContext";
-import { getLoanById } from "../../../../services/loan.service";
+import {
+  getLoanById,
+  getFollowupHistory,
+} from "../../../../services/loan.service";
 import { getEMIsByLoanId } from "../../../../services/customer";
 import { flattenLoan } from "../../../../utils/loanUtils";
+import FollowupHistory from "../../../../components/FollowupHistory";
+import LoanStatusBadge from "../../../../components/LoanStatusBadge";
 
 const ViewLoanPage = () => {
   const router = useRouter();
   const { id } = useParams();
   const [loan, setLoan] = useState(null);
   const [emis, setEmis] = useState([]);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const { showToast } = useToast();
 
   useEffect(() => {
     const fetchLoanData = async () => {
       try {
-        const [loanRes, emiRes] = await Promise.all([
+        const [loanRes, emiRes, historyRes] = await Promise.all([
           getLoanById(id),
           getEMIsByLoanId(id),
+          getFollowupHistory(id),
         ]);
 
         const data = loanRes.data; // Already structured from backend
         const emiData = emiRes.data || [];
+        setHistory(historyRes.data || []);
+        setHistoryLoading(false);
 
         // Format dates for input[type="date"]
         const formattedData = {
@@ -127,13 +137,20 @@ const ViewLoanPage = () => {
           <Navbar />
           <main className="py-8 px-4 sm:px-8">
             <div className="max-w-6xl mx-auto">
-              <div className="mb-8">
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
-                  Loan Profile View
-                </h1>
-                <p className="text-slate-500 font-medium text-sm">
-                  Detailed view of loan record: {loan?.loanNumber}
-                </p>
+              <div className="sticky top-16 z-30 bg-[#F8FAFC]/80 backdrop-blur-md py-4 mb-8 border-b border-slate-100 flex justify-between items-center transition-all duration-300">
+                <div>
+                  <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+                    Loan Profile View
+                  </h1>
+                  <p className="text-slate-500 font-medium text-sm">
+                    Detailed view of loan record: {loan?.loanNumber}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <LoanStatusBadge
+                    status={loan?.status?.status || loan?.status}
+                  />
+                </div>
               </div>
 
               {loan && (
@@ -158,6 +175,8 @@ const ViewLoanPage = () => {
                       isEditMode={false}
                     />
                   </div>
+
+                  <FollowupHistory history={history} loading={historyLoading} />
                 </>
               )}
             </div>

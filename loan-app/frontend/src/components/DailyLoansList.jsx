@@ -7,12 +7,21 @@ import { useToast } from "../context/ToastContext";
 import { format } from "date-fns";
 import TableActionMenu from "./TableActionMenu";
 import Pagination from "./Pagination";
+import { Trash2 } from "lucide-react";
 import { exportLoansToExcel } from "../utils/excelExport";
 import { getUserFromToken } from "../utils/auth";
 
 const DailyLoansList = ({ type, title }) => {
   const router = useRouter();
   const { showToast } = useToast();
+  const [selectedRowId, setSelectedRowId] = useState(null);
+
+  const toggleHighlight = (e, id) => {
+    // Don't toggle if clicking a link or button directly
+    if (e.target.closest("button") || e.target.closest("a")) return;
+    setSelectedRowId((prev) => (prev === id ? null : id));
+  };
+
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const canCreate = isSuperAdmin || user?.permissions?.dailyLoans?.create;
@@ -23,7 +32,7 @@ const DailyLoansList = ({ type, title }) => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [limit] = useState(10);
+  const [limit] = useState(25);
 
   const fetchLoans = async () => {
     setLoading(true);
@@ -207,8 +216,8 @@ const DailyLoansList = ({ type, title }) => {
           <div className="overflow-x-auto scrollbar-none">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-200">
-                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                     LOAN NO
                   </th>
                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
@@ -263,9 +272,20 @@ const DailyLoansList = ({ type, title }) => {
                   loans.map((loan) => (
                     <tr
                       key={loan._id}
-                      className="active:bg-slate-50 transition-colors group"
+                      onClick={(e) => toggleHighlight(e, loan._id)}
+                      className={`cursor-pointer transition-colors group ${
+                        selectedRowId === loan._id
+                          ? "bg-blue-50/80"
+                          : "active:bg-slate-50"
+                      }`}
                     >
-                      <td className="px-4 py-5 whitespace-nowrap">
+                      <td
+                        className={`px-4 py-5 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                          selectedRowId === loan._id
+                            ? "bg-blue-50/80"
+                            : "bg-white group-hover:bg-slate-50"
+                        }`}
+                      >
                         <Link
                           href={`/admin/daily-loans/${loan._id}`}
                           className="text-[10px] font-black text-primary uppercase tracking-tighter bg-blue-50 px-2 py-1 rounded-md"
@@ -280,7 +300,7 @@ const DailyLoansList = ({ type, title }) => {
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
                         <span className="text-slate-600 font-bold text-[10px]">
-                          {loan.mobileNumber}
+                          {loan.mobileNumbers?.[0] || loan.mobileNumber}
                         </span>
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
@@ -290,7 +310,7 @@ const DailyLoansList = ({ type, title }) => {
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
                         <span className="text-slate-600 font-bold text-[10px]">
-                          {loan.guarantorMobile || "—"}
+                          {loan.guarantorMobileNumbers?.[0] || loan.guarantorMobile || "—"}
                         </span>
                       </td>
                       <td className="px-4 py-5 text-center whitespace-nowrap">
@@ -323,7 +343,13 @@ const DailyLoansList = ({ type, title }) => {
                           {loan.clientResponse || "—"}
                         </span>
                       </td>
-                      <td className="px-4 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                      <td
+                        className={`px-4 py-5 text-center whitespace-nowrap sticky right-0 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                          selectedRowId === loan._id
+                            ? "bg-blue-50/80"
+                            : "bg-white group-hover:bg-slate-50"
+                        }`}
+                      >
                         <div className="flex justify-center items-center gap-2">
                           <button
                             onClick={() =>
@@ -375,6 +401,15 @@ const DailyLoansList = ({ type, title }) => {
                               </svg>
                             </button>
                           )}
+                          {isSuperAdmin && (
+                            <button
+                              onClick={() => handleDelete(loan._id)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 border border-red-100"
+                              title="Delete Loan"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -392,8 +427,8 @@ const DailyLoansList = ({ type, title }) => {
         <div className="hidden md:block overflow-x-auto scrollbar-thin scrollbar-thumb-slate-100 pb-1">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-200">
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                   Loan Number
                 </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
@@ -445,9 +480,20 @@ const DailyLoansList = ({ type, title }) => {
                 loans.map((loan) => (
                   <tr
                     key={loan._id}
-                    className="hover:bg-slate-50 transition-colors group"
+                    onClick={(e) => toggleHighlight(e, loan._id)}
+                    className={`cursor-pointer transition-colors group ${
+                      selectedRowId === loan._id
+                        ? "bg-blue-50/80"
+                        : "hover:bg-slate-50"
+                    }`}
                   >
-                    <td className="px-6 py-5 whitespace-nowrap">
+                    <td
+                      className={`px-6 py-5 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                        selectedRowId === loan._id
+                          ? "bg-blue-50/80"
+                          : "bg-white group-hover:bg-slate-50"
+                      }`}
+                    >
                       <Link
                         href={`/admin/daily-loans/${loan._id}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
@@ -462,7 +508,7 @@ const DailyLoansList = ({ type, title }) => {
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
                       <span className="text-slate-600 font-bold text-xs tracking-widest">
-                        {loan.mobileNumber}
+                        {loan.mobileNumbers?.[0] || loan.mobileNumber}
                       </span>
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
@@ -504,7 +550,13 @@ const DailyLoansList = ({ type, title }) => {
                         {loan.clientResponse || "—"}
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                    <td
+                      className={`px-6 py-5 text-center whitespace-nowrap sticky right-0 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                        selectedRowId === loan._id
+                          ? "bg-blue-50/80"
+                          : "bg-white group-hover:bg-slate-50"
+                      }`}
+                    >
                       <div className="flex justify-center items-center gap-3">
                         <button
                           onClick={() =>
@@ -552,6 +604,15 @@ const DailyLoansList = ({ type, title }) => {
                                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                               />
                             </svg>
+                          </button>
+                        )}
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => handleDelete(loan._id)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 border border-red-100 transition-all"
+                            title="Delete Loan"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </div>

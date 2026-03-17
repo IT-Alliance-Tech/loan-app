@@ -1,6 +1,5 @@
 const express = require("express");
-// Triggering server redeploy v4
-const dotenv = require("dotenv");
+require("dotenv").config();
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const errorMiddleware = require("./middlewares/error");
@@ -12,10 +11,25 @@ const emiUtilityRoutes = require("./routes/emiUtilityRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
 const weeklyLoanRoutes = require("./routes/weeklyLoanRoutes");
 const dailyLoanRoutes = require("./routes/dailyLoanRoutes");
-
-dotenv.config();
+const loanEmiRoutes = require("./routes/loanEmiRoutes");
+const todoRoutes = require("./routes/todoRoutes");
+const collectionRoutes = require("./routes/collectionRoutes");
+const compression = require("compression");
 
 const app = express();
+
+// 1. Performance Monitoring Middleware (Global)
+app.use((req, res, next) => {
+  const start = performance.now();
+  res.on("finish", () => {
+    const duration = (performance.now() - start).toFixed(2);
+    console.log(`[PERF] ${req.method} ${req.originalUrl} - ${duration}ms`);
+  });
+  next();
+});
+
+// 2. Global Compression
+app.use(compression());
 
 // Health Check & Root
 app.get("/api/health", (req, res) => {
@@ -66,6 +80,9 @@ app.use("/api/emi-utility", emiUtilityRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/weekly-loans", weeklyLoanRoutes);
 app.use("/api/daily-loans", dailyLoanRoutes);
+app.use("/api/emi-mgmt", loanEmiRoutes);
+app.use("/api/todos", todoRoutes);
+app.use("/api/collections", collectionRoutes);
 
 // Error Middleware
 app.use(errorMiddleware);

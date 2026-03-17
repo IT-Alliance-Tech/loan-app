@@ -3,11 +3,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { getDailyFollowupLoans } from "../services/dailyLoan.service";
+import { getDailyFollowupLoans, deleteDailyLoan } from "../services/dailyLoan.service";
 import Pagination from "./Pagination";
 import { useToast } from "../context/ToastContext";
 import TableActionMenu from "./TableActionMenu";
 import ContactActionMenu from "./ContactActionMenu";
+import { getUserFromToken } from "../utils/auth";
 
 const DailyFollowupList = () => {
   const router = useRouter();
@@ -23,6 +24,8 @@ const DailyFollowupList = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   const fetchFollowups = async () => {
     try {
@@ -46,6 +49,18 @@ const DailyFollowupList = () => {
       showToast(err.message, "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this daily loan?")) {
+      try {
+        await deleteDailyLoan(id);
+        showToast("Daily loan deleted", "success");
+        fetchFollowups();
+      } catch (err) {
+        showToast(err.message || "Failed to delete", "error");
+      }
     }
   };
 
@@ -149,7 +164,7 @@ const DailyFollowupList = () => {
                   >
                     <td className="px-6 py-5 whitespace-nowrap">
                       <Link
-                        href={`/admin/daily-loans/pending/view/${loan.earliestEmiId}?from=followup`}
+                        href={`/admin/daily-loans/edit/${loan.loanId}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
                       >
                         {loan.loanNumber}
@@ -162,8 +177,9 @@ const DailyFollowupList = () => {
                       <button
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
+                          const num = loan.mobileNumbers?.[0] || loan.mobileNumber;
                           setActiveContactMenu({
-                            number: loan.mobileNumber,
+                            number: num,
                             name: loan.customerName,
                             type: "Applicant",
                             x: rect.left,
@@ -172,7 +188,7 @@ const DailyFollowupList = () => {
                         }}
                         className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
                       >
-                        {loan.mobileNumber}
+                        {loan.mobileNumbers?.[0] || loan.mobileNumber}
                       </button>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
@@ -212,18 +228,17 @@ const DailyFollowupList = () => {
                       <TableActionMenu
                         actions={[
                           {
-                            label: "View",
-                            onClick: () =>
-                              router.push(
-                                `/admin/daily-loans/pending/view/${loan.earliestEmiId}?from=followup`,
-                              ),
-                          },
-                          {
                             label: "Edit Loan",
                             onClick: () =>
                               router.push(
                                 `/admin/daily-loans/edit/${loan.loanId}`,
                               ),
+                          },
+                          {
+                            label: "Seize Vehicle",
+                            onClick: () => {
+                                 router.push(`/admin/daily-loans/edit/${loan.loanId}?action=seize`);
+                            }
                           },
                         ]}
                       />

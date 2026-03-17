@@ -4,6 +4,9 @@ const EMI = require("../models/EMI");
 const SeizedVehicle = require("../models/SeizedVehicle");
 const ClosedLoan = require("../models/ClosedLoan");
 const Followup = require("../models/Followup");
+const DailyLoan = require("../models/DailyLoan");
+const WeeklyLoan = require("../models/WeeklyLoan");
+const Payment = require("../models/Payment");
 const ErrorHandler = require("../utils/ErrorHandler");
 const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
@@ -21,7 +24,7 @@ const calculateEMI = (principal, roi, tenureMonths) => {
   const monthlyPrincipal = p / n;
   const emi = monthlyPrincipal + monthlyInterest;
 
-  return parseFloat(emi.toFixed(2));
+  return Math.ceil(emi);
 };
 
 const calculateEMIApi = asyncHandler(async (req, res, next) => {
@@ -60,10 +63,13 @@ const createLoan = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Please provide all required fields", 400));
   }
 
-  const existingLoan = await Loan.findOne({
-    loanNumber: loanTerms.loanNumber,
-  });
-  if (existingLoan) {
+  const existingLoan = await Promise.all([
+    Loan.findOne({ loanNumber: loanTerms.loanNumber }),
+    WeeklyLoan.findOne({ loanNumber: loanTerms.loanNumber }),
+    DailyLoan.findOne({ loanNumber: loanTerms.loanNumber }),
+  ]);
+
+  if (existingLoan.some((loan) => loan !== null)) {
     return next(new ErrorHandler("Loan number already exists", 400));
   }
 
@@ -106,7 +112,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     vehicleNumber: vehicleInformation?.vehicleNumber,
     chassisNumber: vehicleInformation?.chassisNumber,
     engineNumber: vehicleInformation?.engineNumber,
-    model: vehicleInformation?.model,
+    modelYear: vehicleInformation?.modelYear,
     typeOfVehicle: vehicleInformation?.typeOfVehicle,
     ywBoard: vehicleInformation?.ywBoard,
     dealerName: vehicleInformation?.dealerName,
@@ -157,6 +163,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
 });
 
 const getAllLoans = asyncHandler(async (req, res, next) => {
+  const startTotal = performance.now();
   const {
     loanNumber,
     customerName,
@@ -166,7 +173,7 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
     status,
   } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 10;
+  const limit = parseInt(req.query.limit, 10) || 12; // Increased slightly for UI density
   const skip = (page - 1) * limit;
 
   const query = {};
@@ -195,18 +202,27 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
     }
   }
 
+  // Handle Expired Loans filter
+  if (req.query.isExpired === "true") {
+    query.status = { $regex: /^active$/i };
+    query.emiEndDate = { $lt: new Date() };
+  }
+
+  // 1. Performance: Count documents (Fast)
+  const countStart = performance.now();
   const total = await Loan.countDocuments(query);
+  const countTime = (performance.now() - countStart).toFixed(2);
 
   // Check if we need extended data for export
   const forExport = req.query.forExport === "true";
 
   let loans;
+  const dbStart = performance.now();
   if (forExport) {
     // Advanced aggregation for export with repayment stats
     loans = await Loan.aggregate([
       { $match: query },
       { $sort: { createdAt: -1 } },
-      // Join with EMIs
       {
         $lookup: {
           from: "emis",
@@ -218,7 +234,12 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
       {
         $addFields: {
           repaymentStats: {
-            totalCollected: { $sum: "$emis.amountPaid" },
+            totalCollected: {
+              $add: [
+                { $sum: "$emis.amountPaid" },
+                { $sum: { $ifNull: ["$emis.overdue", 0] } },
+              ],
+            },
             overdueAmount: { $sum: "$emis.overdue" },
             paidEmisCount: {
               $size: {
@@ -238,84 +259,83 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
                 },
               },
             },
-            nextEmiDueDate: {
-              $min: {
-                $filter: {
-                  input: "$emis.dueDate",
-                  as: "date",
-                  cond: {
-                    $gt: [
-                      "$$date",
-                      {
-                        $ifNull: [
-                          {
-                            $max: {
-                              $filter: {
-                                input: "$emis",
-                                as: "e",
-                                cond: { $eq: ["$$e.status", "Paid"] },
-                              },
-                            },
-                          },
-                          new Date(0),
-                        ],
-                      },
-                    ],
-                  },
-                },
-              },
-            },
           },
         },
       },
-      // Join with Users to get name for updatedBy
-      {
-        $lookup: {
-          from: "users",
-          localField: "updatedBy",
-          foreignField: "_id",
-          as: "updatedByInfo",
-        },
-      },
-      {
-        $addFields: {
-          updatedBy: { $arrayElemAt: ["$updatedByInfo.name", 0] },
-        },
-      },
-      // Cleanup
-      { $project: { emis: 0, updatedByInfo: 0 } },
+      { $project: { emis: 0 } },
     ]);
   } else {
+    // CRITICAL OPTIMIZATION: .lean() and .select()
+    // We select ALL fields required by the frontend table to avoid undefined errors
     loans = await Loan.find(query)
+      .select(
+        "loanNumber customerName mobileNumbers guarantorName guarantorMobileNumbers monthlyEMI tenureMonths status isSeized clientResponse createdAt",
+      )
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
   }
+  const dbTime = (performance.now() - dbStart).toFixed(2);
 
-  sendResponse(res, 200, "success", "Loans fetched successfully", null, {
-    loans: loans.map((loan) => {
-      const formatted = formatLoanResponse(loan);
-      // If aggregation data is present, attach it
-      if (loan.repaymentStats) {
-        formatted.repaymentStats = loan.repaymentStats;
-        // Calculate remaining principal based on paid count
-        const principal = loan.principalAmount || 0;
-        const tenure = loan.tenureMonths || 1;
-        const paidCount = loan.repaymentStats.paidEmisCount || 0;
-        formatted.repaymentStats.remainingPrincipal = Math.max(
-          0,
-          principal - paidCount * (principal / tenure),
-        );
-      }
-      return formatted;
-    }),
+  // 2. Performance: Serialization & Formatting
+  const serStart = performance.now();
+  const formattedLoans = loans.map((loan) => {
+    // RESTORE NESTED STRUCTURE: Frontend expects these specific paths
+    return {
+      _id: loan._id,
+      customerDetails: {
+        customerName: loan.customerName,
+        mobileNumbers: loan.mobileNumbers || [],
+        guarantorName: loan.guarantorName,
+        guarantorMobileNumbers: loan.guarantorMobileNumbers || [],
+      },
+      loanTerms: {
+        loanNumber: loan.loanNumber,
+        monthlyEMI: loan.monthlyEMI,
+        tenureMonths: loan.tenureMonths,
+      },
+      status: {
+        status: loan.status,
+        isSeized: loan.isSeized,
+        clientResponse: loan.clientResponse,
+      },
+      createdAt: loan.createdAt,
+      repaymentStats: loan.repaymentStats || null,
+    };
+  });
+
+  const responseData = {
+    loans: formattedLoans,
     pagination: {
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
     },
-  });
+    performance: {
+      dbTime: `${dbTime}ms`,
+      countTime: `${countTime}ms`,
+      totalTime: `${(performance.now() - startTotal).toFixed(2)}ms`,
+    },
+  };
+
+  const serTime = (performance.now() - serStart).toFixed(2);
+  const totalTime = (performance.now() - startTotal).toFixed(2);
+
+  console.log(
+    `[PERF] getAllLoans - DB: ${dbTime}ms, Ser: ${serTime}ms, Total: ${totalTime}ms, Size: ${JSON.stringify(responseData).length} bytes`,
+  );
+
+  // Use the standard sendResponse utility to ensure status: "success" wrapper
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Loans fetched successfully",
+    null,
+    responseData,
+  );
 });
 
 const populateLoanDetails = (query) => {
@@ -615,6 +635,19 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     nextFollowUpDate: topLevelNextFollowUpDate,
   } = req.body;
 
+  // Global Loan Number Uniqueness Check
+  if (loanTerms?.loanNumber && loanTerms.loanNumber !== loan.loanNumber) {
+    const existingLoanWithNumber = await Promise.all([
+      Loan.findOne({ loanNumber: loanTerms.loanNumber }),
+      WeeklyLoan.findOne({ loanNumber: loanTerms.loanNumber }),
+      DailyLoan.findOne({ loanNumber: loanTerms.loanNumber }),
+    ]);
+
+    if (existingLoanWithNumber.some((l) => l !== null)) {
+      return next(new ErrorHandler("Loan number already exists", 400));
+    }
+  }
+
   // Support nested foreclosureDetails in status object
   const foreclosureDetails = statusObj?.foreclosureDetails;
 
@@ -666,7 +699,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       vehicleNumber: vehicleInformation.vehicleNumber,
       chassisNumber: vehicleInformation.chassisNumber,
       engineNumber: vehicleInformation.engineNumber,
-      model: vehicleInformation.model,
+      modelYear: vehicleInformation.modelYear,
       typeOfVehicle: vehicleInformation.typeOfVehicle,
       ywBoard: vehicleInformation.ywBoard,
       dealerName: vehicleInformation.dealerName,
@@ -688,8 +721,18 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       statusObj?.isSeized !== undefined ? statusObj.isSeized : loan.isSeized,
     docChecklist: statusObj?.docChecklist || loan.docChecklist,
     remarks: statusObj?.remarks || loan.remarks,
-    clientResponse: statusObj?.clientResponse || topLevelClientResponse,
-    nextFollowUpDate: statusObj?.nextFollowUpDate || topLevelNextFollowUpDate,
+    clientResponse:
+      statusObj?.clientResponse !== undefined
+        ? statusObj.clientResponse
+        : topLevelClientResponse !== undefined
+          ? topLevelClientResponse
+          : loan.clientResponse,
+    nextFollowUpDate:
+      statusObj?.nextFollowUpDate !== undefined
+        ? statusObj.nextFollowUpDate || null
+        : topLevelNextFollowUpDate !== undefined
+          ? topLevelNextFollowUpDate || null
+          : loan.nextFollowUpDate,
 
     // Flatten foreclosureDetails
     foreclosedBy: foreclosureDetails?.foreclosedBy || loan.foreclosedBy,
@@ -941,6 +984,11 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
   const now = new Date();
   now.setHours(23, 59, 59, 999);
 
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  // Removed: independence of Pending and Follow-up pages.
+  // Pending page now only cares about EMI status.
   const result = await Loan.aggregate([
     {
       $match: {
@@ -957,6 +1005,24 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
       },
     },
     {
+      $lookup: {
+        from: "users",
+        localField: "updatedBy",
+        foreignField: "_id",
+        as: "updatedByInfo",
+      },
+    },
+    {
+      $addFields: {
+        updatedBy: { $arrayElemAt: ["$updatedByInfo", 0] },
+      },
+    },
+    {
+      $addFields: {
+        updatedBy: { $arrayElemAt: ["$updatedByInfo", 0] },
+      },
+    },
+    {
       $addFields: {
         pendingEmisList: {
           $filter: {
@@ -967,15 +1033,17 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
                 { $ne: ["$$emi.status", "Paid"] },
                 // If nextFollowUpDate is provided, we include ALL Pending/Partial EMIs to ensure the loan shows up
                 // If NOT provided, we strictly filter by overdue EMIs (dueDate <= now)
-                nextFollowUpDate ? true : { $lte: ["$$emi.dueDate", now] },
-                status
-                  ? { $eq: ["$$emi.status", status] }
-                  : {
-                      $in: [
-                        "$$emi.status",
-                        ["Pending", "Partially Paid", "Overdue"],
-                      ],
-                    },
+                { $lte: ["$$emi.dueDate", now] },
+                status === "Pending"
+                  ? { $in: ["$$emi.status", ["Pending", "Overdue"]] }
+                  : status
+                    ? { $eq: ["$$emi.status", status] }
+                    : {
+                        $in: [
+                          "$$emi.status",
+                          ["Pending", "Partially Paid", "Overdue"],
+                        ],
+                      },
               ],
             },
           },
@@ -984,38 +1052,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     },
     {
       $match: {
-        $or: [
-          { $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] } },
-          // IF we are searching specifically for a follow-up date,
-          // allow the loan even if no EMIs are strictly "overdue" yet,
-          // as long as it has SOME Pending/Partial EMIs
-          {
-            $and: [
-              { nextFollowUpDate: { $exists: true, $ne: null } },
-              {
-                $expr: {
-                  $gt: [
-                    {
-                      $size: {
-                        $filter: {
-                          input: "$emis",
-                          as: "e",
-                          cond: {
-                            $in: [
-                              "$$e.status",
-                              ["Pending", "Partially Paid", "Overdue"],
-                            ],
-                          },
-                        },
-                      },
-                    },
-                    0,
-                  ],
-                },
-              },
-            ],
-          },
-        ],
+        $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] },
       },
     },
     {
@@ -1029,7 +1066,13 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         guarantorMobileNumbers: 1,
         vehicleNumber: 1,
         model: 1,
-        unpaidMonths: { $size: "$pendingEmisList" },
+        unpaidMonths: {
+          $cond: {
+            if: { $gt: [{ $size: "$pendingEmisList" }, 0] },
+            then: { $size: "$pendingEmisList" },
+            else: 1, // Show at least 1 month if included via follow-up
+          },
+        },
         totalDueAmount: {
           $reduce: {
             input: "$pendingEmisList",
@@ -1046,36 +1089,20 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         earliestEmiId: {
           $let: {
             vars: {
-              // Try to get from overdue list first
               overdueEmi: { $arrayElemAt: ["$pendingEmisList", 0] },
-              // Fallback to any pending emi in the full list
-              anyPendingEmi: {
-                $arrayElemAt: [
-                  {
-                    $filter: {
-                      input: "$emis",
-                      as: "e",
-                      cond: {
-                        $in: [
-                          "$$e.status",
-                          ["Pending", "Partially Paid", "Overdue"],
-                        ],
-                      },
-                    },
-                  },
-                  0,
-                ],
-              },
             },
-            in: {
-              $toString: {
-                $ifNull: ["$$overdueEmi._id", "$$anyPendingEmi._id"],
-              },
-            },
+            in: { $toString: "$$overdueEmi._id" },
           },
         },
         clientResponse: 1,
+        nextFollowUpDate: 1,
+        updatedBy: {
+          _id: 1,
+          name: 1,
+        },
+        updatedAt: 1,
         paymentStatus: 1,
+        loanModel: { $literal: "Loan" },
       },
     },
     { $sort: { earliestDueDate: 1 } },
@@ -1155,9 +1182,24 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
     },
     { $unwind: "$loan" },
     {
+      $lookup: {
+        from: "users",
+        localField: "loan.updatedBy",
+        foreignField: "_id",
+        as: "updatedUserInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$updatedUserInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
       $project: {
         _id: 1,
         loanId: "$loan._id",
+        loanModel: { $literal: "Loan" },
         loanNumber: "$loan.loanNumber",
         customerName: "$loan.customerName",
         mobileNumbers: "$loan.mobileNumbers",
@@ -1178,6 +1220,9 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
         remarks: "$remarks",
         paymentHistory: "$paymentHistory",
         clientResponse: "$loan.clientResponse",
+        nextFollowUpDate: "$loan.nextFollowUpDate",
+        updatedAt: "$loan.updatedAt",
+        updatedBy: { $ifNull: ["$updatedUserInfo.name", "$loan.updatedBy"] },
         emiNumber: 1,
         paymentRecords: 1,
       },
@@ -1233,123 +1278,196 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     vehicleNumber,
     mobileNumber,
     nextFollowUpDate,
+    loanType: queryLoanType,
   } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
-  let query = {};
-
-  if (customerName) {
-    query.customerName = { $regex: customerName, $options: "i" };
-  }
-  if (loanNumber) {
-    query.loanNumber = { $regex: loanNumber, $options: "i" };
-  }
-  if (vehicleNumber) {
-    query.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
-  }
-  if (mobileNumber) {
-    query.$or = [
-      { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
-      { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
-    ];
-  }
-
-  // Mandatory date filtering for follow-ups
+  // Filter for nextFollowUpDate
   const dateToFilter =
     nextFollowUpDate || new Date().toISOString().split("T")[0];
   const start = new Date(dateToFilter);
   start.setHours(0, 0, 0, 0);
   const end = new Date(dateToFilter);
   end.setHours(23, 59, 59, 999);
-  query.nextFollowUpDate = { $gte: start, $lte: end };
+  const dateFilter = { nextFollowUpDate: { $gte: start, $lte: end } };
 
-  // For followup logic, we don't care if the payment is officially "overdue" yet
-  // We just want ANY loan that has at least one Pending/Partial EMI
-  const result = await Loan.aggregate([
-    {
-      $match: {
-        ...query,
-        status: { $ne: "Closed" },
-      },
-    },
-    {
-      $lookup: {
-        from: "emis",
-        localField: "_id",
-        foreignField: "loanId",
-        as: "emis",
-      },
-    },
-    {
-      $addFields: {
-        pendingEmisList: {
-          $filter: {
-            input: "$emis",
-            as: "emi",
-            cond: {
-              $in: ["$$emi.status", ["Pending", "Partially Paid", "Overdue"]],
-            },
-          },
+  // Common filters
+  let commonQuery = { ...dateFilter, status: { $ne: "Closed" } };
+  if (customerName)
+    commonQuery.customerName = { $regex: customerName, $options: "i" };
+  if (loanNumber)
+    commonQuery.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (vehicleNumber)
+    commonQuery.vehicleNumber = { $regex: vehicleNumber, $options: "i" };
+
+  // Helper function for aggregation pipeline
+  const getPipeline = (modelName, loanType, mobileField) => {
+    let pipeline = [{ $match: commonQuery }];
+
+    if (mobileNumber) {
+      if (modelName === "Loan") {
+        pipeline[0].$match.$or = [
+          { mobileNumbers: { $regex: mobileNumber, $options: "i" } },
+          { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
+        ];
+      } else {
+        pipeline[0].$match.mobileNumber = { $regex: mobileNumber, $options: "i" };
+      }
+    }
+
+    pipeline.push(
+      {
+        $lookup: {
+          from: "emis",
+          localField: "_id",
+          foreignField: "loanId",
+          as: "emis",
         },
       },
-    },
-    {
-      $project: {
-        loanId: "$_id",
-        loanNumber: 1,
-        customerName: 1,
-        guarantorName: 1,
-        status: 1,
-        mobileNumbers: 1,
-        guarantorMobileNumbers: 1,
-        vehicleNumber: 1,
-        model: 1,
-        unpaidMonths: { $size: "$pendingEmisList" },
-        totalDueAmount: {
-          $reduce: {
-            input: "$pendingEmisList",
-            initialValue: 0,
-            in: { $add: ["$$value", "$$this.emiAmount"] },
-          },
+      {
+        $lookup: {
+          from: "users",
+          localField: "updatedBy",
+          foreignField: "_id",
+          as: "updatedByInfo",
         },
-        earliestEmiId: {
-          $let: {
-            vars: {
-              firstPending: { $arrayElemAt: ["$pendingEmisList", 0] },
-            },
-            in: { $toString: { $ifNull: ["$$firstPending._id", null] } },
-          },
+      },
+      {
+        $addFields: {
+          updatedBy: { $arrayElemAt: ["$updatedByInfo", 0] },
         },
-        earliestDueDate: {
-          $let: {
-            vars: {
-              sortedEmis: {
-                $sortArray: {
-                  input: "$pendingEmisList",
-                  sortBy: { dueDate: 1 },
-                },
+      },
+      {
+        $addFields: {
+          pendingEmisList: {
+            $filter: {
+              input: "$emis",
+              as: "emi",
+              cond: {
+                $and: [
+                  { $ne: ["$$emi.status", "Paid"] },
+                  { $eq: ["$$emi.loanModel", modelName] },
+                ],
               },
             },
-            in: { $arrayElemAt: ["$$sortedEmis.dueDate", 0] },
           },
         },
-        clientResponse: 1,
-        nextFollowUpDate: 1,
       },
-    },
-    { $sort: { earliestDueDate: 1 } },
-    {
-      $facet: {
-        metadata: [{ $count: "total" }],
-        payments: [{ $skip: skip }, { $limit: limit }],
+      {
+        $project: {
+          loanId: "$_id",
+          loanNumber: 1,
+          customerName: 1,
+          guarantorName: modelName === "Loan" ? 1 : { $literal: "—" },
+          status: 1,
+          mobileNumbers: modelName === "Loan" ? 1 : ["$mobileNumber"],
+          guarantorMobileNumbers:
+            modelName === "Loan" ? 1 : { $literal: [] },
+          vehicleNumber: 1,
+          model: 1,
+          loanType: { $literal: loanType },
+          loanModel: { $literal: modelName },
+          unpaidMonths: { $size: "$pendingEmisList" },
+          totalDueAmount: {
+            $reduce: {
+              input: "$pendingEmisList",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $subtract: [
+                      { $toDouble: "$$this.emiAmount" },
+                      { $toDouble: { $ifNull: ["$$this.amountPaid", 0] } },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          earliestEmiId: {
+            $let: {
+              vars: {
+                firstPending: {
+                  $arrayElemAt: [
+                    {
+                      $sortArray: {
+                        input: "$pendingEmisList",
+                        sortBy: { dueDate: 1 },
+                      },
+                    },
+                    0,
+                  ],
+                },
+              },
+              in: { $toString: { $ifNull: ["$$firstPending._id", null] } },
+            },
+          },
+          earliestDueDate: {
+            $let: {
+              vars: {
+                sortedEmis: {
+                  $sortArray: {
+                    input: "$pendingEmisList",
+                    sortBy: { dueDate: 1 },
+                  },
+                },
+              },
+              in: { $arrayElemAt: ["$$sortedEmis.dueDate", 0] },
+            },
+          },
+          clientResponse: 1,
+          nextFollowUpDate: 1,
+          updatedBy: {
+            _id: 1,
+            name: 1,
+          },
+          updatedAt: 1,
+        },
       },
-    },
-  ]);
+    );
+    return pipeline;
+  };
 
-  const total = result[0].metadata[0] ? result[0].metadata[0].total : 0;
-  const payments = result[0].payments;
+  // Run aggregations for models based on loanType filter
+  const promises = [];
+  
+  if (!queryLoanType || queryLoanType.toLowerCase() === "monthly") {
+    promises.push(Loan.aggregate(getPipeline("Loan", "Monthly")));
+  } else {
+    promises.push(Promise.resolve([]));
+  }
+  
+  if (!queryLoanType || queryLoanType.toLowerCase() === "daily") {
+    promises.push(DailyLoan.aggregate(getPipeline("DailyLoan", "Daily")));
+  } else {
+    promises.push(Promise.resolve([]));
+  }
+  
+  if (!queryLoanType || queryLoanType.toLowerCase() === "weekly") {
+    promises.push(WeeklyLoan.aggregate(getPipeline("WeeklyLoan", "Weekly")));
+  } else {
+    promises.push(Promise.resolve([]));
+  }
+
+  const [monthlyFollowups, dailyFollowups, weeklyFollowups] = await Promise.all(promises);
+
+  // Combine and sort
+  let allFollowups = [
+    ...monthlyFollowups,
+    ...dailyFollowups,
+    ...weeklyFollowups,
+  ].sort((a, b) => {
+    // Sort by earliestDueDate ascending
+    if (!a.earliestDueDate) return 1;
+    if (!b.earliestDueDate) return -1;
+    return new Date(a.earliestDueDate) - new Date(b.earliestDueDate);
+  });
+
+  const total = allFollowups.length;
+  const paginatedFollowups = allFollowups.slice(skip, skip + limit);
 
   sendResponse(
     res,
@@ -1358,7 +1476,7 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     "Follow-up loans fetched successfully",
     null,
     {
-      payments,
+      payments: paginatedFollowups,
       pagination: {
         total,
         page,
@@ -1366,6 +1484,78 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
         totalPages: Math.ceil(total / limit),
       },
     },
+  );
+});
+
+const updateFollowup = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { loanModel, clientResponse, nextFollowUpDate } = req.body;
+
+  let Model;
+  if (loanModel === "Loan") Model = Loan;
+  else if (loanModel === "DailyLoan") Model = DailyLoan;
+  else if (loanModel === "WeeklyLoan") Model = WeeklyLoan;
+  else {
+    return next(new ErrorHandler("Invalid loan model provided", 400));
+  }
+
+  const loan = await Model.findById(id);
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // Update the loan document
+  loan.clientResponse =
+    clientResponse !== undefined ? clientResponse : loan.clientResponse;
+  loan.nextFollowUpDate =
+    nextFollowUpDate !== undefined
+      ? nextFollowUpDate
+        ? new Date(nextFollowUpDate)
+        : null
+      : loan.nextFollowUpDate;
+
+  loan.updatedBy = req.user?._id;
+  await loan.save();
+
+  // Create follow-up history record
+  if (clientResponse || nextFollowUpDate !== undefined) {
+    const loanType =
+      loanModel === "Loan" ? "Monthly" : loanModel.replace("Loan", "");
+
+    await Followup.create({
+      loanId: loan._id,
+      loanModel,
+      loanType,
+      followupDate: new Date(),
+      clientResponse: clientResponse || loan.clientResponse,
+      nextFollowupDate: loan.nextFollowUpDate,
+      followedUpBy: req.user?._id,
+    });
+  }
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Follow-up updated successfully",
+    null,
+    loan,
+  );
+});
+
+const getFollowupHistory = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const history = await Followup.find({ loanId: id })
+    .sort({ followupDate: -1 })
+    .populate("followedUpBy", "name email");
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Follow-up history fetched successfully",
+    null,
+    history,
   );
 });
 
@@ -1484,12 +1674,10 @@ const getForeclosureLoans = asyncHandler(async (req, res, next) => {
 const forecloseLoan = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const {
-    foreclosureChargeAmount,
-    foreclosureChargePercent,
-    miscellaneousFee,
-    od,
     remainingPrincipal,
     totalAmount,
+    paymentBreakdown, // Array of { mode, amount }
+    paymentDate,
     remarks,
   } = req.body;
 
@@ -1502,32 +1690,48 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Loan not found", 404));
   }
 
-  // 1. Update Loan status to Closed using findByIdAndUpdate to bypass full document validation
-  // (Prevents error if some required fields like createdBy are missing in older/test records)
+  if (loan.status === "Closed") {
+    return next(new ErrorHandler("the loan has been closed already", 400));
+  }
+
+  // 0. Amount Validation
+  const totalReceived = (paymentBreakdown || []).reduce(
+    (acc, curr) => acc + parseFloat(curr.amount || 0),
+    0,
+  );
+
+  if (totalReceived < parseFloat(totalAmount) - 0.1) {
+    return next(
+      new ErrorHandler(
+        `Received total (₹${totalReceived}) is less than total foreclosure amount (₹${totalAmount})`,
+        400,
+      ),
+    );
+  }
+
+  const pDate = paymentDate ? new Date(paymentDate) : new Date();
+  const pMode =
+    (paymentBreakdown || []).map((p) => p.mode).join(", ") || "CASH";
+
+  // 1. Update Loan status to Closed
   const updatedLoan = await Loan.findByIdAndUpdate(
     id,
     {
       status: "Closed",
-      paymentStatus: "Closed", // Set paymentStatus to Closed as requested
-      remarks: remarks || `Foreclosed on ${new Date().toLocaleDateString()}`,
+      paymentStatus: "Closed",
+      remarks: remarks || `Foreclosed on ${pDate.toLocaleDateString()}`,
       foreclosedBy: req.user?._id,
-      foreclosureDate: new Date(),
+      foreclosureDate: pDate,
       foreclosureAmount: totalAmount,
-      // Detailed Breakdown
-      foreclosureChargeAmount,
-      foreclosureChargePercent,
-      miscellaneousFee,
-      odAmount: od, // Map 'od' from payload to 'odAmount' in schema
       remainingPrincipal,
     },
     { new: true },
-  ) // Capture the updated document
+  )
     .populate("createdBy", "name")
     .populate("foreclosedBy", "name")
     .populate("updatedBy", "name");
 
   // 2. Update all pending/partial EMIs for this loan to "Paid"
-  // We mark them as Paid because the foreclosure payment covers them.
   await EMI.updateMany(
     {
       loanId: id,
@@ -1536,12 +1740,42 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
     {
       $set: {
         status: "Paid",
-        paymentDate: new Date(),
-        paymentMode: "Foreclosure",
-        remarks: `Loan foreclosed. Total Payment: ₹${totalAmount}`,
+        paymentDate: pDate,
+        paymentMode: pMode,
+        remarks: `Loan foreclosed. Total Payment: ₹${totalAmount} via ${pMode}`,
       },
     },
   );
+
+  // 3. Create Payment Records for each mode in breakdown
+  const firstPendingEmi = await EMI.findOne({
+    loanId: id,
+    status: "Paid",
+    paymentDate: pDate,
+  }).sort({ emiNumber: 1 });
+
+  const Payment = require("../models/Payment");
+  const paymentRecords = (paymentBreakdown || []).map((p) => ({
+    emiId: firstPendingEmi?._id || new mongoose.Types.ObjectId(),
+    loanId: id,
+    loanModel: loan.loanModel || "Loan",
+    amount: parseFloat(p.amount),
+    mode: p.mode,
+    paymentDate: pDate,
+    paymentType:
+      loan.loanModel === "DailyLoan"
+        ? "Daily"
+        : loan.loanModel === "WeeklyLoan"
+          ? "Weekly"
+          : "Monthly",
+    status: "Success",
+    remarks: `Foreclosure Split-Payment (${p.mode}) for Loan ${loan.loanNumber}`,
+    collectedBy: req.user._id,
+  }));
+
+  if (paymentRecords.length > 0) {
+    await Payment.insertMany(paymentRecords);
+  }
 
   sendResponse(res, 200, "success", "Loan foreclosed successfully", null, {
     loan: formatLoanResponse(updatedLoan),
@@ -1732,195 +1966,291 @@ const updateSeizedStatus = asyncHandler(async (req, res, next) => {
 });
 
 const getAnalyticsStats = asyncHandler(async (req, res, next) => {
-  // 1. Total Loan Amount Disbursed (Principal sum of all loans + Daily/Weekly)
-  const [loanStats, dailyLoanStats, weeklyLoanStats] = await Promise.all([
-    Loan.aggregate([
-      { $group: { _id: null, total: { $sum: "$principalAmount" } } },
-    ]),
-    mongoose
-      .model("DailyLoan")
-      .aggregate([
-        { $group: { _id: null, total: { $sum: "$disbursementAmount" } } },
-      ]),
-    mongoose
-      .model("WeeklyLoan")
-      .aggregate([
-        { $group: { _id: null, total: { $sum: "$disbursementAmount" } } },
-      ]),
-  ]);
+  const startTotal = performance.now();
 
-  const totalLoanAmount =
-    (loanStats[0]?.total || 0) +
-    (dailyLoanStats[0]?.total || 0) +
-    (weeklyLoanStats[0]?.total || 0);
-
-  // 2. Total Collected (EMIs + Foreclosure + Sold + Daily/Weekly Payments)
-  const [emiCollectedStats, dailyCollectedStats, weeklyCollectedStats] =
+  // Consolidation Strategy: Use $facet to get multiple metrics from a single collection pass
+  // Parallelize the 4 core aggregations
+  const [loanMetrics, dailyMetrics, weeklyMetrics, expenseStats, userStats] =
     await Promise.all([
-      EMI.aggregate([
-        { $group: { _id: null, total: { $sum: "$amountPaid" } } },
+      // 1. Main Loan Collection Metrics
+      Loan.aggregate([
+        {
+          $facet: {
+            disbursement: [
+              { $group: { _id: null, total: { $sum: "$principalAmount" } } },
+            ],
+            foreclosure: [
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: { $ifNull: ["$foreclosureAmount", 0] } },
+                },
+              },
+            ],
+            sold: [
+              {
+                $group: {
+                  _id: null,
+                  total: {
+                    $sum: {
+                      $ifNull: [
+                        "$soldDetails.totalAmount",
+                        "$soldDetails.sellAmount",
+                        0,
+                      ],
+                    },
+                  },
+                },
+              },
+            ],
+            counts: [
+              {
+                $group: {
+                  _id: null,
+                  pending: {
+                    $sum: {
+                      $cond: [{ $eq: ["$paymentStatus", "Pending"] }, 1, 0],
+                    },
+                  },
+                  partial: {
+                    $sum: {
+                      $cond: [
+                        { $eq: ["$paymentStatus", "Partially Paid"] },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                  active: {
+                    $sum: {
+                      $cond: [{ $ne: ["$status", "Closed"] }, 1, 0],
+                    },
+                  },
+                },
+              },
+            ],
+            vehicleStatus: [
+              { $match: { isSeized: true } },
+              {
+                $group: {
+                  _id: {
+                    $switch: {
+                      branches: [
+                        {
+                          case: { $eq: ["$seizedStatus", "Seized"] },
+                          then: "Seized",
+                        },
+                        {
+                          case: { $eq: ["$seizedStatus", "Sold"] },
+                          then: "Sold",
+                        },
+                      ],
+                      default: "For Seizing",
+                    },
+                  },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+          },
+        },
       ]),
-      mongoose
-        .model("DailyLoan")
-        .aggregate([
-          { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+
+      // 2. Daily Loan Metrics
+      mongoose.model("DailyLoan").aggregate([
+        {
+          $facet: {
+            disbursement: [
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: "$disbursementAmount" },
+                  collected: { $sum: "$totalAmount" },
+                },
+              },
+            ],
+            counts: [
+              {
+                $group: {
+                  _id: null,
+                  pending: {
+                    $sum: {
+                      $cond: [
+                        {
+                          $and: [
+                            { $eq: ["$paidEmis", 0] },
+                            { $eq: ["$status", "Active"] },
+                          ],
+                        },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                  partial: {
+                    $sum: {
+                      $cond: [
+                        {
+                          $and: [
+                            { $gt: ["$paidEmis", 0] },
+                            { $gt: ["$remainingEmis", 0] },
+                            { $eq: ["$status", "Active"] },
+                          ],
+                        },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                  active: {
+                    $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ]),
+
+      // 3. Weekly Loan Metrics
+      mongoose.model("WeeklyLoan").aggregate([
+        {
+          $facet: {
+            disbursement: [
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: "$disbursementAmount" },
+                  collected: { $sum: "$totalAmount" },
+                },
+              },
+            ],
+            counts: [
+              {
+                $group: {
+                  _id: null,
+                  pending: {
+                    $sum: {
+                      $cond: [
+                        {
+                          $and: [
+                            { $eq: ["$paidEmis", 0] },
+                            { $eq: ["$status", "Active"] },
+                          ],
+                        },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                  partial: {
+                    $sum: {
+                      $cond: [
+                        {
+                          $and: [
+                            { $gt: ["$paidEmis", 0] },
+                            { $gt: ["$remainingEmis", 0] },
+                            { $eq: ["$status", "Active"] },
+                          ],
+                        },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                  active: {
+                    $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ]),
+
+      // 4. EMI & Expenses
+      Promise.all([
+        EMI.aggregate([
+          {
+            $group: {
+              _id: null,
+              total: {
+                $sum: {
+                  $add: [
+                    { $ifNull: ["$amountPaid", 0] },
+                    { $ifNull: ["$overdue", 0] },
+                  ],
+                },
+              },
+            },
+          },
         ]),
-      mongoose
-        .model("WeeklyLoan")
-        .aggregate([
-          { $group: { _id: null, total: { $sum: "$totalAmount" } } },
-        ]),
+        mongoose
+          .model("Expense")
+          .aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]),
+      ]),
+
+      // 5. User Roles (Fastest)
+      mongoose.model("User").aggregate([
+        {
+          $group: {
+            _id: "$role",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
     ]);
 
-  const emiCollected = emiCollectedStats[0]?.total || 0;
-  const dailyCollected = dailyCollectedStats[0]?.total || 0;
-  const weeklyCollected = weeklyCollectedStats[0]?.total || 0;
+  // Destructure Loan Results
+  const lMain = loanMetrics[0];
+  const lDaily = dailyMetrics[0];
+  const lWeekly = weeklyMetrics[0];
+  const [emiResults, expenseResults] = expenseStats;
 
-  const foreclosureCollectedStats = await Loan.aggregate([
-    {
-      $group: {
-        _id: null,
-        total: { $sum: { $ifNull: ["$foreclosureAmount", 0] } },
-      },
-    },
-  ]);
-  const foreclosureCollected = foreclosureCollectedStats[0]?.total || 0;
-
-  const soldCollectedStats = await Loan.aggregate([
-    {
-      $group: {
-        _id: null,
-        total: {
-          $sum: {
-            $ifNull: ["$soldDetails.totalAmount", "$soldDetails.sellAmount", 0],
-          },
-        },
-      },
-    },
-  ]);
-  const soldCollected = soldCollectedStats[0]?.total || 0;
+  // Calculate Totals
+  const totalLoanAmount =
+    (lMain.disbursement[0]?.total || 0) +
+    (lDaily.disbursement[0]?.total || 0) +
+    (lWeekly.disbursement[0]?.total || 0);
 
   const totalCollectedAmount =
-    emiCollected +
-    dailyCollected +
-    weeklyCollected +
-    foreclosureCollected +
-    soldCollected;
+    (emiResults[0]?.total || 0) +
+    (lDaily.disbursement[0]?.collected || 0) +
+    (lWeekly.disbursement[0]?.collected || 0) +
+    (lMain.foreclosure[0]?.total || 0) +
+    (lMain.sold[0]?.total || 0);
 
-  // 3. Status Breakdown for Loans (Main, Daily, Weekly)
-  const [
-    mainPending,
-    mainPartial,
-    dailyPending,
-    dailyPartial,
-    weeklyPending,
-    weeklyPartial,
-    activeLoansCount,
-  ] = await Promise.all([
-    Loan.countDocuments({ paymentStatus: "Pending" }),
-    Loan.countDocuments({ paymentStatus: "Partially Paid" }),
-    mongoose
-      .model("DailyLoan")
-      .countDocuments({ paidEmis: 0, status: "Active" }),
-    mongoose.model("DailyLoan").countDocuments({
-      paidEmis: { $gt: 0 },
-      remainingEmis: { $gt: 0 },
-      status: "Active",
-    }),
-    mongoose
-      .model("WeeklyLoan")
-      .countDocuments({ paidEmis: 0, status: "Active" }),
-    mongoose.model("WeeklyLoan").countDocuments({
-      paidEmis: { $gt: 0 },
-      remainingEmis: { $gt: 0 },
-      status: "Active",
-    }),
-    Promise.all([
-      Loan.countDocuments({ status: { $ne: "Closed" } }),
-      mongoose.model("DailyLoan").countDocuments({ status: "Active" }),
-      mongoose.model("WeeklyLoan").countDocuments({ status: "Active" }),
-    ]).then((counts) => counts.reduce((a, b) => a + b, 0)),
-  ]);
+  const pendingLoansCount =
+    (lMain.counts[0]?.pending || 0) +
+    (lDaily.counts[0]?.pending || 0) +
+    (lWeekly.counts[0]?.pending || 0);
 
-  const pendingLoansCount = mainPending + dailyPending + weeklyPending;
-  const partialLoansCount = mainPartial + dailyPartial + weeklyPartial;
+  const partialLoansCount =
+    (lMain.counts[0]?.partial || 0) +
+    (lDaily.counts[0]?.partial || 0) +
+    (lWeekly.counts[0]?.partial || 0);
 
-  // 4. Expenses Total
-  const expenseStats = await mongoose
-    .model("Expense")
-    .aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]);
-  const totalExpenses = expenseStats[0]?.total || 0;
+  const activeLoansCount =
+    (lMain.counts[0]?.active || 0) +
+    (lDaily.counts[0]?.active || 0) +
+    (lWeekly.counts[0]?.active || 0);
 
-  // Bar Graph: Vehicle Statistics — bucket isSeized=true vehicles
-  const vehicleStats = await Loan.aggregate([
-    {
-      $match: { isSeized: true },
-    },
-    {
-      $group: {
-        _id: {
-          $switch: {
-            branches: [
-              { case: { $eq: ["$seizedStatus", "Seized"] }, then: "Seized" },
-              { case: { $eq: ["$seizedStatus", "Sold"] }, then: "Sold" },
-            ],
-            default: "For Seizing",
-          },
-        },
-        count: { $sum: 1 },
-      },
-    },
-  ]);
+  const totalExpenses = expenseResults[0]?.total || 0;
 
-  const vehicleData = {
-    "For Seizing": 0,
-    Seized: 0,
-    Sold: 0,
-  };
-
-  vehicleStats.forEach((stat) => {
-    if (Object.prototype.hasOwnProperty.call(vehicleData, stat._id)) {
-      vehicleData[stat._id] = stat.count;
-    }
+  // Format Vehicle Data
+  const vehicleData = { "For Seizing": 0, Seized: 0, Sold: 0 };
+  lMain.vehicleStatus.forEach((s) => {
+    vehicleData[s._id] = s.count;
   });
 
-  // 5. User Counts by Role
-  const userStats = await mongoose.model("User").aggregate([
-    {
-      $group: {
-        _id: "$role",
-        count: { $sum: 1 },
-      },
-    },
-  ]);
-
-  const userData = {
-    SUPER_ADMIN: 0,
-    ADMIN: 0,
-    EMPLOYEE: 0,
-  };
-
-  userStats.forEach((stat) => {
-    if (Object.prototype.hasOwnProperty.call(userData, stat._id)) {
-      userData[stat._id] = stat.count;
-    }
+  // Format User Data
+  const userData = { SUPER_ADMIN: 0, ADMIN: 0, EMPLOYEE: 0 };
+  userStats.forEach((s) => {
+    userData[s._id] = s.count;
   });
 
-  const data = {
-    cards: {
-      totalLoanAmount,
-      totalCollectedAmount,
-      pendingLoansCount,
-      partialLoansCount,
-      activeLoansCount,
-      totalExpenses,
-      userCounts: userData,
-    },
-    vehicleStats: Object.keys(vehicleData).map((key) => ({
-      name: key,
-      value: vehicleData[key],
-    })),
-  };
+  const duration = (performance.now() - startTotal).toFixed(2);
+  console.log(`[PERF] getAnalyticsStats - Total: ${duration}ms`);
 
   sendResponse(
     res,
@@ -1928,8 +2258,87 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     "success",
     "Analytics stats fetched successfully",
     null,
-    data,
+    {
+      cards: {
+        totalLoanAmount,
+        totalCollectedAmount,
+        pendingLoansCount,
+        partialLoansCount,
+        activeLoansCount,
+        totalExpenses,
+        userCounts: userData,
+      },
+      vehicleStats: Object.keys(vehicleData).map((key) => ({
+        name: key,
+        value: vehicleData[key],
+      })),
+      performance: { totalTime: `${duration}ms` },
+    },
   );
+});
+
+// @desc    Get consolidated to-do list
+// @route   GET /api/loans/todo-list
+// @access  Private
+const getTodoList = asyncHandler(async (req, res, next) => {
+  const today = new Date();
+  today.setHours(23, 59, 59, 999); // Include everything until end of today
+
+  const [followups, hpEntries, rtoWorks] = await Promise.all([
+    // 1. Follow-ups (Loans with nextFollowUpDate <= today and status Active)
+    Loan.find({
+      status: "Active",
+      nextFollowUpDate: { $lte: today },
+    })
+      .select("loanNumber customerName mobileNumbers nextFollowUpDate")
+      .lean(),
+
+    // 2. HP Entry Applications
+    Loan.find({
+      status: "Active",
+      hpEntry: "Applied",
+    })
+      .select("loanNumber customerName vehicleNumber hpEntry")
+      .lean(),
+
+    // 3. RTO Work Pending
+    Loan.find({
+      status: "Active",
+      rtoWorkPending: { $exists: true, $not: { $size: 0 } },
+    })
+      .select("loanNumber customerName vehicleNumber rtoWorkPending")
+      .lean(),
+  ]);
+
+  sendResponse(res, 200, "success", "To-do list fetched successfully", null, {
+    followups,
+    hpEntries,
+    rtoWorks,
+  });
+});
+
+// @desc    Delete a loan
+// @route   DELETE /api/loans/:id
+// @access  Private/Admin
+const deleteLoan = asyncHandler(async (req, res, next) => {
+  const loan = await Loan.findById(req.params.id);
+
+  if (!loan) {
+    return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // Delete associated records
+  await Promise.all([
+    EMI.deleteMany({ loanId: loan._id, loanModel: "Loan" }),
+    Payment.deleteMany({ loanId: loan._id, loanModel: "Loan" }),
+    SeizedVehicle.deleteMany({ loanId: loan._id, loanModel: "Loan" }),
+    ClosedLoan.deleteMany({ loanId: loan._id, loanModel: "Loan" }),
+    Followup.deleteMany({ loanId: loan._id, loanModel: "Loan" }),
+  ]);
+
+  await loan.deleteOne();
+
+  sendResponse(res, 200, "success", "Loan and all associated records deleted successfully");
 });
 
 // export all values
@@ -1950,4 +2359,8 @@ module.exports = {
   getSeizedVehicles,
   updateSeizedStatus,
   getAnalyticsStats,
+  updateFollowup,
+  getFollowupHistory,
+  getTodoList,
+  deleteLoan,
 };

@@ -33,7 +33,7 @@ const formatLoanResponse = (loanDoc) => {
       vehicleNumber: loan.vehicleNumber,
       chassisNumber: loan.chassisNumber,
       engineNumber: loan.engineNumber,
-      model: loan.model,
+      modelYear: loan.modelYear,
       typeOfVehicle: loan.typeOfVehicle,
       ywBoard: loan.ywBoard,
       dealerName: loan.dealerName,

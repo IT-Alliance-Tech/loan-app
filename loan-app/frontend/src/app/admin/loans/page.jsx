@@ -6,7 +6,8 @@ import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import { getUserFromToken } from "../../../utils/auth";
-import { getLoans, searchLoan } from "../../../services/loan.service";
+import { getLoans, searchLoan, deleteLoan } from "../../../services/loan.service";
+import { Trash2 } from "lucide-react";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
 import Pagination from "../../../components/Pagination";
 import ContactActionMenu from "../../../components/ContactActionMenu";
@@ -33,12 +34,19 @@ const LoansPage = () => {
   });
   const [selectedContact, setSelectedContact] = useState(null); // For contact details modal
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [selectedRowId, setSelectedRowId] = useState(null);
+
+  const toggleHighlight = (e, id) => {
+    // Don't toggle if clicking a link or button directly
+    if (e.target.closest("button") || e.target.closest("a")) return;
+    setSelectedRowId((prev) => (prev === id ? null : id));
+  };
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [limit] = useState(10);
+  const [limit] = useState(25);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -134,6 +142,23 @@ const LoansPage = () => {
     } catch (err) {
       console.error("Export failed:", err);
       alert("Failed to export loans. Please try again.");
+    }
+  };
+
+  const handleDelete = async (loanId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this loan? This action will permanently remove all associated EMI and payment records.",
+      )
+    )
+      return;
+
+    try {
+      await deleteLoan(loanId);
+      // Refetch current page
+      fetchLoans({ ...filters, page: currentPage });
+    } catch (err) {
+      alert("Error deleting loan: " + err.message);
     }
   };
 
@@ -240,8 +265,8 @@ const LoansPage = () => {
                   <div className="overflow-x-auto scrollbar-none">
                     <table className="w-full text-left border-collapse min-w-[1000px]">
                       <thead>
-                        <tr className="bg-slate-50/30 border-b border-slate-100 uppercase">
-                          <th className="w-[80px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
+                        <tr className="bg-slate-50 border-b border-slate-100 uppercase">
+                          <th className="w-[80px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                             LOAN NO
                           </th>
                           <th className="px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
@@ -268,7 +293,7 @@ const LoansPage = () => {
                           <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             CLIENT RESPONSE
                           </th>
-                          <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap sticky right-0 bg-slate-50/50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                          <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap sticky right-0 bg-slate-50 z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                             ACTIONS
                           </th>
                         </tr>
@@ -296,9 +321,20 @@ const LoansPage = () => {
                           loans.map((loan) => (
                             <tr
                               key={loan._id}
-                              className="active:bg-slate-50 transition-colors group"
+                              onClick={(e) => toggleHighlight(e, loan._id)}
+                              className={`cursor-pointer transition-colors group ${
+                                selectedRowId === loan._id
+                                  ? "bg-blue-50/80"
+                                  : "active:bg-slate-50"
+                              }`}
                             >
-                              <td className="px-4 py-6 whitespace-nowrap">
+                              <td
+                                className={`px-4 py-6 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                                  selectedRowId === loan._id
+                                    ? "bg-blue-50/80"
+                                    : "bg-white group-active:bg-slate-50"
+                                }`}
+                              >
                                 <Link
                                   href={`/admin/loans/edit/${loan._id || loan.id || loan.status?.id}`}
                                   className="font-bold text-slate-900 tracking-tight text-base hover:text-primary hover:underline transition-all"
@@ -383,22 +419,19 @@ const LoansPage = () => {
                               <td className="px-4 py-6 text-center whitespace-nowrap">
                                 <span
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${
-                                    loan.status.isSeized ||
-                                    loan.status.status?.toLowerCase() ===
-                                      "seized"
-                                      ? "bg-red-50 text-red-500 border-red-100"
-                                      : loan.status.status?.toLowerCase() ===
-                                          "closed"
-                                        ? "bg-slate-100 text-slate-500 border-slate-200"
+                                    loan.status.status?.toLowerCase() === "closed"
+                                      ? "bg-slate-100 text-slate-500 border-slate-200"
+                                      : loan.status.isSeized ||
+                                          loan.status.status?.toLowerCase() === "seized"
+                                        ? "bg-red-50 text-red-500 border-red-100"
                                         : "bg-emerald-50 text-emerald-600 border-emerald-100"
                                   }`}
                                 >
-                                  {loan.status.isSeized ||
-                                  loan.status.status?.toLowerCase() === "seized"
-                                    ? "Seized"
-                                    : loan.status.status?.toLowerCase() ===
-                                        "closed"
-                                      ? "Closed"
+                                  {loan.status.status?.toLowerCase() === "closed"
+                                    ? "Closed"
+                                    : loan.status.isSeized ||
+                                        loan.status.status?.toLowerCase() === "seized"
+                                      ? "Seized"
                                       : "Active"}
                                 </span>
                               </td>
@@ -410,7 +443,13 @@ const LoansPage = () => {
                                   {loan.status.clientResponse || "—"}
                                 </span>
                               </td>
-                              <td className="px-4 py-6 text-center whitespace-nowrap sticky right-0 bg-white group-active:bg-slate-50 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                              <td
+                                className={`px-4 py-6 text-center whitespace-nowrap sticky right-0 z-10 transition-colors shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                                  selectedRowId === loan._id
+                                    ? "bg-blue-50/80"
+                                    : "bg-white group-active:bg-slate-50"
+                                }`}
+                              >
                                 <div className="flex justify-center items-center gap-4">
                                   <button
                                     onClick={() => {
@@ -482,6 +521,18 @@ const LoansPage = () => {
                                       </svg>
                                     </button>
                                   )}
+                                  {isSuperAdmin && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(loan._id);
+                                      }}
+                                      className="text-rose-500 hover:scale-110 transition-transform"
+                                      title="Delete Loan"
+                                    >
+                                      <Trash2 className="w-5 h-5" />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -504,8 +555,8 @@ const LoansPage = () => {
                   <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-100 pb-1">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/50 border-b border-slate-200">
-                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                             Loan Number
                           </th>
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
@@ -560,9 +611,24 @@ const LoansPage = () => {
                           loans.map((loan) => (
                             <tr
                               key={loan._id}
-                              className={`${loan.isSeized ? "bg-red-50/50" : "hover:bg-slate-50"} transition-colors`}
+                              onClick={(e) => toggleHighlight(e, loan._id)}
+                              className={`cursor-pointer transition-colors group ${
+                                selectedRowId === loan._id
+                                  ? "bg-blue-50/80"
+                                  : loan.status?.isSeized && loan.status?.status?.toLowerCase() !== "closed"
+                                    ? "bg-red-50/50"
+                                    : "hover:bg-slate-50"
+                              }`}
                             >
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td
+                                className={`px-6 py-4 whitespace-nowrap sticky left-0 z-10 transition-colors shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                                  selectedRowId === loan._id
+                                    ? "bg-blue-50/80"
+                                    : loan.status?.isSeized && loan.status?.status?.toLowerCase() !== "closed"
+                                      ? "bg-red-50/50"
+                                      : "bg-white hover:bg-slate-50"
+                                }`}
+                              >
                                 <Link
                                   href={`/admin/loans/edit/${loan._id || loan.id || loan.status?.id}`}
                                   className="font-black text-slate-900 uppercase text-xs tracking-tight hover:text-primary hover:underline transition-all"
@@ -640,22 +706,19 @@ const LoansPage = () => {
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <span
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${
-                                    loan.status.isSeized ||
-                                    loan.status.status?.toLowerCase() ===
-                                      "seized"
-                                      ? "bg-red-100 text-red-600 border-red-200"
-                                      : loan.status.status?.toLowerCase() ===
-                                          "closed"
-                                        ? "bg-slate-100 text-slate-500 border-slate-200"
+                                    loan.status.status?.toLowerCase() === "closed"
+                                      ? "bg-slate-100 text-slate-500 border-slate-200"
+                                      : loan.status.isSeized ||
+                                          loan.status.status?.toLowerCase() === "seized"
+                                        ? "bg-red-100 text-red-600 border-red-200"
                                         : "bg-green-100 text-green-600 border-green-200"
                                   }`}
                                 >
-                                  {loan.status.isSeized ||
-                                  loan.status.status?.toLowerCase() === "seized"
-                                    ? "Seized"
-                                    : loan.status.status?.toLowerCase() ===
-                                        "closed"
-                                      ? "Closed"
+                                  {loan.status.status?.toLowerCase() === "closed"
+                                    ? "Closed"
+                                    : loan.status.isSeized ||
+                                        loan.status.status?.toLowerCase() === "seized"
+                                      ? "Seized"
                                       : "Active"}
                                 </span>
                               </td>
@@ -737,6 +800,18 @@ const LoansPage = () => {
                                           d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                                         />
                                       </svg>
+                                    </button>
+                                  )}
+                                  {isSuperAdmin && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(loan._id);
+                                      }}
+                                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 border border-red-100 transition-all"
+                                      title="Delete Loan"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
                                     </button>
                                   )}
                                 </div>

@@ -10,6 +10,13 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
   const [showModal, setShowModal] = useState(false);
   const { showToast } = useToast();
   const [dateGroups, setDateGroups] = useState([]);
+  const [selectedRowId, setSelectedRowId] = useState(null);
+
+  const toggleHighlight = (e, id) => {
+    // Don't toggle if clicking a button or internal interactive element
+    if (e.target.closest("button") || e.target.closest("select")) return;
+    setSelectedRowId((prev) => (prev === id ? null : id));
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return "-";
@@ -268,7 +275,12 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
             {emis.map((emi, index) => (
               <tr
                 key={emi._id}
-                className="group hover:bg-slate-50/50 transition-colors"
+                onClick={(e) => toggleHighlight(e, emi._id)}
+                className={`cursor-pointer transition-colors group ${
+                  selectedRowId === emi._id
+                    ? "bg-blue-50/80"
+                    : "hover:bg-slate-50/50"
+                }`}
               >
                 <td className="px-6 py-4 text-xs font-bold text-slate-900">
                   {emi.emiNumber}
@@ -340,6 +352,11 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                           day: "2-digit",
                           month: "2-digit",
                           year: "numeric",
+                        })}{" "}
+                        {new Date(emi.updatedAt).toLocaleTimeString("en-IN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
                         })}
                       </span>
                     </div>
@@ -348,7 +365,13 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   )}
                 </td>
                 {isEditMode && (
-                  <td className="sticky right-0 bg-white group-hover:bg-slate-50 group-active:bg-slate-50 px-6 py-4 z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                  <td
+                    className={`sticky right-0 transition-colors z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] ${
+                      selectedRowId === emi._id
+                        ? "bg-blue-50/80"
+                        : "bg-white group-hover:bg-slate-50 group-active:bg-slate-50"
+                    }`}
+                  >
                     <div className="flex justify-center">
                       <button
                         onClick={() => handleEditClick(emi)}

@@ -14,6 +14,16 @@ export const getLoans = async (params = {}) => {
   });
 };
 
+export const getExpiredDocLoans = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return await apiHandler(
+    `/api/loans/expired-docs${queryString ? `?${queryString}` : ""}`,
+    {
+      method: "GET",
+    }
+  );
+};
+
 export const searchLoan = async (loanNumber) => {
   return await apiHandler(`/api/loans/search/${loanNumber}`, {
     method: "GET",
@@ -126,8 +136,42 @@ export const updateSeizedStatus = async (
   });
 };
 
+export const updateFollowup = async (id, data) => {
+  const { loanModel } = data;
+  let endpoint = "/api/loans";
+
+  if (loanModel === "DailyLoan") endpoint = "/api/daily-loans";
+  else if (loanModel === "WeeklyLoan") endpoint = "/api/weekly-loans";
+
+  return await apiHandler(`${endpoint}/update-followup/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+};
+
+export const getFollowupHistory = async (id) => {
+  return await apiHandler(`/api/loans/followup-history/${id}`, {
+    method: "GET",
+  });
+};
+
 export const getAnalyticsStats = async () => {
   return await apiHandler("/api/loans/analytics/stats", {
     method: "GET",
+  });
+};
+
+export const getTodoList = async () => {
+  return await apiHandler("/api/loans/todo-list", {
+    method: "GET",
+  });
+};
+
+
+
+
+export const deleteLoan = async (id) => {
+  return await apiHandler(`/api/loans/${id}`, {
+    method: "DELETE",
   });
 };

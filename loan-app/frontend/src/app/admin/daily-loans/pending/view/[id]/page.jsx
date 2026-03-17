@@ -264,28 +264,79 @@ const DailyLoanPendingViewPage = ({ params: paramsPromise }) => {
                         <p className="text-sm font-black text-slate-900 uppercase">
                           {loan.customerName}
                         </p>
-                        <button
-                          onClick={(e) => {
-                            const rect =
-                              e.currentTarget.getBoundingClientRect();
-                            setActiveContactMenu({
-                              number: loan.mobileNumber,
-                              name: loan.customerName,
-                              type: "Applicant",
-                              x: rect.left,
-                              y: rect.bottom,
-                            });
-                          }}
-                          className="text-xs font-bold text-primary mt-1 hover:underline"
-                        >
-                          {loan.mobileNumber}
-                        </button>
+                        <div className="space-y-2 mt-1">
+                          {(Array.isArray(loan.mobileNumbers) ? loan.mobileNumbers : [loan.mobileNumber]).filter(Boolean).map((num, idx) => (
+                            <button
+                              key={idx}
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setActiveContactMenu({
+                                  number: num,
+                                  name: loan.customerName,
+                                  type: "Applicant",
+                                  x: rect.left,
+                                  y: rect.bottom,
+                                });
+                              }}
+                              className="text-xs font-bold text-primary hover:underline block"
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
                       </div>
+                      {(loan.guarantorName || loan.guarantorMobileNumber) && (
+                        <div>
+                          <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">
+                            Guarantor
+                          </span>
+                          <p className="text-sm font-black text-slate-900 uppercase">
+                            {loan.guarantorName || "N/A"}
+                          </p>
+                          <div className="space-y-2 mt-1">
+                            {(Array.isArray(loan.guarantorMobileNumbers) ? loan.guarantorMobileNumbers : [loan.guarantorMobileNumber]).filter(Boolean).map((num, idx) => (
+                              <button
+                                key={idx}
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setActiveContactMenu({
+                                    number: num,
+                                    name: loan.guarantorName,
+                                    type: "Guarantor",
+                                    x: rect.left,
+                                    y: rect.bottom,
+                                  });
+                                }}
+                                className="text-xs font-bold text-primary hover:underline block"
+                              >
+                                {num}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Status Update Section */}
-                  <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200">
+                  <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200 relative">
+                    {loan.updatedBy && (
+                      <div className="absolute top-4 right-4 flex flex-col items-end pointer-events-none">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                          Last Updated By
+                        </span>
+                        <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
+                          <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                            {loan.updatedBy}
+                          </span>
+                          <span className="w-1 h-1 rounded-full bg-red-500/40" />
+                          <span className="text-[9px] font-bold text-slate-400 font-mono">
+                            {loan.updatedAt &&
+                              format(new Date(loan.updatedAt), "dd/MM/yy HH:mm")}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">
                       Status Update (Client Response)
                     </h3>
