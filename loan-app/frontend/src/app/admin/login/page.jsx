@@ -107,9 +107,10 @@ const LoginPage = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-bold uppercase"
+                  className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-bold"
                   placeholder="e.g. administrator@sf.com"
                   required
+                  suppressHydrationWarning
                 />
                 <div className="absolute inset-y-0 right-4 flex items-center text-slate-400 group-focus-within/input:text-blue-500 transition-colors">
                   <svg
@@ -138,6 +139,7 @@ const LoginPage = () => {
                   type="button"
                   onClick={() => router.push("/admin/login/forgot-password")}
                   className="text-[9px] font-black text-blue-600 uppercase hover:text-blue-800 transition-colors tracking-widest bg-blue-50 px-2 py-0.5 rounded"
+                  suppressHydrationWarning
                 >
                   Forgot Password?
                 </button>
@@ -150,11 +152,13 @@ const LoginPage = () => {
                   className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400"
                   placeholder="••••••••"
                   required
+                  suppressHydrationWarning
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition-all p-1"
+                  suppressHydrationWarning
                 >
                   {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
@@ -172,11 +176,13 @@ const LoginPage = () => {
                   onChange={(e) => setAccessKey(e.target.value)}
                   className="w-full px-5 py-4 bg-white border border-blue-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-blue-300"
                   placeholder="••••••••"
+                  suppressHydrationWarning
                 />
                 <button
                   type="button"
                   onClick={() => setShowAccessKey(!showAccessKey)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300 hover:text-blue-500 transition-all p-1"
+                  suppressHydrationWarning
                 >
                   {showAccessKey ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
@@ -187,6 +193,7 @@ const LoginPage = () => {
               type="submit"
               disabled={loading}
               className="w-full relative group/btn overflow-hidden"
+              suppressHydrationWarning
             >
               <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-all group-hover:scale-105 active:scale-95 duration-300"></div>
               <div className="relative py-4 w-full flex items-center justify-center gap-3 text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-500/25">
