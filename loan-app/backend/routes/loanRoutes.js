@@ -48,7 +48,7 @@ router.post("/rto-works", createRtoWork);
 router
   .route("/")
   .get(getAllLoans)
-  .post(authorizeRoles("SUPER_ADMIN", "ADMIN"), createLoan);
+  .post(authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("loans.create"), createLoan);
 
 router.post("/calculate-emi", calculateEMIApi);
 router.get(
@@ -94,7 +94,8 @@ router.get(
 router.get("/search/:loanNumber", getLoanByLoanNumber);
 router.post(
   "/:id/foreclose",
-  authorizeRoles("SUPER_ADMIN", "ADMIN"),
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("loans.create"),
   forecloseLoan,
 );
 
@@ -106,7 +107,7 @@ router
     authorizePermissions("loans.edit"),
     updateLoan,
   )
-  .delete(authorizeRoles("SUPER_ADMIN", "ADMIN"), deleteLoan);
+  .delete(authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("loans.delete"), deleteLoan);
 
 router.patch(
   "/:id/seized",
