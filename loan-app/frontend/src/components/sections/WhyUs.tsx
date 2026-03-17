@@ -30,16 +30,16 @@ const WhyUs = () => {
     <section id="why-us" className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-16 items-center">
-          <div className="lg:w-1/3">
+          <div className="lg:w-1/3 text-center lg:text-left">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-4xl sm:text-5xl font-black text-navy uppercase tracking-tighter leading-none mb-6">
-                Why Choose <br /><span className="text-accent-red">Square Finance?</span>
+              <h2 className="text-2xl sm:text-5xl font-black text-navy uppercase tracking-tighter leading-tight mb-6">
+                Why Choose <br className="hidden sm:block" /><span className="text-accent-red">Square Finance?</span>
               </h2>
-              <p className="text-slate-500 font-medium text-lg mb-8">
+              <p className="text-slate-500 font-medium text-sm sm:text-lg mb-8 max-w-xl mx-auto lg:mx-0">
                 We are committed to providing the best financing experience for commercial vehicle owners in Bengaluru.
               </p>
               <a

@@ -52,7 +52,7 @@ const Testimonials = () => {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-3xl sm:text-4xl font-black text-navy uppercase tracking-tight"
+            className="text-2xl sm:text-4xl font-black text-navy uppercase tracking-tight"
           >
             Trusted by Bengaluru&apos;s Drivers
           </motion.h2>
