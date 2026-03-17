@@ -26,20 +26,24 @@ const Navbar = () => {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-white/80 backdrop-blur-md border-b border-slate-200 py-3" : "bg-transparent py-5"
-      }`}
+      className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 py-4 transition-all duration-300"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 border-2 border-navy flex items-center justify-center rounded-sm bg-white shrink-0 group-hover:bg-navy transition-colors duration-300">
-              <span className="font-black text-navy text-xl group-hover:text-white transition-colors duration-300 tracking-tighter">SF</span>
+              <span className="font-black text-navy text-xl group-hover:text-white transition-colors duration-300 tracking-tighter">
+                SF
+              </span>
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-navy uppercase tracking-tighter text-lg leading-none">Square Finance</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none mt-1">ಸ್ಕ್ವೇರ್ ಫೈನಾನ್ಸ್</span>
+              <span className="font-black text-navy uppercase tracking-tighter text-lg leading-none">
+                Square Finance
+              </span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none mt-1">
+                ಸ್ಕ್ವೇರ್ ಫೈನಾನ್ಸ್
+              </span>
             </div>
           </Link>
 
@@ -49,19 +53,11 @@ const Navbar = () => {
               <Link
                 key={link.name}
                 href={link.href}
-                className={`text-[11px] font-black uppercase tracking-widest transition-colors ${
-                  isScrolled ? "text-slate-600 hover:text-navy" : "text-slate-500 hover:text-navy"
-                }`}
+                className="text-[11px] font-black uppercase tracking-widest transition-colors text-slate-600 hover:text-navy"
               >
                 {link.name}
               </Link>
             ))}
-            <Link
-              href="#contact"
-              className="bg-accent-red text-white px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest shadow-lg shadow-red-100 hover:bg-[#7a322e] transition-all hover:scale-105 active:scale-95"
-            >
-              Enquire Now
-            </Link>
           </nav>
 
           {/* Mobile Menu Toggle */}
@@ -69,7 +65,11 @@ const Navbar = () => {
             className="md:hidden p-2 text-navy"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMobileMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
           </button>
         </div>
       </div>
@@ -94,13 +94,6 @@ const Navbar = () => {
                   {link.name}
                 </Link>
               ))}
-              <Link
-                href="#contact"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="bg-navy text-white px-6 py-3 rounded-lg text-xs font-black uppercase tracking-widest text-center shadow-lg shadow-blue-100"
-              >
-                Enquire Now
-              </Link>
             </div>
           </motion.div>
         )}

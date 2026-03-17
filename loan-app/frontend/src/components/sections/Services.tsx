@@ -1,6 +1,6 @@
 "use client";
 import { motion } from "framer-motion";
-import { Car, Truck, ArrowRight } from "lucide-react";
+import { Car, Truck, Bike, ArrowRight } from "lucide-react";
 
 const Services = () => {
   const services = [
@@ -13,8 +13,14 @@ const Services = () => {
     {
       title: "Auto-Rickshaw Loans",
       description: "Get your auto-rickshaw financed quickly. Ideal for daily earners and transport operators looking for easy EMI plans.",
-      icon: <Truck className="w-12 h-12" />, // Used Truck as requested for 3-wheeler/commercial feel
+      icon: <Truck className="w-12 h-12" />, // Used Truck for 3-wheeler/commercial feel
       highlight: true,
+    },
+    {
+      title: "Bike Loans",
+      description: "Own your dream bike with our fast and easy two-wheeler financing. Hassle-free documentation and quick approval process.",
+      icon: <Bike className="w-12 h-12" />,
+      highlight: false,
     },
   ];
 
@@ -34,7 +40,7 @@ const Services = () => {
           </motion.div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {services.map((service, idx) => (
             <motion.div
               key={service.title}

@@ -14,12 +14,40 @@ const Testimonials = () => {
       author: "Suresh K.",
       role: "Car Owner, BSK Stage",
     },
+    {
+      quote: "The bike loan process was incredibly smooth. I got my new vehicle within 2 days of applying!",
+      author: "Rajesh M.",
+      role: "Delivery Partner",
+    },
+    {
+      quote: "Excellent service and support. They understood my commercial requirements perfectly.",
+      author: "Lakshmi N.",
+      role: "Small Business Owner",
+    },
+    {
+      quote: "Very professional team. The documentation was minimal and the staff was very helpful.",
+      author: "Anand V.",
+      role: "Fleet Operator",
+    },
+    {
+      quote: "Best rates for used car loans in Bangalore. Highly recommended for quick financing.",
+      author: "Sandeep S.",
+      role: "Private Owner",
+    },
+    {
+      quote: "I've been a regular customer for years. Their trust and service are unmatched.",
+      author: "Ravi J.",
+      role: "Transport Operator",
+    },
   ];
 
+  // Double the reviews for seamless loop
+  const duplicatedReviews = [...reviews, ...reviews];
+
   return (
-    <section className="py-24 bg-slate-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+    <section className="py-24 bg-slate-50 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
+        <div className="text-center">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -29,34 +57,42 @@ const Testimonials = () => {
             Trusted by Bengaluru&apos;s Drivers
           </motion.h2>
         </div>
+      </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {reviews.map((review, idx) => (
-            <motion.div
+      <div className="relative flex overflow-hidden">
+        <motion.div
+          className="flex gap-6 py-4"
+          animate={{
+            x: ["0%", "-50%"],
+          }}
+          transition={{
+            duration: 35,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+        >
+          {duplicatedReviews.map((review, idx) => (
+            <div
               key={idx}
-              initial={{ opacity: 0, x: idx % 2 === 0 ? -20 : 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.2 }}
-              className="bg-white p-10 rounded-3xl border-l-[6px] border-accent-red shadow-xl shadow-slate-200/50 flex flex-col justify-between"
+              className="w-[300px] sm:w-[350px] shrink-0 bg-white p-6 rounded-[2.5rem] border-l-[4px] border-accent-red shadow-xl shadow-slate-200/40 flex flex-col justify-between transition-transform hover:scale-105 duration-300"
             >
               <div>
-                <div className="flex gap-1 mb-6">
+                <div className="flex gap-1 mb-4">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 fill-accent-red text-accent-red" />
+                    <Star key={i} className="w-4 h-4 fill-accent-red text-accent-red" />
                   ))}
                 </div>
-                <p className="text-xl font-medium text-slate-700 leading-relaxed italic mb-8">
+                <p className="text-sm font-bold text-slate-700 leading-relaxed italic mb-6">
                   &quot;{review.quote}&quot;
                 </p>
               </div>
               <div>
-                <div className="font-black text-navy uppercase tracking-widest text-sm">{review.author}</div>
-                <div className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-1">{review.role}</div>
+                <div className="font-black text-navy uppercase tracking-widest text-[10px]">{review.author}</div>
+                <div className="text-slate-400 font-bold text-[8px] uppercase tracking-widest mt-1">{review.role}</div>
               </div>
-            </motion.div>
+            </div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
