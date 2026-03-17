@@ -7,8 +7,9 @@ export const createExpense = async (expenseData) => {
   });
 };
 
-export const getAllExpenses = async () => {
-  return await apiHandler("/api/expenses", {
+export const getAllExpenses = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return await apiHandler(`/api/expenses${queryString ? `?${queryString}` : ""}`, {
     method: "GET",
   });
 };

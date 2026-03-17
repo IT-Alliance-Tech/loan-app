@@ -240,15 +240,6 @@ const DailyFollowupList = () => {
                                  router.push(`/admin/daily-loans/edit/${loan.loanId}?action=seize`);
                             }
                           },
-                          ...(isSuperAdmin
-                            ? [
-                                {
-                                  label: "Delete Loan",
-                                  onClick: () => handleDelete(loan.loanId),
-                                  variant: "danger",
-                                },
-                              ]
-                            : []),
                         ]}
                       />
                     </td>
