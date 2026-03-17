@@ -8,11 +8,12 @@ import { getCollectionTransactions, getLoansGivenSummary } from "../../../servic
 import { getAllExpenses } from "../../../services/expenseService";
 import { useToast } from "../../../context/ToastContext";
 import { format, subDays } from "date-fns";
+import Pagination from "../../../components/Pagination";
 
 const CollectionsPage = () => {
   const { showToast } = useToast();
   
-  // Tabs State
+  // TABS State
   const [activeTab, setActiveTab] = useState("collections"); // "collections" | "loans" | "expenses"
 
   // Data States
@@ -20,6 +21,13 @@ const CollectionsPage = () => {
   const [loansGiven, setLoansGiven] = useState([]);
   const [expenses, setExpenses] = useState([]);
   
+  // Pagination States
+  const [pagination, setPagination] = useState({
+    collections: { page: 1, total: 0, totalPages: 0, limit: 25 },
+    loans: { page: 1, total: 0, totalPages: 0, limit: 25 },
+    expenses: { page: 1, total: 0, totalPages: 0, limit: 25 }
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -32,24 +40,30 @@ const CollectionsPage = () => {
   // Modal State for Expenses
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
-  // Fetch Logic based on active tab
+  // Fetch Logic based on active tab and page
   useEffect(() => {
     if (activeTab === "collections") {
-      fetchCollections();
+      fetchCollections(pagination.collections.page);
     } else if (activeTab === "loans") {
-      fetchLoansGiven();
+      fetchLoansGiven(pagination.loans.page);
     } else if (activeTab === "expenses") {
       fetchExpenses();
     }
-  }, [activeTab]); // Notice we don't automatically refetch on filter change to allow manual submit
+  }, [activeTab, pagination.collections.page, pagination.loans.page]);
 
-  const fetchCollections = async () => {
+  const fetchCollections = async (page = 1) => {
     try {
       setLoading(true);
       setError("");
-      const res = await getCollectionTransactions(filters);
+      const res = await getCollectionTransactions({ ...filters, page, limit: 25 });
       if (res.data) {
-        setCollections(res.data);
+        setCollections(res.data.transactions || []);
+        if (res.data.pagination) {
+          setPagination(prev => ({
+            ...prev,
+            collections: { ...prev.collections, ...res.data.pagination }
+          }));
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -59,13 +73,19 @@ const CollectionsPage = () => {
     }
   };
 
-  const fetchLoansGiven = async () => {
+  const fetchLoansGiven = async (page = 1) => {
     try {
       setLoading(true);
       setError("");
-      const res = await getLoansGivenSummary(filters);
+      const res = await getLoansGivenSummary({ ...filters, page, limit: 25 });
       if (res.data) {
-        setLoansGiven(res.data);
+        setLoansGiven(res.data.loans || []);
+        if (res.data.pagination) {
+          setPagination(prev => ({
+            ...prev,
+            loans: { ...prev.loans, ...res.data.pagination }
+          }));
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -95,13 +115,26 @@ const CollectionsPage = () => {
   };
 
   const handleSearchSubmit = () => {
+    // Reset to page 1 on filter submit
+    setPagination(prev => ({
+      ...prev,
+      [activeTab]: { ...prev[activeTab], page: 1 }
+    }));
+    
     if (activeTab === "collections") {
-      fetchCollections();
+      fetchCollections(1);
     } else if (activeTab === "loans") {
-      fetchLoansGiven();
+      fetchLoansGiven(1);
     } else if (activeTab === "expenses") {
       fetchExpenses();
     }
+  };
+
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({
+      ...prev,
+      [activeTab]: { ...prev[activeTab], page: newPage }
+    }));
   };
 
   // Render Functions for distinct tables
@@ -327,6 +360,24 @@ const CollectionsPage = () => {
                     {activeTab === "loans" && renderLoansGivenTable()}
                     {activeTab === "expenses" && renderExpensesTable()}
                 </div>
+                {activeTab === "collections" && collections.length > 0 && (
+                  <Pagination
+                    currentPage={pagination.collections.page}
+                    totalPages={pagination.collections.totalPages}
+                    onPageChange={handlePageChange}
+                    totalRecords={pagination.collections.total}
+                    limit={pagination.collections.limit}
+                  />
+                )}
+                {activeTab === "loans" && loansGiven.length > 0 && (
+                  <Pagination
+                    currentPage={pagination.loans.page}
+                    totalPages={pagination.loans.totalPages}
+                    onPageChange={handlePageChange}
+                    totalRecords={pagination.loans.total}
+                    limit={pagination.loans.limit}
+                  />
+                )}
               </div>
             </div>
           </main>
