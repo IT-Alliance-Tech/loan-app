@@ -21,23 +21,28 @@ const ContactForm = () => {
   }, []);
 
   const onSubmit = async (data: FormData) => {
-    console.log("Form Submitted:", data);
-    // Simulate a short processing delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Construct WhatsApp message with user details
-    const whatsappNumber = "919900900007";
-    const text = `Hello Square Finance, I would like to enquire about a vehicle loan.%0A%0A*Name:* ${data.fullName}%0A*Phone:* ${data.phoneNumber}%0A*Loan Type:* ${data.loanType}%0A*Message:* ${data.message || "No specific message"}`;
-    
-    // Create the WhatsApp URL
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${text}`;
-    
-    // Open WhatsApp in a new tab/window
-    window.open(whatsappUrl, "_blank");
+    try {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+      const response = await fetch(`${apiBaseUrl}/api/contact/inquiry`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
 
-    setIsSubmitted(true);
-    reset();
-    setTimeout(() => setIsSubmitted(false), 5000);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to send inquiry");
+      }
+
+      setIsSubmitted(true);
+      reset();
+      setTimeout(() => setIsSubmitted(false), 5000);
+    } catch (error) {
+      console.error("Submission Error:", error);
+      alert("Something went wrong. Please try again or chat with us on WhatsApp.");
+    }
   };
 
   return (
@@ -50,22 +55,23 @@ const ContactForm = () => {
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
+            className="text-center lg:text-left"
           >
-            <h2 className="text-4xl sm:text-5xl font-black text-navy uppercase tracking-tighter mb-6 leading-none">
-              Get in Touch <br /><span className="text-accent-red">With Us</span>
+            <h2 className="text-3xl sm:text-5xl font-black text-navy uppercase tracking-tighter mb-6 leading-tight">
+              Get in Touch <br className="hidden sm:block" /><span className="text-accent-red">With Us</span>
             </h2>
-            <p className="text-slate-500 font-medium text-lg mb-12">
+            <p className="text-slate-500 font-medium text-sm sm:text-lg mb-12 max-w-xl mx-auto lg:mx-0">
               Interested in a vehicle loan? Fill out the form and our team will reach out within 24 hours.
             </p>
 
-            <div className="space-y-10">
+            <div className="space-y-8 sm:space-y-10 text-left max-w-md mx-auto lg:mx-0">
               <div className="flex items-start gap-6">
                 <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-navy shrink-0 border border-slate-100">
                   <Phone className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Call Us</div>
-                  <div className="text-xl font-black text-navy tracking-tight">+91 99009 00007</div>
+                  <div className="text-lg sm:text-xl font-black text-navy tracking-tight whitespace-nowrap">+91 99009 00007</div>
                 </div>
               </div>
 
@@ -75,7 +81,7 @@ const ContactForm = () => {
                 </div>
                 <div>
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Our Office</div>
-                  <div className="text-base font-bold text-slate-600 leading-relaxed max-w-sm">
+                  <div className="text-sm sm:text-base font-bold text-slate-600 leading-relaxed max-w-sm">
                     No.1, 17/4, Ground Floor, 5th Main, 5th Cross, Kathriguppe, BSK 3rd Stage, Bengaluru – 560 085
                   </div>
                 </div>
@@ -87,7 +93,7 @@ const ContactForm = () => {
                 </div>
                 <div>
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Business Hours</div>
-                  <div className="text-base font-bold text-slate-600">Mon–Sat, 9:00 AM – 6:00 PM</div>
+                  <div className="text-sm sm:text-base font-bold text-slate-600">Mon–Sat, 9:00 AM – 6:00 PM</div>
                 </div>
               </div>
             </div>

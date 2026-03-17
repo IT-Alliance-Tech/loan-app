@@ -83,17 +83,27 @@ const Navbar = () => {
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden bg-white border-b border-slate-100 overflow-hidden"
           >
-            <div className="flex flex-col gap-4 p-6">
-              {navLinks.map((link) => (
-                <Link
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 p-8">
+              {navLinks.map((link, idx) => (
+                <motion.div
                   key={link.name}
-                  href={link.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-xs font-black uppercase tracking-widest text-slate-600 hover:text-navy"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
                 >
-                  {link.name}
-                </Link>
+                  <Link
+                    href={link.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-sm font-black uppercase tracking-[0.2em] text-slate-800 hover:text-navy transition-colors"
+                  >
+                    {link.name}
+                  </Link>
+                </motion.div>
               ))}
+              <div className="mt-8 pt-8 border-t border-slate-100 w-full flex flex-col items-center">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Questions? Call Us</p>
+                <a href="tel:+919900900007" className="text-xl font-black text-navy tracking-tight">+91 99009 00007</a>
+              </div>
             </div>
           </motion.div>
         )}

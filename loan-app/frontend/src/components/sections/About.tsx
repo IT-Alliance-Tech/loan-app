@@ -19,12 +19,13 @@ const About = () => {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.7 }}
+            className="text-center lg:text-left"
           >
-            <span className="text-accent-red text-xs font-black uppercase tracking-[0.3em] mb-4 block">Who We Are</span>
-            <h2 className="text-4xl sm:text-5xl font-black text-navy uppercase tracking-tighter leading-[1.1] mb-8">
-              Bengaluru&apos;s Trusted <br />Vehicle Loan Partner
+            <span className="text-accent-red text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] mb-4 block">Who We Are</span>
+            <h2 className="text-2xl sm:text-5xl font-black text-navy uppercase tracking-tighter leading-[1.1] mb-8">
+              Bengaluru&apos;s Trusted <br className="hidden sm:block" />Vehicle Loan Partner
             </h2>
-            <div className="space-y-6 text-slate-500 font-medium text-lg leading-relaxed">
+            <div className="space-y-6 text-slate-500 font-medium text-sm sm:text-lg leading-relaxed max-w-2xl mx-auto lg:mx-0">
               <p>
                 Square Finance is a Bengaluru-based vehicle loan company located in Kathriguppe, BSK 3rd Stage. We specialize exclusively in Car and Auto-Rickshaw commercial vehicle financing.
               </p>
@@ -43,7 +44,7 @@ const About = () => {
           </motion.div>
 
           {/* Right - Stat Grid */}
-          <div className="grid grid-cols-2 gap-6 relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 relative">
             {/* Background decorative square */}
             <div className="absolute inset-0 bg-slate-50 border border-slate-100/50 rounded-[4rem] -rotate-6 scale-110 z-0"></div>
             
@@ -54,12 +55,12 @@ const About = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
-                className={`relative z-10 p-10 rounded-[2.5rem] shadow-lg flex flex-col items-center justify-center text-center transition-all duration-500 hover:rotate-2 ${
+                className={`relative z-10 p-8 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] shadow-lg flex flex-col items-center justify-center text-center transition-all duration-500 hover:rotate-2 ${
                   idx % 3 === 0 ? "bg-navy text-white" : "bg-white text-navy"
                 }`}
               >
-                <div className="text-2xl font-black mb-2 uppercase tracking-tight leading-none">{stat.value}</div>
-                <div className={`text-[10px] font-black uppercase tracking-widest ${idx % 3 === 0 ? "text-slate-400" : "text-slate-500"}`}>
+                <div className="text-xl sm:text-2xl font-black mb-2 uppercase tracking-tight leading-none">{stat.value}</div>
+                <div className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${idx % 3 === 0 ? "text-slate-400" : "text-slate-500"}`}>
                   {stat.label}
                 </div>
               </motion.div>
