@@ -302,19 +302,6 @@ const WeeklyPendingList = () => {
                                 `/admin/weekly-loans/edit/${item.loanId}`,
                               ),
                           },
-                          {
-                            label: "Update Response",
-                            onClick: () => handleResponseClick(item),
-                          },
-                          ...(isSuperAdmin
-                            ? [
-                                {
-                                  label: "Delete Loan",
-                                  onClick: () => handleDelete(item.loanId),
-                                  variant: "danger",
-                                },
-                              ]
-                            : []),
                         ]}
                       />
                     </td>

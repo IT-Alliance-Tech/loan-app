@@ -475,12 +475,6 @@ exports.getDailyPendingPayments = asyncHandler(async (req, res, next) => {
       $match: {
         ...query,
         status: { $ne: "Closed" },
-        // Exclude loans with future/today follow-up scheduled
-        $or: [
-          { nextFollowUpDate: { $exists: false } },
-          { nextFollowUpDate: null },
-          { nextFollowUpDate: { $lt: todayStart } },
-        ],
       },
     },
     {

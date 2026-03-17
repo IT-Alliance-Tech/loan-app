@@ -287,15 +287,6 @@ const WeeklyFollowupList = () => {
                                 router.push(`/admin/weekly-loans/edit/${item.loanId}?action=seize`);
                             }
                           },
-                          ...(isSuperAdmin
-                            ? [
-                                {
-                                  label: "Delete Loan",
-                                  onClick: () => handleDelete(item.loanId),
-                                  variant: "danger",
-                                },
-                              ]
-                            : []),
                         ]}
                       />
                     </td>
