@@ -54,7 +54,7 @@ const getCollectionReport = asyncHandler(async (req, res, next) => {
 });
 
 const getCollectionTransactions = asyncHandler(async (req, res, next) => {
-  const { startDate, endDate } = req.query;
+  const { startDate, endDate, page = 1, limit = 25 } = req.query;
   const match = {};
 
   if (startDate || endDate) {
@@ -71,7 +71,12 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // Find all payments matching the date range
+  const pageNum = parseInt(page, 10);
+  const limitNum = parseInt(limit, 10);
+  const skip = (pageNum - 1) * limitNum;
+
+  const total = await Payment.countDocuments(match);
+  
   const transactions = await Payment.find(match)
     .populate({
       path: "emiId",
@@ -81,7 +86,9 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
       path: "collectedBy",
       select: "name",
     })
-    .sort({ paymentDate: -1, createdAt: -1 });
+    .sort({ paymentDate: -1, createdAt: -1 })
+    .skip(skip)
+    .limit(limitNum);
 
   // Format the output
   const formattedTransactions = transactions.map((txn) => ({
@@ -102,7 +109,15 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
     "success",
     "Collection transactions fetched successfully",
     null,
-    formattedTransactions,
+    {
+      transactions: formattedTransactions,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      }
+    },
   );
 });
 
@@ -110,7 +125,7 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
 // @route   GET /api/collections/loans-given
 // @access  Private
 const getLoansGivenSummary = asyncHandler(async (req, res, next) => {
-  const { startDate, endDate } = req.query;
+  const { startDate, endDate, page = 1, limit = 25 } = req.query;
   const matchDate = {};
 
   if (startDate || endDate) {
@@ -128,59 +143,48 @@ const getLoansGivenSummary = asyncHandler(async (req, res, next) => {
 
   const query = {};
   if (Object.keys(matchDate).length > 0) {
-    // Both creation date and document date represent standard "date issued" depending on logic. Usually createdAt will be fine.
     query.createdAt = matchDate;
   }
 
-  // Fetch loans from all three collections
-  const [monthlyLoans, weeklyLoans, dailyLoans] = await Promise.all([
-    Loan.find(query)
-      .select("loanNumber customerName mobileNumbers principalAmount createdAt createdBy")
-      .populate("createdBy", "name")
-      .lean(),
-    WeeklyLoan.find(query)
-      .select("loanNumber customerName mobileNumbers disbursementAmount createdAt createdBy")
-      .populate("createdBy", "name")
-      .lean(),
-    DailyLoan.find(query)
-      .select("loanNumber customerName mobileNumbers disbursementAmount createdAt createdBy")
-      .populate("createdBy", "name")
-      .lean(),
+  const pageNum = parseInt(page, 10);
+  const limitNum = parseInt(limit, 10);
+  const skip = (pageNum - 1) * limitNum;
+
+  // For combined collections, we need to fetch all matching IDs first to get total count, 
+  // then sort and slice manually or use aggregate for better performance.
+  // Given potential scale, aggregation is better.
+
+  const pipeline = [
+    { $match: query },
+    { $project: { _id: 1, loanNumber: 1, customerName: 1, mobileNumbers: 1, mobileNumber: 1, amount: { $ifNull: ["$principalAmount", "$disbursementAmount"] }, createdAt: 1, createdBy: 1 } },
+  ];
+
+  const [monthlyRes, weeklyRes, dailyRes] = await Promise.all([
+    Loan.aggregate([...pipeline, { $addFields: { type: "Monthly" } }]),
+    WeeklyLoan.aggregate([...pipeline, { $addFields: { type: "Weekly" } }]),
+    DailyLoan.aggregate([...pipeline, { $addFields: { type: "Daily" } }])
   ]);
 
-  // Format array
-  const formattedMonthly = monthlyLoans.map((l) => ({ 
-    ...l, 
-    loanAmount: l.principalAmount, 
-    type: "Monthly" 
-  }));
-  const formattedWeekly = weeklyLoans.map((l) => ({ 
-    ...l, 
-    loanAmount: l.disbursementAmount, 
-    type: "Weekly" 
-  }));
-  const formattedDaily = dailyLoans.map((l) => ({ 
-    ...l, 
-    loanAmount: l.disbursementAmount, 
-    type: "Daily" 
-  }));
+  const allLoansRaw = [...monthlyRes, ...weeklyRes, ...dailyRes]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  // Combine and sort descending by date
-  const allLoans = [
-    ...formattedMonthly,
-    ...formattedWeekly,
-    ...formattedDaily,
-  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const total = allLoansRaw.length;
+  const paginatedLoans = allLoansRaw.slice(skip, skip + limitNum);
 
-  const formattedResults = allLoans.map((loan) => ({
-    _id: loan._id,
-    loanNumber: loan.loanNumber,
-    customerName: loan.customerName,
-    mobileNumber: loan.mobileNumbers && loan.mobileNumbers.length > 0 ? loan.mobileNumbers[0] : "N/A",
-    loanAmount: loan.loanAmount,
-    type: loan.type,
-    date: loan.createdAt,
-    createdBy: loan.createdBy ? loan.createdBy.name : "System",
+  // Populate createdBy
+  const User = mongoose.model("User");
+  const loanResults = await Promise.all(paginatedLoans.map(async (loan) => {
+    const creator = await User.findById(loan.createdBy).select("name").lean();
+    return {
+      _id: loan._id,
+      loanNumber: loan.loanNumber,
+      customerName: loan.customerName,
+      mobileNumber: (loan.mobileNumbers && loan.mobileNumbers.length > 0) ? loan.mobileNumbers[0] : (loan.mobileNumber || "N/A"),
+      loanAmount: loan.amount,
+      type: loan.type,
+      date: loan.createdAt,
+      createdBy: creator ? creator.name : "System",
+    };
   }));
 
   sendResponse(
@@ -189,7 +193,15 @@ const getLoansGivenSummary = asyncHandler(async (req, res, next) => {
     "success",
     "Loans given fetched successfully",
     null,
-    formattedResults,
+    {
+      loans: loanResults,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      }
+    },
   );
 });
 

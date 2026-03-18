@@ -188,7 +188,7 @@ exports.getDailyLoanEMIs = asyncHandler(async (req, res, next) => {
 
 // Get All Daily Loans
 exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
-  const { status, followup, searchQuery, page = 1, limit = 10 } = req.query;
+  const { status, followup, searchQuery, page = 1, limit = 25 } = req.query;
   const query = {};
 
   if (status) {
@@ -454,7 +454,7 @@ exports.getDailyPendingPayments = asyncHandler(async (req, res, next) => {
     limitNum = 10,
   } = req.query;
   const page = parseInt(pageNum, 10) || 1;
-  const limit = parseInt(limitNum, 10) || 10;
+  const limit = parseInt(limitNum, 10) || 25;
   const skip = (page - 1) * limit;
 
   const query = {};
@@ -605,7 +605,7 @@ exports.getDailyFollowupLoans = asyncHandler(async (req, res, next) => {
     limitNum = 10,
   } = req.query;
   const page = parseInt(pageNum, 10) || 1;
-  const limit = parseInt(limitNum, 10) || 10;
+  const limit = parseInt(limitNum, 10) || 25;
   const skip = (page - 1) * limit;
 
   const query = {};

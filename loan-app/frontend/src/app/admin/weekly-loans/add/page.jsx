@@ -20,10 +20,14 @@ const AddWeeklyLoanPage = () => {
     disbursementAmount: "",
     startDate: "",
     totalEmis: "",
+    status: {
+      status: "Pending",
+      clientResponse: "",
+      nextFollowUpDate: "",
+    },
     paidEmis: 0,
     processingFeeRate: 10,
     emiStartDate: "",
-    clientResponse: "",
   };
 
   const handleSubmit = async (formData) => {
