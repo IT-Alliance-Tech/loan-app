@@ -13,6 +13,14 @@ const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 const { formatLoanResponse } = require("../utils/loanFormatter");
 
+const extractId = (val) => {
+  if (!val) return null;
+  if (typeof val === "object" && val._id) return val._id;
+  if (typeof val === "string" && mongoose.Types.ObjectId.isValid(val))
+    return val;
+  return null;
+};
+
 const calculateEMI = (principal, roi, tenureMonths) => {
   const p = parseFloat(principal);
   const r = parseFloat(roi);
@@ -736,8 +744,9 @@ const updateLoan = asyncHandler(async (req, res, next) => {
           ? topLevelNextFollowUpDate || null
           : loan.nextFollowUpDate,
 
-    // Flatten foreclosureDetails
-    foreclosedBy: foreclosureDetails?.foreclosedBy || loan.foreclosedBy,
+    // Flatten foreclosureDetails with sanitization
+    foreclosedBy:
+      extractId(foreclosureDetails?.foreclosedBy) || loan.foreclosedBy,
     foreclosureDate:
       foreclosureDetails?.foreclosureDate || loan.foreclosureDate,
     foreclosureAmount:
