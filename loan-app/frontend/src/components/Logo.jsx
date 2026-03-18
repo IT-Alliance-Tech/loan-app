@@ -20,12 +20,15 @@ const Logo = ({ className = "", showText = true, size = "md" }) => {
   const currentSize = sizeClasses[size] || sizeClasses.md;
 
   return (
-    <div className={`flex items-center justify-center ${className}`}>
+    <div 
+      className={`relative ${className}`}
+      style={{ width: currentSize.width, height: currentSize.height }}
+    >
       <Image
         src="/logo.jpg"
         alt="Square Finance"
-        width={currentSize.width}
-        height={currentSize.height}
+        fill
+        sizes="(max-width: 768px) 100vw, 150px"
         className="object-contain rounded-sm"
         priority
       />

@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@fontsource/noto-sans-kannada": "^5.2.8",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",

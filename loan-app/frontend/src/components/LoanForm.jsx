@@ -5,6 +5,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useToast } from "../context/ToastContext";
 import { addMonths, format } from "date-fns";
+import { getUserFromToken } from "../utils/auth";
 import ClientResponseSection from "./ClientResponseSection";
 import {
   calculateEMI as fetchEMI,
@@ -89,6 +90,8 @@ const LoanForm = ({
   emis = [],
 }) => {
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   const [rtoOptions, setRtoOptions] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -496,12 +499,33 @@ const LoanForm = ({
         <form onSubmit={formik.handleSubmit} className="space-y-8">
           {/* Basic Info */}
           <div className="space-y-4 relative">
-            <div className="flex items-center justify-between gap-3 border-b border-primary/10 pb-2">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-primary/10 pb-4 md:pb-2">
               <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">
                 Basic Information
               </h3>
-              {formik.values.status?.updatedBy && (
-                <div className="flex flex-col items-end pointer-events-none">
+
+              <div className="flex items-center gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Status
+                </label>
+                <select
+                  name="status.status"
+                  value={formik.values.status?.status || "Active"}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  disabled={isViewOnly || !isSuperAdmin}
+                  className={`text-[11px] font-bold uppercase tracking-widest py-1 px-3 border rounded-lg focus:outline-none ${isViewOnly || !isSuperAdmin ? "opacity-70 bg-slate-100 cursor-not-allowed text-slate-500" : "bg-white border-primary/30 text-primary shadow-sm focus:ring-2 focus:ring-primary/20"}`}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Closed">Closed</option>
+                  <option value="Seized">Seized</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
+
+              <div className="w-full md:w-auto min-w-[150px] flex justify-start md:justify-end">
+                {formik.values.status?.updatedBy && (
+                  <div className="flex flex-col items-start md:items-end pointer-events-none">
                   <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
                     Last Updated By
                   </span>
@@ -522,6 +546,7 @@ const LoanForm = ({
                   </div>
                 </div>
               )}
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
