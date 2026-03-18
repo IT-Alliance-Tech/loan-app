@@ -179,7 +179,7 @@ const loanSchema = new mongoose.Schema(
       type: String,
       required: [true, "Status is required"],
       enum: {
-        values: ["Active", "Closed", "Seized"],
+        values: ["Active", "Closed", "Seized", "Pending"],
         message: "Please select a valid status",
       },
       default: "Active",

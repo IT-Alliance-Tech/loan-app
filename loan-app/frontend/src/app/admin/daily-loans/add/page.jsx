@@ -16,14 +16,17 @@ const AddDailyLoanPage = () => {
   const initialData = {
     loanNumber: "",
     customerName: "",
-    mobileNumber: "",
+    mobileNumbers: [""],
+    guarantorMobileNumbers: [""],
     disbursementAmount: "",
     startDate: new Date().toISOString().split("T")[0],
     totalEmis: 100,
     paidEmis: 0,
     processingFeeRate: 10,
     emiStartDate: "",
+    status: "Pending",
     clientResponse: "",
+    nextFollowUpDate: "",
   };
 
   const handleSubmit = async (formData) => {
