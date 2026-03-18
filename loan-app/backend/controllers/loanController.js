@@ -710,11 +710,13 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       hpEntry: vehicleInformation.hpEntry || loan.hpEntry,
     }),
     // Automatic Status Derivation
-    status: foreclosureDetails?.foreclosureDate
-      ? "Closed"
-      : statusObj?.isSeized || loan.isSeized
-        ? "Seized"
-        : "Active",
+    status:
+      statusObj?.status ||
+      (foreclosureDetails?.foreclosureDate
+        ? "Closed"
+        : statusObj?.isSeized || loan.isSeized
+          ? "Seized"
+          : "Active"),
 
     paymentStatus: statusObj?.paymentStatus || loan.paymentStatus,
     isSeized:

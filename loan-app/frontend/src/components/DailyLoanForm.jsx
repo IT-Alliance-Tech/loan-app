@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { getUserFromToken } from "../utils/auth";
 import ClientResponseSection from "./ClientResponseSection";
 
 const validationSchema = Yup.object().shape({
@@ -49,6 +50,9 @@ const DailyLoanForm = ({
   submitting,
   isViewOnly = false,
 }) => {
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
   const initialValues = {
     ...initialData,
     mobileNumbers: Array.isArray(initialData?.mobileNumbers)
@@ -63,6 +67,7 @@ const DailyLoanForm = ({
         : [],
     clientResponse: initialData?.clientResponse || "",
     nextFollowUpDate: initialData?.nextFollowUpDate || "",
+    status: initialData?.status || "Active",
   };
 
   const formik = useFormik({
@@ -163,32 +168,55 @@ const DailyLoanForm = ({
     >
       {/* Customer Info */}
       <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative">
-        <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-3 uppercase tracking-tight">
-          <span className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center text-lg">
-            👤
-          </span>
-          Customer & Basic Info
-        </h2>
-
-        {values.updatedBy && (
-          <div className="absolute top-4 right-4 flex flex-col items-end pointer-events-none">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
-              Last Updated By
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-4 md:pb-2 border-b border-primary/10">
+          <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2 md:gap-3 uppercase tracking-tight">
+            <span className="w-8 h-8 md:w-10 md:h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center text-base md:text-lg">
+              👤
             </span>
-            <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
-                {typeof values.updatedBy === "string"
-                  ? values.updatedBy
-                  : values.updatedBy.name}
-              </span>
-              <span className="w-1 h-1 rounded-full bg-red-500/40" />
-              <span className="text-[9px] font-bold text-slate-400 font-mono">
-                {values.updatedAt &&
-                  format(new Date(values.updatedAt), "dd/MM/yy HH:mm")}
-              </span>
-            </div>
+            Customer & Basic Info
+          </h2>
+
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Status
+            </label>
+            <select
+              name="status"
+              value={values.status || "Active"}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
+              disabled={isViewOnly || !isSuperAdmin}
+              className={`text-[11px] font-bold uppercase tracking-widest py-1 px-3 border rounded-lg focus:outline-none ${isViewOnly || !isSuperAdmin ? "opacity-70 bg-slate-100 cursor-not-allowed text-slate-500" : "bg-white border-primary/30 text-primary shadow-sm focus:ring-2 focus:ring-primary/20"}`}
+            >
+              <option value="Active">Active</option>
+              <option value="Closed">Closed</option>
+              <option value="Seized">Seized</option>
+              <option value="Pending">Pending</option>
+            </select>
           </div>
-        )}
+
+          <div className="w-full md:w-auto min-w-[150px] flex justify-start md:justify-end">
+            {values.updatedBy && (
+              <div className="flex flex-col items-start md:items-end pointer-events-none">
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                  Last Updated By
+                </span>
+                <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                    {typeof values.updatedBy === "string"
+                      ? values.updatedBy
+                      : values.updatedBy.name}
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-red-500/40" />
+                  <span className="text-[9px] font-bold text-slate-400 font-mono">
+                    {values.updatedAt &&
+                      format(new Date(values.updatedAt), "dd/MM/yy HH:mm")}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">

@@ -274,6 +274,10 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     guarantorMobileNumbers,
   } = req.body;
 
+  console.log("------- UPDATE WEEKLY LOAN CALLED -------");
+  console.log("Incoming req.body.status:", req.body.status);
+  console.log("Extracted status:", status);
+
   // Global Loan Number Uniqueness Check
   if (loanNumber && loanNumber !== weeklyLoan.loanNumber) {
     const existingLoanWithNumber = await Promise.all([

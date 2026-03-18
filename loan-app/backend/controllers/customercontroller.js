@@ -377,10 +377,16 @@ const updateEMI = asyncHandler(async (req, res, next) => {
         loanModel: "WeeklyLoan",
       });
       const paidEmisCount = allEmis.filter((e) => e.status === "Paid").length;
+      const isAllPaid = allEmis.length > 0 && allEmis.every((e) => e.status === "Paid");
 
       const weeklyLoan = await WeeklyLoan.findById(emi.loanId);
       if (weeklyLoan) {
         weeklyLoan.paidEmis = paidEmisCount;
+        if (isAllPaid) {
+          weeklyLoan.status = "Closed";
+        } else if (weeklyLoan.status === "Closed") {
+          weeklyLoan.status = "Active";
+        }
         await weeklyLoan.save();
       }
     } catch (err) {
@@ -397,10 +403,16 @@ const updateEMI = asyncHandler(async (req, res, next) => {
         loanModel: "DailyLoan",
       });
       const paidEmisCount = allEmis.filter((e) => e.status === "Paid").length;
+      const isAllPaid = allEmis.length > 0 && allEmis.every((e) => e.status === "Paid");
 
       const dailyLoan = await DailyLoan.findById(emi.loanId);
       if (dailyLoan) {
         dailyLoan.paidEmis = paidEmisCount;
+        if (isAllPaid) {
+          dailyLoan.status = "Closed";
+        } else if (dailyLoan.status === "Closed") {
+          dailyLoan.status = "Active";
+        }
         await dailyLoan.save();
       }
     } catch (err) {
@@ -417,7 +429,7 @@ const updateEMI = asyncHandler(async (req, res, next) => {
         loanModel: "Loan",
       });
 
-      const isAllPaid = allEmis.every((e) => e.status === "Paid");
+      const isAllPaid = allEmis.length > 0 && allEmis.every((e) => e.status === "Paid");
       const isAnyPaid = allEmis.some(
         (e) => e.status === "Paid" || e.status === "Partially Paid",
       );
@@ -426,10 +438,17 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       if (loan) {
         if (isAllPaid) {
           loan.paymentStatus = "Paid";
+          loan.status = "Closed";
         } else if (isAnyPaid) {
           loan.paymentStatus = "Partially Paid";
+          if (loan.status === "Closed") {
+            loan.status = "Active";
+          }
         } else {
           loan.paymentStatus = "Pending";
+          if (loan.status === "Closed") {
+            loan.status = "Active";
+          }
         }
         await loan.save();
       }
