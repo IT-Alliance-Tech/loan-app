@@ -205,6 +205,8 @@ const LoanForm = ({
         },
         updatedBy: initialData?.status?.updatedBy || null,
         updatedAt: initialData?.status?.updatedAt || null,
+        clientResponse: initialData?.status?.clientResponse || "",
+        nextFollowUpDate: initialData?.status?.nextFollowUpDate || "",
       },
     },
     validationSchema,
@@ -1865,20 +1867,22 @@ const LoanForm = ({
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
 
-                  <ClientResponseSection
-                    clientResponse={formik.values.status.clientResponse}
-                    nextFollowUpDate={formik.values.status.nextFollowUpDate}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    nameResponse="status.clientResponse"
-                    nameDate="status.nextFollowUpDate"
-                    isViewOnly={isViewOnly}
-                    updatedBy={formik.values.status.updatedBy}
-                    updatedAt={formik.values.status.updatedAt}
-                  />
-                </div>
-              )}
+                <ClientResponseSection
+                  clientResponse={formik.values.status.clientResponse}
+                  nextFollowUpDate={formik.values.status.nextFollowUpDate}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  nameResponse="status.clientResponse"
+                  nameDate="status.nextFollowUpDate"
+                  isViewOnly={isViewOnly}
+                  updatedBy={formik.values.status.updatedBy}
+                  updatedAt={formik.values.status.updatedAt}
+                />
+              </div>
+
               {renderExtraActions && (
                 <div className="mt-4">{renderExtraActions()}</div>
               )}
@@ -1917,9 +1921,9 @@ const LoanForm = ({
                 </>
               )}
             </div>
-          </div>
-        </form>
-      </div>
+          </form>
+        </div>
+      
 
       {/* Contact Action Menu Popover */}
       {activeContactMenu && (
