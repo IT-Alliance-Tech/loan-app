@@ -62,7 +62,7 @@ const weeklyLoanSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Active", "Closed", "Pending"],
+      enum: ["Active", "Closed", "Pending", "Seized"],
       default: "Active",
     },
     nextFollowUpDate: {

@@ -5,11 +5,16 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Square Finance',
     short_name: 'Square Finance',
     description: 'Fast & Reliable Vehicle Loans in Bengaluru',
-    start_url: '/',
+    start_url: '/admin/login',
     display: 'standalone',
     background_color: '#F8FAFC',
     theme_color: '#2563EB',
     icons: [
+      {
+        src: '/logo.jpg',
+        sizes: 'any',
+        type: 'image/jpeg',
+      },
       {
         src: '/pwa-icon-192.png',
         sizes: '192x192',

@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description: "Specializing in Car and Auto-Rickshaw commercial vehicle loans in Bengaluru with quick approvals and minimal paperwork.",
   manifest: "/manifest.json",
   icons: {
+    icon: "/logo.jpg",
     apple: "/logo.jpg",
   },
 };
