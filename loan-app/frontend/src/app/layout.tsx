@@ -18,6 +18,16 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "Square Finance | Fast & Reliable Vehicle Loans in Bengaluru",
   description: "Specializing in Car and Auto-Rickshaw commercial vehicle loans in Bengaluru with quick approvals and minimal paperwork.",
+  manifest: "/manifest.json",
+  icons: {
+    apple: "/logo.jpg",
+  },
+};
+
+export const viewport = {
+  themeColor: "#2563EB",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -27,7 +37,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${montserrat.variable}`} suppressHydrationWarning>
-      <body className="antialiased min-h-screen font-inter bg-slate-50 text-slate-900">
+      <body className="antialiased min-h-screen font-inter bg-slate-50 text-slate-900" suppressHydrationWarning>
         <ToastProvider>
           {children}
         </ToastProvider>
