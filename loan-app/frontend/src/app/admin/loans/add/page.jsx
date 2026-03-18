@@ -52,7 +52,9 @@ const AddLoanPage = () => {
       rtoWorkPending: [],
     },
     status: {
-      status: "Active",
+      status: "Pending",
+      clientResponse: "",
+      nextFollowUpDate: "",
     },
   };
 
