@@ -24,7 +24,7 @@ const AddDailyLoanPage = () => {
     paidEmis: 0,
     processingFeeRate: 10,
     emiStartDate: "",
-    status: "Pending",
+    status: "Active",
     clientResponse: "",
     nextFollowUpDate: "",
   };
