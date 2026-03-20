@@ -12,22 +12,38 @@ export default function manifest(): MetadataRoute.Manifest {
     icons: [
       {
         src: "/logo.jpg",
-        sizes: "any",
+        sizes: "1024x819",
         type: "image/jpeg",
         purpose: "any",
       },
       {
         src: "/pwa-icon-192.png",
-        sizes: "192x192",
+        sizes: "640x640",
         type: "image/png",
-        purpose: "maskable",
+        purpose: "any maskable",
       },
       {
         src: "/pwa-icon-512.png",
-        sizes: "512x512",
+        sizes: "640x640",
         type: "image/png",
-        purpose: "maskable",
+        purpose: "any maskable",
       },
+    ],
+    screenshots: [
+      {
+        src: "/screenshot-mobile.png",
+        sizes: "750x1334",
+        type: "image/png",
+        form_factor: "narrow",
+        label: "Square Finance Mobile"
+      },
+      {
+        src: "/screenshot-desktop.png",
+        sizes: "1920x1080",
+        type: "image/png",
+        form_factor: "wide",
+        label: "Square Finance Desktop"
+      }
     ],
   };
 }
