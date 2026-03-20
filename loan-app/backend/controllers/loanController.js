@@ -160,6 +160,27 @@ const createLoan = asyncHandler(async (req, res, next) => {
 
   await EMI.insertMany(emis);
 
+  // Create Payment record for processing fee if applicable
+  if (loan.processingFee && parseFloat(loan.processingFee) > 0) {
+    try {
+      await Payment.create({
+        loanId: loan._id,
+        loanModel: "Loan",
+        amount: parseFloat(loan.processingFee),
+        mode: "CASH", // Default to CASH for processing fee
+        paymentDate: loan.dateLoanDisbursed || new Date(),
+        paymentType: "Processing Fee",
+        status: "Success",
+        remarks: "Loan Processing Fee",
+        collectedBy: req.user._id,
+      });
+    } catch (err) {
+      console.error("Error creating processing fee payment record:", err);
+      // We don't want to fail the whole loan creation if just the payment record fails, 
+      // but in a production app we might want more robust handling.
+    }
+  }
+
   sendResponse(
     res,
     201,
@@ -246,6 +267,7 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
               $add: [
                 { $sum: "$emis.amountPaid" },
                 { $sum: { $ifNull: ["$emis.overdue", 0] } },
+                { $ifNull: ["$processingFee", 0] },
               ],
             },
             overdueAmount: { $sum: "$emis.overdue" },

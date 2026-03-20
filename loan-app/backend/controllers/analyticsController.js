@@ -33,6 +33,14 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
                 },
               },
             ],
+            processingFees: [
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: { $ifNull: ["$processingFee", 0] } },
+                },
+              },
+            ],
             sold: [
               {
                 $group: {
@@ -98,7 +106,7 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
                 $group: {
                   _id: null,
                   total: { $sum: "$disbursementAmount" },
-                  collected: { $sum: "$totalAmount" },
+                  collected: { $sum: "$totalCollected" },
                 },
               },
             ],
@@ -128,7 +136,7 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
                 $group: {
                   _id: null,
                   total: { $sum: "$disbursementAmount" },
-                  collected: { $sum: "$totalAmount" },
+                  collected: { $sum: "$totalCollected" },
                 },
               },
             ],
@@ -213,7 +221,8 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     (lDaily.disbursement[0]?.collected || 0) +
     (lWeekly.disbursement[0]?.collected || 0) +
     (lMain.foreclosure[0]?.total || 0) +
-    (lMain.sold[0]?.total || 0);
+    (lMain.sold[0]?.total || 0) +
+    (lMain.processingFees[0]?.total || 0);
 
   const activeLoansCount =
     (lMain.counts[0]?.active || 0) +
