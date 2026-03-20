@@ -6,7 +6,7 @@ const {
   searchLoanInfo,
   getLoanExpensesTotal,
 } = require("../controllers/expenseController");
-const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
+const { isAuthenticated, authorizePermissions } = require("../middlewares/auth");
 
 router.use(isAuthenticated);
 
