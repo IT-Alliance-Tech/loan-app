@@ -234,6 +234,23 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     await Payment.deleteMany({ emiId: emi._id });
 
     const paymentRecords = [];
+    let latestPaymentDate = paymentDate ? new Date(paymentDate) : new Date();
+    let latestPaymentMode = paymentMode || "CASH";
+
+    // Sort to find the actual latest date for overdue attribution
+    const sortedGroups = [...dateGroups]
+      .filter((g) => g.date)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (sortedGroups.length > 0) {
+      if (!paymentDate) latestPaymentDate = new Date(sortedGroups[0].date);
+      if (!paymentMode && sortedGroups[0].payments?.length > 0) {
+        latestPaymentMode =
+          sortedGroups[0].payments[sortedGroups[0].payments.length - 1].mode ||
+          "CASH";
+      }
+    }
+
     dateGroups.forEach((group) => {
       if (group.date && group.payments) {
         group.payments.forEach((p) => {
@@ -260,25 +277,37 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       }
     });
 
-    // Add overdue/penalty as a payment record if it exists
+    // Merge overdue into the latest payment record (same date) instead of creating a separate row
     if (overdue && parseFloat(overdue) > 0) {
-      paymentRecords.push({
-        emiId: emi._id,
-        loanId: emi.loanId,
-        loanModel: emi.loanModel,
-        amount: parseFloat(overdue),
-        mode: paymentMode || "CASH",
-        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-        paymentType:
-          emi.loanModel === "DailyLoan"
-            ? "Daily"
-            : emi.loanModel === "WeeklyLoan"
-              ? "Weekly"
-              : "Monthly",
-        status: "Success",
-        remarks: "Overdue/Penalty Payment",
-        collectedBy: req.user._id,
-      });
+      const overdueAmount = parseFloat(overdue);
+      // Find the last payment record with the same date as latestPaymentDate
+      const latestDateStr = latestPaymentDate.toISOString().split("T")[0];
+      const existingIdx = paymentRecords.findLastIndex(
+        (r) => r.paymentDate.toISOString().split("T")[0] === latestDateStr
+      );
+      if (existingIdx !== -1) {
+        // Merge: add overdue to the existing record's amount
+        paymentRecords[existingIdx].amount += overdueAmount;
+        paymentRecords[existingIdx].includesOverdue = true;
+      } else {
+        // No matching record — add a standalone overdue record
+        paymentRecords.push({
+          emiId: emi._id,
+          loanId: emi.loanId,
+          loanModel: emi.loanModel,
+          amount: overdueAmount,
+          mode: latestPaymentMode,
+          paymentDate: latestPaymentDate,
+          paymentType:
+            emi.loanModel === "DailyLoan"
+              ? "Daily"
+              : emi.loanModel === "WeeklyLoan"
+                ? "Weekly"
+                : "Monthly",
+          status: "Success",
+          collectedBy: req.user._id,
+        });
+      }
     }
 
     if (paymentRecords.length > 0) {
@@ -305,10 +334,16 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       });
     }
 
-    // Add overdue/penalty as a separate record if it exists and wasn't part of dateGroups
-    if (overdue && parseFloat(overdue) > 0) {
-      // Check if a penalty payment already exists to avoid duplication if not using dateGroups
-      // For simplicity, we create it here if it's a direct overdue update
+    // Merge overdue into the same payment record as the EMI amount (no separate row)
+    if (overdue && parseFloat(overdue) > 0 && addedAmount && parseFloat(addedAmount) > 0) {
+      // Already created one Payment above — update its amount to include overdue
+      await Payment.findOneAndUpdate(
+        { emiId: emi._id, paymentDate: paymentDate ? new Date(paymentDate) : new Date() },
+        { $inc: { amount: parseFloat(overdue) }, $set: { includesOverdue: true } },
+        { sort: { createdAt: -1 } }
+      );
+    } else if (overdue && parseFloat(overdue) > 0) {
+      // No regular payment was made — create a single record for overdue only
       await Payment.create({
         emiId: emi._id,
         loanId: emi.loanId,
@@ -323,7 +358,6 @@ const updateEMI = asyncHandler(async (req, res, next) => {
               ? "Weekly"
               : "Monthly",
         status: "Success",
-        remarks: "Overdue/Penalty Payment",
         collectedBy: req.user._id,
       });
     }

@@ -1,0 +1,12 @@
+{
+  "distinctLoanModels": [
+    "DailyLoan",
+    "Loan",
+    "WeeklyLoan"
+  ],
+  "pendingEMIsWithNoLoanModel": 0,
+  "pendingEMIsWithLoanModelFieldMissing": 0,
+  "uniqueLoansWithPendingEmiAndNoModel": 0,
+  "uniqueLoansWithPendingEmiAndNullModel": 0,
+  "totalUniqueLoansPending": 24
+}

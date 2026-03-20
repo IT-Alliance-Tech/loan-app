@@ -7,6 +7,7 @@ import AddExpenseModal from "../../../components/AddExpenseModal";
 import { getAllExpenses } from "../../../services/expenseService";
 import { useToast } from "../../../context/ToastContext";
 import { format } from "date-fns";
+import Pagination from "../../../components/Pagination";
 
 const ExpensesPage = () => {
   const { showToast } = useToast();
@@ -15,11 +16,25 @@ const ExpensesPage = () => {
   const [loading, setLoading] = useState(true);
   const [filterOfficeOnly, setFilterOfficeOnly] = useState(false);
 
-  const fetchExpenses = async () => {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [limit] = useState(25);
+
+  const fetchExpenses = async (page = currentPage) => {
     setLoading(true);
     try {
-      const res = await getAllExpenses();
-      setExpenses(res.data || []);
+      const res = await getAllExpenses({ page, limit });
+      const data = res.data;
+      if (data?.expenses) {
+        setExpenses(data.expenses);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotalRecords(data.pagination?.total || 0);
+      } else {
+        // Fallback for non-paginated response
+        setExpenses(data || []);
+      }
     } catch (err) {
       showToast("Failed to fetch expenses", "error");
     } finally {
@@ -28,8 +43,13 @@ const ExpensesPage = () => {
   };
 
   useEffect(() => {
-    fetchExpenses();
-  }, []);
+    fetchExpenses(currentPage);
+  }, [currentPage]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
 
   return (
     <AuthGuard>
@@ -163,6 +183,13 @@ const ExpensesPage = () => {
                   </div>
                 </>
               )}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                totalRecords={totalRecords}
+                limit={limit}
+              />
             </div>
           </main>
         </div>
