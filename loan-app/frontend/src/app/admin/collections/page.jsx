@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
@@ -137,6 +138,14 @@ const CollectionsPage = () => {
     }));
   };
 
+  const getLoanEditLink = (id, modelOrType) => {
+    const model = modelOrType?.toLowerCase();
+    if (model === "loan" || model === "monthly") return `/admin/loans/edit/${id}`;
+    if (model === "weeklyloan" || model === "weekly") return `/admin/weekly-loans/edit/${id}`;
+    if (model === "dailyloan" || model === "daily") return `/admin/daily-loans/edit/${id}`;
+    return "#";
+  };
+
   // Render Functions for distinct tables
   const renderCollectionsTable = () => (
     <table className="w-full text-left border-collapse">
@@ -159,7 +168,14 @@ const CollectionsPage = () => {
         ) : (
           collections.map((item, idx) => (
             <tr key={idx} className="hover:bg-slate-50 transition-colors">
-              <td className="px-6 py-4 text-xs font-black text-slate-900">{item.loanNumber}</td>
+              <td className="px-6 py-4 text-xs font-black text-slate-900">
+                <Link 
+                  href={getLoanEditLink(item.loanId, item.loanModel)}
+                  className="text-primary hover:underline underline-offset-4 decoration-2"
+                >
+                  {item.loanNumber}
+                </Link>
+              </td>
               <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">{item.customerName}</td>
               <td className="px-6 py-4 text-xs text-right font-black text-emerald-600">₹{item.amount.toLocaleString()}</td>
               <td className="px-6 py-4 text-xs text-center">
@@ -204,7 +220,14 @@ const CollectionsPage = () => {
         ) : (
           loansGiven.map((item, idx) => (
             <tr key={idx} className="hover:bg-slate-50 transition-colors">
-              <td className="px-6 py-4 text-xs font-black text-slate-900">{item.loanNumber}</td>
+              <td className="px-6 py-4 text-xs font-black text-slate-900">
+                <Link 
+                  href={getLoanEditLink(item._id, item.type)}
+                  className="text-primary hover:underline underline-offset-4 decoration-2"
+                >
+                  {item.loanNumber}
+                </Link>
+              </td>
               <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">{item.customerName}</td>
               <td className="px-6 py-4 text-xs font-medium text-slate-500 uppercase">{item.mobileNumber}</td>
               <td className="px-6 py-4 text-xs text-right font-black text-indigo-600">₹{item.loanAmount?.toLocaleString()}</td>
