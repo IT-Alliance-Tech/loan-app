@@ -10,12 +10,12 @@ const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
 
 router.use(isAuthenticated);
 
-router.get("/search", searchLoanInfo);
-router.get("/loan/:loanId", getLoanExpensesTotal);
+router.get("/search", authorizePermissions("expenses.view"), searchLoanInfo);
+router.get("/loan/:loanId", authorizePermissions("expenses.view"), getLoanExpensesTotal);
 
 router
   .route("/")
-  .get(getAllExpenses)
-  .post(authorizeRoles("SUPER_ADMIN", "ADMIN"), createExpense);
+  .get(authorizePermissions("expenses.view"), getAllExpenses)
+  .post(authorizePermissions("expenses.create"), createExpense);
 
 module.exports = router;
