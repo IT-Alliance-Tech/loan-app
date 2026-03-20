@@ -188,7 +188,7 @@ const LoanForm = ({
         hpEntry: initialData?.vehicleInformation?.hpEntry || "Not done",
       },
       status: {
-        status: initialData?.status?.status || "",
+        status: initialData?.status?.status || "Active",
         paymentStatus: initialData?.status?.paymentStatus || "Pending",
         isSeized: initialData?.status?.isSeized || false,
         docChecklist: initialData?.status?.docChecklist || "",
