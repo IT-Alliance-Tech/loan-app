@@ -372,22 +372,22 @@ const PendingPaymentsPage = () => {
                                   );
 
                                   let colorClass = "bg-slate-500";
-                                  let label = "0 Days";
+                                  let label = "";
 
-                                  if (days > 0) {
-                                    if (days >= 71) colorClass = "bg-red-600";
-                                    else if (days >= 36)
+                                  if (days >= 0) {
+                                    const displayDays = days + 1;
+                                    if (displayDays >= 72) colorClass = "bg-red-600";
+                                    else if (displayDays >= 37)
                                       colorClass = "bg-orange-600";
-                                    else if (days >= 1)
+                                    else if (displayDays >= 2)
                                       colorClass = "bg-amber-500";
-                                    label = `${days} Days`;
-                                  } else if (days < 0) {
+                                    else {
+                                      colorClass = "bg-blue-500";
+                                    }
+                                    label = `${displayDays} ${displayDays === 1 ? "Day" : "Days"}`;
+                                  } else {
                                     colorClass = "bg-emerald-500";
                                     label = `In ${Math.abs(days)} Days`;
-                                  } else {
-                                    // Exactly today
-                                    colorClass = "bg-blue-500";
-                                    label = "Today";
                                   }
 
                                   return (
