@@ -85,6 +85,15 @@ html {
   scroll-behavior: smooth;
 }
 
+label, 
+input[type="text"], 
+input[type="number"], 
+input[type="date"], 
+textarea,
+.space-y-1 p {
+  cursor: text !important;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
