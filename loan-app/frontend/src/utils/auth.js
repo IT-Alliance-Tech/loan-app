@@ -10,12 +10,16 @@ export const getToken = () => {
 export const setToken = (token) => {
   if (typeof window !== "undefined") {
     localStorage.setItem("token", token);
+    // Set cookie for middleware (7 days)
+    document.cookie = `accessToken=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
   }
 };
 
 export const removeToken = () => {
   if (typeof window !== "undefined") {
     localStorage.removeItem("token");
+    // Clear cookie
+    document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   }
 };
 

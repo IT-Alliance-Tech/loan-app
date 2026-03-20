@@ -261,16 +261,17 @@ const WeeklyPendingList = () => {
                           new Date(),
                           new Date(item.earliestDueDate),
                         );
+                        const displayDays = days + 1;
                         let bgColor = "bg-slate-500";
-                        if (days >= 28) bgColor = "bg-red-600";
-                        else if (days >= 14) bgColor = "bg-orange-600";
-                        else if (days >= 1) bgColor = "bg-yellow-600";
+                        if (displayDays >= 29) bgColor = "bg-red-600";
+                        else if (displayDays >= 15) bgColor = "bg-orange-600";
+                        else if (displayDays >= 2) bgColor = "bg-yellow-600";
 
                         return (
                           <span
                             className={`text-[10px] font-black tracking-tight px-3 py-1.5 rounded-lg inline-block min-w-[80px] text-white ${bgColor}`}
                           >
-                            {days > 0 ? `${days} Days` : "0 Days"}
+                            {displayDays} {displayDays === 1 ? "Day" : "Days"}
                           </span>
                         );
                       })()}
