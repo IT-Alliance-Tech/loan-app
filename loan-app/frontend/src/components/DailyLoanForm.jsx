@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -68,6 +68,7 @@ const DailyLoanForm = ({
     clientResponse: initialData?.clientResponse || "",
     nextFollowUpDate: initialData?.nextFollowUpDate || "",
     status: initialData?.status || "Active",
+    emiEndDate: initialData?.emiEndDate || "",
   };
 
   const formik = useFormik({
@@ -91,18 +92,38 @@ const DailyLoanForm = ({
 
   const { values, setFieldValue, errors, touched, handleBlur } = formik;
 
-  // Auto-set EMI Start Date to 1 day after Disbursement Date
+  const lastDisbursementDate = useRef(values.startDate);
+
+  // Auto-set EMI Start Date only when Disbursement Date explicitly changes
   useEffect(() => {
-    if (values.startDate) {
+    if (values.startDate && values.startDate !== lastDisbursementDate.current) {
       const disbursementDate = new Date(values.startDate);
       if (!isNaN(disbursementDate.getTime())) {
         const autoEmiStart = format(addDays(disbursementDate, 1), "yyyy-MM-dd");
         if (values.emiStartDate !== autoEmiStart) {
           setFieldValue("emiStartDate", autoEmiStart);
         }
+        lastDisbursementDate.current = values.startDate;
       }
     }
   }, [values.startDate, setFieldValue, values.emiStartDate]);
+
+  // Auto-calculate EMI End Date from Start Date & Tenure
+  useEffect(() => {
+    const totalDays = parseInt(values.totalEmis);
+    if (values.emiStartDate && totalDays > 0) {
+      const d = new Date(values.emiStartDate);
+      if (!isNaN(d.getTime())) {
+        const endDate = addDays(d, totalDays - 1);
+        const formattedEnd = format(endDate, "yyyy-MM-dd");
+        if (values.emiEndDate !== formattedEnd) {
+          setFieldValue("emiEndDate", formattedEnd);
+        }
+      }
+    } else if (values.emiEndDate !== "") {
+      setFieldValue("emiEndDate", "");
+    }
+  }, [values.emiStartDate, values.totalEmis, setFieldValue, values.emiEndDate]);
 
   // Auto-calculations (Derived State)
   const amount = parseFloat(values.disbursementAmount) || 0;
@@ -116,14 +137,6 @@ const DailyLoanForm = ({
 
   // Daily Principal Calculation (No Interest) - Round Up
   const emiAmount = totalDays > 0 ? Math.ceil(amount / totalDays) : 0;
-
-  // Dates
-  let emiEndDate = "";
-  if (eStartDate && totalDays > 0) {
-    const end = new Date(eStartDate);
-    end.setDate(end.getDate() + (totalDays - 1));
-    emiEndDate = isNaN(end.getTime()) ? "" : format(end, "yyyy-MM-dd");
-  }
 
   const totalAmount = (emiAmount * paidDays).toFixed(2);
   const totalCollected = (
@@ -579,7 +592,7 @@ const DailyLoanForm = ({
             <input
               type="date"
               name="emiEndDate"
-              value={emiEndDate}
+              value={values.emiEndDate || ""}
               readOnly
               disabled
               className="w-full bg-slate-100/50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-500 italic"

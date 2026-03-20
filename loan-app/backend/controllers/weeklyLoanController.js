@@ -137,6 +137,25 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
 
   await EMI.insertMany(emis);
 
+  // Create Payment record for processing fee if applicable
+  if (weeklyLoan.processingFee && parseFloat(weeklyLoan.processingFee) > 0) {
+    try {
+      await Payment.create({
+        loanId: weeklyLoan._id,
+        loanModel: "WeeklyLoan",
+        amount: parseFloat(weeklyLoan.processingFee),
+        mode: "CASH",
+        paymentDate: weeklyLoan.startDate || new Date(),
+        paymentType: "Processing Fee",
+        status: "Success",
+        remarks: "Loan Processing Fee",
+        collectedBy: req.user._id,
+      });
+    } catch (err) {
+      console.error("Error creating processing fee payment record:", err);
+    }
+  }
+
   sendResponse(
     res,
     201,

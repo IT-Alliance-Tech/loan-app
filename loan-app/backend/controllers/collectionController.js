@@ -71,6 +71,9 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
     }
   }
 
+  // Exclude Processing Fees from Collections tab (case-insensitive)
+  match.paymentType = { $not: /processing fee/i };
+
   const pageNum = parseInt(page, 10);
   const limitNum = parseInt(limit, 10);
   const skip = (pageNum - 1) * limitNum;
@@ -93,12 +96,13 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
   // Format the output
   const formattedTransactions = transactions.map((txn) => ({
     _id: txn._id,
+    loanId: txn.loanId,
+    loanModel: txn.loanModel,
     loanNumber: txn.emiId ? txn.emiId.loanNumber : "Unknown",
     customerName: txn.emiId ? txn.emiId.customerName : "Unknown",
     amount: txn.amount,
     paymentMode: txn.mode,
     paymentType: txn.paymentType,
-    loanModel: txn.loanModel,
     date: txn.paymentDate,
     updatedBy: txn.collectedBy ? txn.collectedBy.name : "System",
   }));
@@ -154,19 +158,29 @@ const getLoansGivenSummary = asyncHandler(async (req, res, next) => {
   // then sort and slice manually or use aggregate for better performance.
   // Given potential scale, aggregation is better.
 
-  const pipeline = [
+  const monthlyPipeline = [
     { $match: query },
-    { $project: { _id: 1, loanNumber: 1, customerName: 1, mobileNumbers: 1, mobileNumber: 1, amount: { $ifNull: ["$principalAmount", "$disbursementAmount"] }, createdAt: 1, createdBy: 1 } },
+    { $project: { _id: 1, loanNumber: 1, customerName: 1, mobileNumbers: 1, amount: "$principalAmount", date: "$dateLoanDisbursed", createdAt: 1, createdBy: 1, type: { $literal: "Monthly" } } },
+  ];
+
+  const weeklyPipeline = [
+    { $match: query },
+    { $project: { _id: 1, loanNumber: 1, customerName: 1, mobileNumbers: 1, amount: "$disbursementAmount", date: "$startDate", createdAt: 1, createdBy: 1, type: { $literal: "Weekly" } } },
+  ];
+
+  const dailyPipeline = [
+    { $match: query },
+    { $project: { _id: 1, loanNumber: 1, customerName: 1, mobileNumbers: 1, amount: "$disbursementAmount", date: "$startDate", createdAt: 1, createdBy: 1, type: { $literal: "Daily" } } },
   ];
 
   const [monthlyRes, weeklyRes, dailyRes] = await Promise.all([
-    Loan.aggregate([...pipeline, { $addFields: { type: "Monthly" } }]),
-    WeeklyLoan.aggregate([...pipeline, { $addFields: { type: "Weekly" } }]),
-    DailyLoan.aggregate([...pipeline, { $addFields: { type: "Daily" } }])
+    Loan.aggregate(monthlyPipeline),
+    WeeklyLoan.aggregate(weeklyPipeline),
+    DailyLoan.aggregate(dailyPipeline)
   ]);
 
   const allLoansRaw = [...monthlyRes, ...weeklyRes, ...dailyRes]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
 
   const total = allLoansRaw.length;
   const paginatedLoans = allLoansRaw.slice(skip, skip + limitNum);
@@ -179,10 +193,10 @@ const getLoansGivenSummary = asyncHandler(async (req, res, next) => {
       _id: loan._id,
       loanNumber: loan.loanNumber,
       customerName: loan.customerName,
-      mobileNumber: (loan.mobileNumbers && loan.mobileNumbers.length > 0) ? loan.mobileNumbers[0] : (loan.mobileNumber || "N/A"),
+      mobileNumber: (loan.mobileNumbers && loan.mobileNumbers.length > 0) ? loan.mobileNumbers[0] : "N/A",
       loanAmount: loan.amount,
       type: loan.type,
-      date: loan.createdAt,
+      date: loan.date || loan.createdAt,
       createdBy: creator ? creator.name : "System",
     };
   }));

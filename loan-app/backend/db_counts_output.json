@@ -1,0 +1,16 @@
+{
+  "active": {
+    "total": 59,
+    "monthly": 17,
+    "daily": 20,
+    "weekly": 22
+  },
+  "closed": {
+    "total": 5,
+    "monthly": 5,
+    "daily": 0,
+    "weekly": 0
+  },
+  "pending": 24,
+  "partial": 1
+}

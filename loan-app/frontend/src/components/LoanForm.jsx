@@ -188,7 +188,7 @@ const LoanForm = ({
         hpEntry: initialData?.vehicleInformation?.hpEntry || "Not done",
       },
       status: {
-        status: initialData?.status?.status || "",
+        status: initialData?.status?.status || "Active",
         paymentStatus: initialData?.status?.paymentStatus || "Pending",
         isSeized: initialData?.status?.isSeized || false,
         docChecklist: initialData?.status?.docChecklist || "",
@@ -459,6 +459,9 @@ const LoanForm = ({
       total += parseFloat(formik.values.status.soldDetails.totalAmount);
     }
 
+    // Add Processing Fee
+    total += parseFloat(formik.values.loanTerms.processingFee || 0);
+
     setTotalCollectedAmount(
       total.toLocaleString("en-IN", {
         minimumFractionDigits: 2,
@@ -471,6 +474,7 @@ const LoanForm = ({
     formik.values.status?.foreclosureDetails?.foreclosureAmount,
     formik.values.status?.seizedStatus,
     formik.values.status?.soldDetails?.totalAmount,
+    formik.values.loanTerms.processingFee,
   ]);
 
   const ErrorMsg = ({ name }) => {

@@ -21,7 +21,7 @@ const AddWeeklyLoanPage = () => {
     disbursementAmount: "",
     startDate: "",
     totalEmis: "",
-    status: "Pending",
+    status: "Active",
     clientResponse: "",
     nextFollowUpDate: "",
     paidEmis: 0,

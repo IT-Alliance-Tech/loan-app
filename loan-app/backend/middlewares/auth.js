@@ -10,7 +10,6 @@ const isAuthenticated = asyncHandler(async (req, res, next) => {
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return next(new ErrorHandler("Please login to access this resource", 401));
   }
-
   const token = authHeader.split(" ")[1];
 
   let decodedData;
