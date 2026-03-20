@@ -60,6 +60,10 @@ const createExpense = asyncHandler(async (req, res, next) => {
 // @access  Private
 const getAllExpenses = asyncHandler(async (req, res, next) => {
   const { startDate, endDate } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 25;
+  const skip = (page - 1) * limit;
+
   const match = {};
 
   if (startDate || endDate) {
@@ -76,17 +80,22 @@ const getAllExpenses = asyncHandler(async (req, res, next) => {
     }
   }
 
-  const expenses = await Expense.find(match).sort({ date: -1, createdAt: -1 });
+  const [expenses, total] = await Promise.all([
+    Expense.find(match).sort({ date: -1, createdAt: -1 }).skip(skip).limit(limit),
+    Expense.countDocuments(match),
+  ]);
 
-  sendResponse(
-    res,
-    200,
-    "success",
-    "Expenses fetched successfully",
-    null,
+  sendResponse(res, 200, "success", "Expenses fetched successfully", null, {
     expenses,
-  );
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
 });
+
 
 // @desc    Search loan/vehicle info
 // @route   GET /api/expenses/search

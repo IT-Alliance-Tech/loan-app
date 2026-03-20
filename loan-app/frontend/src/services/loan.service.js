@@ -156,7 +156,7 @@ export const getFollowupHistory = async (id) => {
 };
 
 export const getAnalyticsStats = async () => {
-  return await apiHandler("/api/loans/analytics/stats", {
+  return await apiHandler("/api/analytics/stats", {
     method: "GET",
   });
 };

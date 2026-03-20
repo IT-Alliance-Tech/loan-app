@@ -72,6 +72,12 @@ const login = asyncHandler(async (req, res, next) => {
     sameSite: "none",
     maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
   });
+  res.cookie("accessToken", accessToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
+  });
 
   return sendResponse(res, 200, "success", "Login successful", null, {
     token: accessToken,
@@ -147,6 +153,12 @@ const refreshToken = asyncHandler(async (req, res, next) => {
     sameSite: "none",
     maxAge: 10 * 24 * 60 * 60 * 1000,
   });
+  res.cookie("accessToken", tokens.accessToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    maxAge: 24 * 60 * 60 * 1000,
+  });
 
   return sendResponse(res, 200, "success", "Token refreshed", null, {
     token: tokens.accessToken,
@@ -165,6 +177,11 @@ const logout = asyncHandler(async (req, res, next) => {
   }
 
   res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  });
+  res.clearCookie("accessToken", {
     httpOnly: true,
     secure: true,
     sameSite: "none",

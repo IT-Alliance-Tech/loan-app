@@ -16,7 +16,6 @@ const {
   forecloseLoan,
   getSeizedVehicles,
   updateSeizedStatus,
-  getAnalyticsStats,
   updateFollowup,
   getFollowupHistory,
   getTodoList,
@@ -36,7 +35,6 @@ const {
 router.get("/health", (req, res) =>
   res.json({ status: "ok", version: "v4-deployment-test" }),
 );
-router.get("/analytics/stats", getAnalyticsStats);
 router.get("/todo-list", getTodoList);
 router.get("/expired-docs", getExpiredDocLoans);
 
