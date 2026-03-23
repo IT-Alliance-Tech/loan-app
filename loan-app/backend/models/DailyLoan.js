@@ -32,6 +32,9 @@ const dailyLoanSchema = new mongoose.Schema(
       type: Date,
       required: [true, "Start date is required"],
     },
+    dateLoanDisbursed: {
+      type: Date,
+    },
     totalEmis: {
       type: Number,
       required: [true, "Total EMIs is required"],

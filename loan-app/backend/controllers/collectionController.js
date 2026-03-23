@@ -147,30 +147,81 @@ const getLoansGivenSummary = asyncHandler(async (req, res, next) => {
 
   const query = {};
   if (Object.keys(matchDate).length > 0) {
-    query.createdAt = matchDate;
+    query.dateLoanDisbursed = matchDate;
   }
 
   const pageNum = parseInt(page, 10);
   const limitNum = parseInt(limit, 10);
   const skip = (pageNum - 1) * limitNum;
 
-  // For combined collections, we need to fetch all matching IDs first to get total count, 
-  // then sort and slice manually or use aggregate for better performance.
-  // Given potential scale, aggregation is better.
-
+  // Monthly Loans
   const monthlyPipeline = [
-    { $match: query },
-    { $project: { _id: 1, loanNumber: 1, customerName: 1, mobileNumbers: 1, amount: "$principalAmount", date: "$dateLoanDisbursed", createdAt: 1, createdBy: 1, type: { $literal: "Monthly" } } },
+    { 
+      $match: Object.keys(matchDate).length > 0 ? { dateLoanDisbursed: matchDate } : {} 
+    },
+    { 
+      $project: { 
+        _id: 1, 
+        loanNumber: 1, 
+        customerName: 1, 
+        mobileNumbers: 1, 
+        amount: "$principalAmount", 
+        date: { $ifNull: ["$dateLoanDisbursed", "$createdAt"] }, 
+        createdAt: 1, 
+        createdBy: 1, 
+        type: { $literal: "Monthly" } 
+      } 
+    },
   ];
 
+  // Weekly Loans - Fallback to startDate if dateLoanDisbursed is missing
   const weeklyPipeline = [
-    { $match: query },
-    { $project: { _id: 1, loanNumber: 1, customerName: 1, mobileNumbers: 1, amount: "$disbursementAmount", date: "$startDate", createdAt: 1, createdBy: 1, type: { $literal: "Weekly" } } },
+    { 
+      $match: Object.keys(matchDate).length > 0 ? {
+        $or: [
+          { dateLoanDisbursed: matchDate },
+          { $and: [{ dateLoanDisbursed: { $exists: false } }, { startDate: matchDate }] }
+        ]
+      } : {}
+    },
+    { 
+      $project: { 
+        _id: 1, 
+        loanNumber: 1, 
+        customerName: 1, 
+        mobileNumbers: 1, 
+        amount: "$disbursementAmount", 
+        date: { $ifNull: ["$dateLoanDisbursed", { $ifNull: ["$startDate", "$createdAt"] }] }, 
+        createdAt: 1, 
+        createdBy: 1, 
+        type: { $literal: "Weekly" } 
+      } 
+    },
   ];
 
+  // Daily Loans - Fallback to startDate if dateLoanDisbursed is missing
   const dailyPipeline = [
-    { $match: query },
-    { $project: { _id: 1, loanNumber: 1, customerName: 1, mobileNumbers: 1, amount: "$disbursementAmount", date: "$startDate", createdAt: 1, createdBy: 1, type: { $literal: "Daily" } } },
+    { 
+      $match: Object.keys(matchDate).length > 0 ? {
+        $or: [
+          { dateLoanDisbursed: matchDate },
+          { $and: [{ dateLoanDisbursed: { $exists: false } }, { startDate: matchDate }] }
+        ]
+      } : {}
+    },
+    { 
+      $project: { 
+        _id: 1, 
+        loanNumber: 1, 
+        customerName: 1, 
+        mobileNumbers: 1, 
+        amount: "$disbursementAmount", 
+        date: { $ifNull: ["$dateLoanDisbursed", { $ifNull: ["$startDate", "$createdAt"] }] }, 
+        createdAt: 1, 
+        createdBy: 1, 
+        type: { $literal: "Daily" } 
+      } 
+    },
   ];
 
   const [monthlyRes, weeklyRes, dailyRes] = await Promise.all([
@@ -180,7 +231,7 @@ const getLoansGivenSummary = asyncHandler(async (req, res, next) => {
   ]);
 
   const allLoansRaw = [...monthlyRes, ...weeklyRes, ...dailyRes]
-    .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const total = allLoansRaw.length;
   const paginatedLoans = allLoansRaw.slice(skip, skip + limitNum);

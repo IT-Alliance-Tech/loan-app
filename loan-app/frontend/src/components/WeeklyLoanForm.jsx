@@ -23,7 +23,8 @@ const validationSchema = Yup.object().shape({
     .positive("Tenure must be positive")
     .integer("Tenure must be an integer")
     .required("Tenure is required"),
-  startDate: Yup.string().required("Disbursement date is required"),
+  startDate: Yup.string(),
+  dateLoanDisbursed: Yup.string().required("Disbursement date is required"),
   emiStartDate: Yup.string().required("EMI start date is required"),
   guarantorName: Yup.string(),
   guarantorMobileNumbers: Yup.array().of(
@@ -69,6 +70,7 @@ const WeeklyLoanForm = ({
     nextFollowUpDate: initialData?.nextFollowUpDate || "",
     status: initialData?.status || "Active",
     emiEndDate: initialData?.emiEndDate || "",
+    dateLoanDisbursed: initialData?.dateLoanDisbursed || initialData?.startDate || "",
   };
 
   const formik = useFormik({
@@ -96,17 +98,19 @@ const WeeklyLoanForm = ({
 
   // Auto-set EMI Start Date only when Disbursement Date explicitly changes
   useEffect(() => {
-    if (values.startDate && values.startDate !== lastDisbursementDate.current) {
-      const disbursementDate = new Date(values.startDate);
+    if (values.dateLoanDisbursed && values.dateLoanDisbursed !== lastDisbursementDate.current) {
+      const disbursementDate = new Date(values.dateLoanDisbursed);
       if (!isNaN(disbursementDate.getTime())) {
         const autoEmiStart = format(addDays(disbursementDate, 7), "yyyy-MM-dd");
         if (values.emiStartDate !== autoEmiStart) {
           setFieldValue("emiStartDate", autoEmiStart);
         }
-        lastDisbursementDate.current = values.startDate;
+        // Also sync startDate for backend compatibility
+        setFieldValue("startDate", values.dateLoanDisbursed);
+        lastDisbursementDate.current = values.dateLoanDisbursed;
       }
     }
-  }, [values.startDate, setFieldValue, values.emiStartDate]);
+  }, [values.dateLoanDisbursed, setFieldValue, values.emiStartDate]);
 
   // Auto-calculate EMI End Date from Start Date & Tenure
   useEffect(() => {
@@ -507,14 +511,14 @@ const WeeklyLoanForm = ({
             </label>
             <input
               type="date"
-              name="startDate"
-              value={values.startDate || ""}
+              name="dateLoanDisbursed"
+              value={values.dateLoanDisbursed || ""}
               onChange={formik.handleChange}
               onBlur={handleBlur}
               disabled={isViewOnly}
-              className={getFieldClass("startDate")}
+              className={getFieldClass("dateLoanDisbursed")}
             />
-            <ErrorMsg touched={touched} errors={errors} name="startDate" />
+            <ErrorMsg touched={touched} errors={errors} name="dateLoanDisbursed" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
