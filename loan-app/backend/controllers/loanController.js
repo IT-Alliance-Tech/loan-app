@@ -50,7 +50,7 @@ const calculateEMIApi = asyncHandler(async (req, res, next) => {
     emi,
   });
 });
-
+// create loan
 const createLoan = asyncHandler(async (req, res, next) => {
   const {
     customerDetails,
@@ -141,12 +141,12 @@ const createLoan = asyncHandler(async (req, res, next) => {
     let currentEmiDate = new Date(baseDate);
 
     for (let i = 1; i <= t; i++) {
-    emis.push({
-      loanId: loan._id,
-      loanNumber: loan.loanNumber,
-      customerName: loan.customerName,
-      emiNumber: i,
-      dueDate: addMonths(new Date(currentEmiDate), i - 1),
+      emis.push({
+        loanId: loan._id,
+        loanNumber: loan.loanNumber,
+        customerName: loan.customerName,
+        emiNumber: i,
+        dueDate: addMonths(new Date(currentEmiDate), i - 1),
         emiAmount: monthlyEMI,
         status: "Pending",
       });
@@ -173,7 +173,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
       });
     } catch (err) {
       console.error("Error creating processing fee payment record:", err);
-      // We don't want to fail the whole loan creation if just the payment record fails, 
+      // We don't want to fail the whole loan creation if just the payment record fails,
       // but in a production app we might want more robust handling.
     }
   }
@@ -1011,7 +1011,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
 
   const getPipeline = (modelName, loanType) => {
     let matchQuery = { ...query };
-    
+
     if (mobileNumber) {
       if (modelName === "Loan") {
         matchQuery.$or = [
@@ -1056,14 +1056,19 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
                   {
                     $or: [
                       { $eq: ["$$emi.status", "Partially Paid"] },
-                      { $lte: ["$$emi.dueDate", now] }
-                    ]
+                      { $lte: ["$$emi.dueDate", now] },
+                    ],
                   },
                   status === "Pending"
                     ? { $in: ["$$emi.status", ["Pending", "Overdue"]] }
                     : status
                       ? { $eq: ["$$emi.status", status] }
-                      : { $in: ["$$emi.status", ["Pending", "Partially Paid", "Overdue"]] },
+                      : {
+                          $in: [
+                            "$$emi.status",
+                            ["Pending", "Partially Paid", "Overdue"],
+                          ],
+                        },
                 ],
               },
             },
@@ -1094,7 +1099,12 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
               in: {
                 $add: [
                   "$$value",
-                  { $subtract: [{ $toDouble: "$$this.emiAmount" }, { $toDouble: { $ifNull: ["$$this.amountPaid", 0] } }] },
+                  {
+                    $subtract: [
+                      { $toDouble: "$$this.emiAmount" },
+                      { $toDouble: { $ifNull: ["$$this.amountPaid", 0] } },
+                    ],
+                  },
                 ],
               },
             },
@@ -1139,13 +1149,16 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
     promises.push(Promise.resolve([]));
   }
 
-  const [monthlyResult, dailyResult, weeklyResult] = await Promise.all(promises);
+  const [monthlyResult, dailyResult, weeklyResult] =
+    await Promise.all(promises);
 
-  let allResults = [...monthlyResult, ...dailyResult, ...weeklyResult].sort((a, b) => {
-    if (!a.earliestDueDate) return 1;
-    if (!b.earliestDueDate) return -1;
-    return new Date(a.earliestDueDate) - new Date(b.earliestDueDate);
-  });
+  let allResults = [...monthlyResult, ...dailyResult, ...weeklyResult].sort(
+    (a, b) => {
+      if (!a.earliestDueDate) return 1;
+      if (!b.earliestDueDate) return -1;
+      return new Date(a.earliestDueDate) - new Date(b.earliestDueDate);
+    },
+  );
 
   const total = allResults.length;
   const paginatedResults = allResults.slice(skip, skip + limit);
@@ -1198,8 +1211,8 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
         $or: [
           { dueDate: { $lte: now } },
           { status: "Partially Paid" },
-          { _id: new mongoose.Types.ObjectId(id) }
-        ]
+          { _id: new mongoose.Types.ObjectId(id) },
+        ],
       },
     },
     { $sort: { dueDate: 1 } },
@@ -1244,12 +1257,20 @@ const getPendingEmiDetails = asyncHandler(async (req, res, next) => {
         mobileNumbers: {
           $ifNull: [
             "$loan.mobileNumbers",
-            { $cond: [{ $ifNull: ["$loan.mobileNumber", false] }, ["$loan.mobileNumber"], []] }
-          ]
+            {
+              $cond: [
+                { $ifNull: ["$loan.mobileNumber", false] },
+                ["$loan.mobileNumber"],
+                [],
+              ],
+            },
+          ],
         },
         address: "$loan.address",
         guarantorName: { $ifNull: ["$loan.guarantorName", "—"] },
-        guarantorMobileNumbers: { $ifNull: ["$loan.guarantorMobileNumbers", []] },
+        guarantorMobileNumbers: {
+          $ifNull: ["$loan.guarantorMobileNumbers", []],
+        },
         vehicleNumber: "$loan.vehicleNumber",
         model: "$loan.model",
         engineNumber: "$loan.engineNumber",
@@ -1357,7 +1378,10 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
           { guarantorMobileNumbers: { $regex: mobileNumber, $options: "i" } },
         ];
       } else {
-        pipeline[0].$match.mobileNumber = { $regex: mobileNumber, $options: "i" };
+        pipeline[0].$match.mobileNumber = {
+          $regex: mobileNumber,
+          $options: "i",
+        };
       }
     }
 
@@ -1407,8 +1431,7 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
           guarantorName: modelName === "Loan" ? 1 : { $literal: "—" },
           status: 1,
           mobileNumbers: modelName === "Loan" ? 1 : ["$mobileNumber"],
-          guarantorMobileNumbers:
-            modelName === "Loan" ? 1 : { $literal: [] },
+          guarantorMobileNumbers: modelName === "Loan" ? 1 : { $literal: [] },
           vehicleNumber: 1,
           model: 1,
           loanType: { $literal: loanType },
@@ -1477,26 +1500,27 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
 
   // Run aggregations for models based on loanType filter
   const promises = [];
-  
+
   if (!queryLoanType || queryLoanType.toLowerCase() === "monthly") {
     promises.push(Loan.aggregate(getPipeline("Loan", "Monthly")));
   } else {
     promises.push(Promise.resolve([]));
   }
-  
+
   if (!queryLoanType || queryLoanType.toLowerCase() === "daily") {
     promises.push(DailyLoan.aggregate(getPipeline("DailyLoan", "Daily")));
   } else {
     promises.push(Promise.resolve([]));
   }
-  
+
   if (!queryLoanType || queryLoanType.toLowerCase() === "weekly") {
     promises.push(WeeklyLoan.aggregate(getPipeline("WeeklyLoan", "Weekly")));
   } else {
     promises.push(Promise.resolve([]));
   }
 
-  const [monthlyFollowups, dailyFollowups, weeklyFollowups] = await Promise.all(promises);
+  const [monthlyFollowups, dailyFollowups, weeklyFollowups] =
+    await Promise.all(promises);
 
   // Combine and sort
   let allFollowups = [
@@ -2070,7 +2094,12 @@ const deleteLoan = asyncHandler(async (req, res, next) => {
 
   await loan.deleteOne();
 
-  sendResponse(res, 200, "success", "Loan and all associated records deleted successfully");
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Loan and all associated records deleted successfully",
+  );
 });
 
 // export all values
