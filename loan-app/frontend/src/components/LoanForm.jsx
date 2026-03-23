@@ -15,6 +15,8 @@ import {
 } from "../services/loan.service";
 import { getLoanExpensesTotal } from "../services/expenseService";
 
+const _monthlyLoanUniquenessCache = new Map();
+
 const LoanForm = ({
   initialData,
   onSubmit,
@@ -27,7 +29,6 @@ const LoanForm = ({
   const { showToast } = useToast();
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  const uniquenessCache = useRef({});
 
   const validationSchema = Yup.object().shape({
     customerDetails: Yup.object({
@@ -62,13 +63,13 @@ const LoanForm = ({
             // If editing and same as initial, skip
             if (initialData?.loanTerms?.loanNumber === value) return true;
 
-            if (uniquenessCache.current[value] !== undefined) {
-              return uniquenessCache.current[value];
+            if (_monthlyLoanUniquenessCache.has(value)) {
+              return _monthlyLoanUniquenessCache.get(value);
             }
 
             try {
               const res = await checkLoanNumberUniqueness(value);
-              uniquenessCache.current[value] = res.data.available;
+              _monthlyLoanUniquenessCache.set(value, res.data.available);
               return res.data.available;
             } catch (err) {
               return true;

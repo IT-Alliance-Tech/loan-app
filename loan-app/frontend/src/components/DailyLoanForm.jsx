@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -18,6 +18,8 @@ const ErrorMsg = ({ name, touched, errors }) => {
   ) : null;
 };
 
+const _loanUniquenessCache = new Map();
+
 const DailyLoanForm = ({
   initialData,
   onSubmit,
@@ -27,7 +29,6 @@ const DailyLoanForm = ({
 }) => {
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  const uniquenessCache = useRef({});
 
   const validationSchema = Yup.object().shape({
     loanNumber: Yup.string()
@@ -37,13 +38,13 @@ const DailyLoanForm = ({
         // If editing and same as initial, skip
         if (initialData?.loanNumber === value) return true;
         
-        if (uniquenessCache.current[value] !== undefined) {
-          return uniquenessCache.current[value];
+        if (_loanUniquenessCache.has(value)) {
+          return _loanUniquenessCache.get(value);
         }
 
         try {
           const res = await checkLoanNumberUniqueness(value);
-          uniquenessCache.current[value] = res.data.available;
+          _loanUniquenessCache.set(value, res.data.available);
           return res.data.available;
         } catch (err) {
           return true; 
