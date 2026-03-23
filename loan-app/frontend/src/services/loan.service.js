@@ -167,11 +167,14 @@ export const getTodoList = async () => {
   });
 };
 
-
-
-
 export const deleteLoan = async (id) => {
   return await apiHandler(`/api/loans/${id}`, {
     method: "DELETE",
+  });
+};
+
+export const checkLoanNumberUniqueness = async (loanNumber) => {
+  return await apiHandler(`/api/loans/check-uniqueness/${loanNumber}`, {
+    method: "GET",
   });
 };

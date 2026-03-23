@@ -10,12 +10,10 @@ const weeklyLoanSchema = new mongoose.Schema(
     },
     customerName: {
       type: String,
-      required: [true, "Customer name is required"],
       trim: true,
     },
     mobileNumbers: {
       type: [String],
-      required: [true, "Mobile number is required"],
     },
     guarantorName: {
       type: String,
@@ -26,18 +24,15 @@ const weeklyLoanSchema = new mongoose.Schema(
     },
     disbursementAmount: {
       type: Number,
-      required: [true, "Disbursement amount is required"],
     },
     startDate: {
       type: Date,
-      required: [true, "Start date is required"],
     },
     dateLoanDisbursed: {
       type: Date,
     },
     totalEmis: {
       type: Number,
-      required: [true, "Total EMIs is required"],
     },
     emiAmount: {
       type: Number,
@@ -51,7 +46,6 @@ const weeklyLoanSchema = new mongoose.Schema(
     },
     totalAmount: {
       type: Number,
-      comment: "Total amount paid (emiAmount * paidEmis)",
     },
     nextEmiDate: {
       type: Date,
@@ -61,7 +55,6 @@ const weeklyLoanSchema = new mongoose.Schema(
     },
     totalCollected: {
       type: Number,
-      comment: "totalAmount + processingFee",
     },
     status: {
       type: String,
@@ -148,11 +141,12 @@ weeklyLoanSchema.virtual("followupHistory", {
   foreignField: "loanId",
 });
 
-// Pre-save middleware to handle calculations if needed, though we'll likely do them in the controller
+// Pre-save middleware to handle calculations
 weeklyLoanSchema.pre("save", async function () {
   if (this.disbursementAmount && this.totalEmis) {
     this.emiAmount = Math.ceil(this.disbursementAmount / this.totalEmis);
-    this.processingFee = this.disbursementAmount * 0.1;
+    this.processingFee =
+      this.disbursementAmount * (this.processingFeeRate / 100);
     this.remainingEmis = this.totalEmis - this.paidEmis;
     this.totalAmount = this.emiAmount * this.paidEmis;
     this.totalCollected = this.totalAmount + this.processingFee;

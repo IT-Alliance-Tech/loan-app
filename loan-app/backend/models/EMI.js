@@ -20,7 +20,6 @@ const emiSchema = new mongoose.Schema(
     },
     customerName: {
       type: String,
-      required: true,
       trim: true,
     },
     emiNumber: {

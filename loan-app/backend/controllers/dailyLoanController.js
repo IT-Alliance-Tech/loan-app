@@ -32,16 +32,8 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     guarantorMobileNumbers,
   } = req.body;
 
-  if (
-    !loanNumber ||
-    !customerName ||
-    !mobileNumbers ||
-    !mobileNumbers.length ||
-    !disbursementAmount ||
-    !startDate ||
-    !totalEmis
-  ) {
-    return next(new ErrorHandler("Please provide all required fields", 400));
+  if (!loanNumber) {
+    return next(new ErrorHandler("Loan number is required", 400));
   }
 
   const existingLoan = await Promise.all([
@@ -55,23 +47,25 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
   }
 
   // Calculations
-  const amount = parseFloat(disbursementAmount);
-  const totalDays = parseInt(totalEmis);
+  const amount = parseFloat(disbursementAmount) || 0;
+  const totalDays = parseInt(totalEmis) || 0;
   const feeRate = parseFloat(processingFeeRate) || 10;
   const currentPaidEmis = parseInt(paidEmis) || 0;
 
   const processingFee = amount * (feeRate / 100);
-  const dailyPrincipal = amount / totalDays;
+  const dailyPrincipal = totalDays > 0 ? amount / totalDays : 0;
   const emiAmount = Math.ceil(dailyPrincipal);
 
   // Dates
-  const disburseDate = new Date(startDate);
+  const disburseDate = startDate ? new Date(startDate) : null;
   const eStartDate = emiStartDate
     ? new Date(emiStartDate)
-    : new Date(disburseDate);
+    : (disburseDate ? new Date(disburseDate) : null);
 
-  const eEndDate = new Date(eStartDate);
-  eEndDate.setDate(eEndDate.getDate() + (totalDays - 1));
+  const eEndDate = eStartDate ? new Date(eStartDate) : null;
+  if (eEndDate && totalDays > 0) {
+    eEndDate.setDate(eEndDate.getDate() + (totalDays - 1));
+  }
 
   const totalAmount = emiAmount * currentPaidEmis;
   const totalCollected = totalAmount + processingFee;
@@ -111,27 +105,31 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
 
   // Generate EMIs
   const emis = [];
-  let currentEmiDateArr = new Date(eStartDate);
+  if (eStartDate) {
+    let currentEmiDateArr = new Date(eStartDate);
 
-  for (let i = 1; i <= totalDays; i++) {
-    const isPaid = i <= currentPaidEmis;
-    emis.push({
-      loanId: dailyLoan._id,
-      loanModel: "DailyLoan",
-      loanNumber: dailyLoan.loanNumber,
-      customerName: dailyLoan.customerName,
-      emiNumber: i,
-      dueDate: new Date(currentEmiDateArr),
-      emiAmount: emiAmount,
-      status: isPaid ? "Paid" : "Pending",
-      amountPaid: isPaid ? emiAmount : 0,
-      paymentDate: isPaid ? new Date(eStartDate) : null,
-      paymentMode: isPaid ? "CASH" : "",
-    });
-    currentEmiDateArr.setDate(currentEmiDateArr.getDate() + 1);
+    for (let i = 1; i <= totalDays; i++) {
+      const isPaid = i <= currentPaidEmis;
+      emis.push({
+        loanId: dailyLoan._id,
+        loanModel: "DailyLoan",
+        loanNumber: dailyLoan.loanNumber,
+        customerName: dailyLoan.customerName,
+        emiNumber: i,
+        dueDate: new Date(currentEmiDateArr),
+        emiAmount: emiAmount,
+        status: isPaid ? "Paid" : "Pending",
+        amountPaid: isPaid ? emiAmount : 0,
+        paymentDate: isPaid ? new Date(eStartDate) : null,
+        paymentMode: isPaid ? "CASH" : "",
+      });
+      currentEmiDateArr.setDate(currentEmiDateArr.getDate() + 1);
+    }
   }
 
-  await EMI.insertMany(emis);
+  if (emis.length > 0) {
+    await EMI.insertMany(emis);
+  }
 
   // Create Payment record for processing fee if applicable
   if (dailyLoan.processingFee && parseFloat(dailyLoan.processingFee) > 0) {

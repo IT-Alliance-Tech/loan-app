@@ -4,33 +4,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { getUserFromToken } from "../utils/auth";
 import ClientResponseSection from "./ClientResponseSection";
-
-const validationSchema = Yup.object().shape({
-  loanNumber: Yup.string().required("Loan number is required"),
-  customerName: Yup.string().required("Customer name is required"),
-  mobileNumbers: Yup.array()
-    .of(
-      Yup.string()
-        .matches(/^[6-9]\d{9}$/, "Invalid mobile number")
-        .required("Mobile number is required"),
-    )
-    .min(1, "At least one mobile number is required")
-    .required("Mobile numbers are required"),
-  disbursementAmount: Yup.number()
-    .positive("Amount must be positive")
-    .required("Amount is required"),
-  totalEmis: Yup.number()
-    .positive("Tenure must be positive")
-    .integer("Tenure must be an integer")
-    .required("Tenure is required"),
-  startDate: Yup.string(),
-  dateLoanDisbursed: Yup.string().required("Disbursement date is required"),
-  emiStartDate: Yup.string().required("EMI start date is required"),
-  guarantorName: Yup.string(),
-  guarantorMobileNumbers: Yup.array().of(
-    Yup.string().matches(/^[6-9]\d{9}$/, "Invalid mobile number"),
-  ),
-});
+import { checkLoanNumberUniqueness } from "../services/loan.service";
 
 const ErrorMsg = ({ name, touched, errors }) => {
   const [section, field] = name.includes(".") ? name.split(".") : [null, name];
@@ -53,6 +27,48 @@ const DailyLoanForm = ({
 }) => {
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const uniquenessCache = useRef({});
+
+  const validationSchema = Yup.object().shape({
+    loanNumber: Yup.string()
+      .required("Loan number is required")
+      .test("unique-loan-number", "Loan number already exists", async (value) => {
+        if (!value || isViewOnly) return true;
+        // If editing and same as initial, skip
+        if (initialData?.loanNumber === value) return true;
+        
+        if (uniquenessCache.current[value] !== undefined) {
+          return uniquenessCache.current[value];
+        }
+
+        try {
+          const res = await checkLoanNumberUniqueness(value);
+          uniquenessCache.current[value] = res.data.available;
+          return res.data.available;
+        } catch (err) {
+          return true; 
+        }
+      }),
+    customerName: Yup.string().nullable(),
+    mobileNumbers: Yup.array()
+      .of(
+        Yup.string()
+          .matches(/^(?:[6-9]\d{9})?$/, "Invalid mobile number")
+      )
+      .nullable(),
+    disbursementAmount: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+    totalEmis: Yup.number()
+      .transform((value, originalValue) => originalValue === "" ? null : value)
+      .integer("Tenure must be an integer")
+      .nullable(),
+    startDate: Yup.string().nullable(),
+    dateLoanDisbursed: Yup.string().nullable(),
+    emiStartDate: Yup.string().nullable(),
+    guarantorName: Yup.string().nullable(),
+    guarantorMobileNumbers: Yup.array().of(
+      Yup.string().matches(/^(?:[6-9]\d{9})?$/, "Invalid mobile number"),
+    ).nullable(),
+  });
 
   const initialValues = {
     ...initialData,
@@ -76,6 +92,8 @@ const DailyLoanForm = ({
   const formik = useFormik({
     initialValues,
     validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
     enableReinitialize: true,
     onSubmit: (values) => {
       onSubmit({
@@ -86,7 +104,7 @@ const DailyLoanForm = ({
         totalAmount,
         totalCollected,
         nextEmiDate,
-        emiEndDate,
+        emiEndDate: values.emiEndDate,
         remainingPrincipalAmount,
       });
     },
@@ -254,7 +272,7 @@ const DailyLoanForm = ({
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Customer Name <span className="text-red-500">*</span>
+              Customer Name
             </label>
             <input
               type="text"
@@ -271,7 +289,7 @@ const DailyLoanForm = ({
           <div className="space-y-4">
             <div className="flex justify-between items-center px-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                MOBILE NUMBERS <span className="text-red-500">*</span>
+                MOBILE NUMBERS
               </label>
             </div>
             <div className="flex flex-col gap-4">
@@ -374,7 +392,7 @@ const DailyLoanForm = ({
           <div className="space-y-4">
             <div className="flex justify-between items-center px-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                GUARANTOR MOBILE NUMBERS <span className="text-red-500">*</span>
+                GUARANTOR MOBILE NUMBERS
               </label>
             </div>
             <div className="flex flex-col gap-4 max-w-2xl">
@@ -467,7 +485,7 @@ const DailyLoanForm = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Amount <span className="text-red-500">*</span>
+              Amount
             </label>
             <input
               type="number"
@@ -517,7 +535,7 @@ const DailyLoanForm = ({
 
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Tenure (Days) <span className="text-red-500">*</span>
+              Tenure (Days)
             </label>
             <input
               type="number"
@@ -685,6 +703,13 @@ const DailyLoanForm = ({
         updatedBy={values.updatedBy}
         updatedAt={values.updatedAt}
       />
+
+      {Object.keys(errors).length > 0 && (
+        <div className="bg-red-100 p-4 rounded-xl text-red-900 mt-6 font-mono text-xs whitespace-pre-wrap border border-red-200">
+          <p className="font-bold mb-2 uppercase text-red-600">Form Validation Errors Preventing Submission:</p>
+          {JSON.stringify(errors, null, 2)}
+        </div>
+      )}
 
       {!isViewOnly && (
         <div className="flex justify-end items-center gap-8 pt-6">

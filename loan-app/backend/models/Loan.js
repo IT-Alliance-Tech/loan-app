@@ -14,13 +14,11 @@ const loanSchema = new mongoose.Schema(
     },
     customerName: {
       type: String,
-      required: [true, "Customer name is required"],
       trim: true,
       index: true,
     },
     address: {
       type: String,
-      required: [true, "Address is required"],
       trim: true,
     },
     ownRent: {
@@ -30,14 +28,7 @@ const loanSchema = new mongoose.Schema(
     },
     mobileNumbers: {
       type: [String],
-      required: [true, "At least one customer mobile number is required"],
       index: true,
-      validate: {
-        validator: function (v) {
-          return v && v.length > 0;
-        },
-        message: "At least one customer mobile number is required",
-      },
     },
     guarantorName: {
       type: String,
@@ -45,13 +36,6 @@ const loanSchema = new mongoose.Schema(
     },
     guarantorMobileNumbers: {
       type: [String],
-      required: [true, "At least one guarantor mobile number is required"],
-      validate: {
-        validator: function (v) {
-          return v && v.length > 0;
-        },
-        message: "At least one guarantor mobile number is required",
-      },
     },
     panNumber: {
       type: String,
@@ -63,7 +47,6 @@ const loanSchema = new mongoose.Schema(
     },
     principalAmount: {
       type: Number,
-      required: [true, "Principal amount is required"],
     },
     processingFeeRate: {
       type: Number,
@@ -78,11 +61,9 @@ const loanSchema = new mongoose.Schema(
     },
     tenureMonths: {
       type: Number,
-      required: [true, "Tenure in months is required"],
     },
     annualInterestRate: {
       type: Number,
-      required: [true, "Annual interest rate is required"],
     },
     dateLoanDisbursed: {
       type: Date,

@@ -10,12 +10,10 @@ const dailyLoanSchema = new mongoose.Schema(
     },
     customerName: {
       type: String,
-      required: [true, "Customer name is required"],
       trim: true,
     },
     mobileNumbers: {
       type: [String],
-      required: [true, "Mobile number is required"],
     },
     guarantorName: {
       type: String,
@@ -26,18 +24,15 @@ const dailyLoanSchema = new mongoose.Schema(
     },
     disbursementAmount: {
       type: Number,
-      required: [true, "Disbursement amount is required"],
     },
     startDate: {
       type: Date,
-      required: [true, "Start date is required"],
     },
     dateLoanDisbursed: {
       type: Date,
     },
     totalEmis: {
       type: Number,
-      required: [true, "Total EMIs is required"],
     },
     emiAmount: {
       type: Number,
@@ -51,7 +46,6 @@ const dailyLoanSchema = new mongoose.Schema(
     },
     totalAmount: {
       type: Number,
-      comment: "Total amount paid (emiAmount * paidEmis)",
     },
     nextEmiDate: {
       type: Date,
@@ -61,7 +55,6 @@ const dailyLoanSchema = new mongoose.Schema(
     },
     totalCollected: {
       type: Number,
-      comment: "totalAmount + processingFee",
     },
     status: {
       type: String,

@@ -11,74 +11,9 @@ import {
   calculateEMI as fetchEMI,
   getRtoWorks,
   createRtoWork,
+  checkLoanNumberUniqueness,
 } from "../services/loan.service";
 import { getLoanExpensesTotal } from "../services/expenseService";
-
-const validationSchema = Yup.object().shape({
-  customerDetails: Yup.object({
-    customerName: Yup.string().required("Customer name is required"),
-    address: Yup.string().required("Address is required"),
-    ownRent: Yup.string().required("Please select ownership status"),
-    mobileNumbers: Yup.array()
-      .of(
-        Yup.string()
-          .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
-          .required("Mobile number is required"),
-      )
-      .min(1, "At least one customer mobile number is required"),
-    guarantorName: Yup.string().nullable(),
-    guarantorMobileNumbers: Yup.array()
-      .of(
-        Yup.string()
-          .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
-          .required("Mobile number is required"),
-      )
-      .min(1, "At least one guarantor mobile number is required"),
-    panNumber: Yup.string()
-      .matches(
-        /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,
-        "Invalid PAN format (e.g., ABCDE1234F)",
-      )
-      .nullable(),
-    aadharNumber: Yup.string()
-      .matches(/^\d{12}$/, "Invalid Aadhar. Must be 12 digits")
-      .nullable(),
-  }),
-  loanTerms: Yup.object({
-    loanNumber: Yup.string().required("Loan number is required"),
-    principalAmount: Yup.number()
-      .positive("Must be positive")
-      .required("Principal is required"),
-    processingFeeRate: Yup.number().min(0).nullable(),
-    processingFee: Yup.number().min(0).nullable(),
-    tenureMonths: Yup.number()
-      .positive("Must be positive")
-      .integer()
-      .required("Tenure is required"),
-    tenureType: Yup.string().required("Tenure type is required"),
-    annualInterestRate: Yup.number()
-      .min(0, "Interest cannot be negative")
-      .required("Interest rate is required"),
-  }),
-  vehicleInformation: Yup.object({
-    vehicleNumber: Yup.string()
-      .matches(/^[A-Z]{2}-\d{2}-[A-Z]{1,2}-\d{4}$/, "Format: KA-01-AB-1234")
-      .nullable(),
-    chassisNumber: Yup.string().nullable(),
-    engineNumber: Yup.string().nullable(),
-    modelYear: Yup.string().matches(/^\d*$/, "Must be numeric").nullable(),
-    typeOfVehicle: Yup.string().nullable(),
-    ywBoard: Yup.string().nullable(),
-    dealerName: Yup.string().nullable(),
-    dealerNumber: Yup.string().nullable(),
-    fcDate: Yup.string().nullable(),
-    insuranceDate: Yup.string().nullable(),
-    hpEntry: Yup.string().oneOf(["Not done", "Applied", "Finished"]).nullable(),
-  }),
-  status: Yup.object({
-    // status is now automatic
-  }),
-});
 
 const LoanForm = ({
   initialData,
@@ -92,6 +27,85 @@ const LoanForm = ({
   const { showToast } = useToast();
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const uniquenessCache = useRef({});
+
+  const validationSchema = Yup.object().shape({
+    customerDetails: Yup.object({
+      customerName: Yup.string().nullable(),
+      address: Yup.string().nullable(),
+      ownRent: Yup.string().nullable(),
+      mobileNumbers: Yup.array()
+        .of(Yup.string().matches(/^(?:[6-9]\d{9})?$/, "Invalid Mobile Number"))
+        .nullable(),
+      guarantorName: Yup.string().nullable(),
+      guarantorMobileNumbers: Yup.array()
+        .of(Yup.string().matches(/^(?:[6-9]\d{9})?$/, "Invalid Mobile Number"))
+        .nullable(),
+      panNumber: Yup.string()
+        .matches(
+          /^(?:[A-Z]{5}[0-9]{4}[A-Z]{1})?$/,
+          "Invalid PAN format (e.g., ABCDE1234F)",
+        )
+        .nullable(),
+      aadharNumber: Yup.string()
+        .matches(/^(?:\d{12})?$/, "Invalid Aadhar. Must be 12 digits")
+        .nullable(),
+    }),
+    loanTerms: Yup.object({
+      loanNumber: Yup.string()
+        .required("Loan number is required")
+        .test(
+          "unique-loan-number",
+          "Loan number already exists",
+          async (value) => {
+            if (!value || isViewOnly) return true;
+            // If editing and same as initial, skip
+            if (initialData?.loanTerms?.loanNumber === value) return true;
+
+            if (uniquenessCache.current[value] !== undefined) {
+              return uniquenessCache.current[value];
+            }
+
+            try {
+              const res = await checkLoanNumberUniqueness(value);
+              uniquenessCache.current[value] = res.data.available;
+              return res.data.available;
+            } catch (err) {
+              return true;
+            }
+          },
+        ),
+      principalAmount: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+      processingFeeRate: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+      processingFee: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+      tenureMonths: Yup.number()
+        .transform((value, originalValue) => originalValue === "" ? null : value)
+        .integer()
+        .nullable(),
+      tenureType: Yup.string().nullable(),
+      annualInterestRate: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+    }),
+    vehicleInformation: Yup.object({
+      vehicleNumber: Yup.string()
+        .matches(/^(?:[A-Z]{2}-\d{2}-[A-Z]{1,2}-\d{4})?$/, "Format: KA-01-AB-1234")
+        .nullable(),
+      chassisNumber: Yup.string().nullable(),
+      engineNumber: Yup.string().nullable(),
+      modelYear: Yup.string().matches(/^\d*$/, "Must be numeric").nullable(),
+      typeOfVehicle: Yup.string().nullable(),
+      ywBoard: Yup.string().nullable(),
+      dealerName: Yup.string().nullable(),
+      dealerNumber: Yup.string().nullable(),
+      fcDate: Yup.string().nullable(),
+      insuranceDate: Yup.string().nullable(),
+      hpEntry: Yup.string()
+        .oneOf(["Not done", "Applied", "Finished"])
+        .nullable(),
+    }),
+    status: Yup.object({
+      // status is now automatic
+    }),
+  });
 
   const [rtoOptions, setRtoOptions] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -157,12 +171,12 @@ const LoanForm = ({
       },
       loanTerms: {
         loanNumber: initialData?.loanTerms?.loanNumber || "",
-        principalAmount: initialData?.loanTerms?.principalAmount || 0,
-        processingFeeRate: initialData?.loanTerms?.processingFeeRate || 0,
-        processingFee: initialData?.loanTerms?.processingFee || 0,
-        tenureMonths: initialData?.loanTerms?.tenureMonths || 0,
+        principalAmount: initialData?.loanTerms?.principalAmount ?? "",
+        processingFeeRate: initialData?.loanTerms?.processingFeeRate ?? "",
+        processingFee: initialData?.loanTerms?.processingFee ?? "",
+        tenureMonths: initialData?.loanTerms?.tenureMonths ?? "",
         tenureType: initialData?.loanTerms?.tenureType || "Monthly",
-        annualInterestRate: initialData?.loanTerms?.annualInterestRate || 0,
+        annualInterestRate: initialData?.loanTerms?.annualInterestRate ?? "",
         dateLoanDisbursed: initialData?.loanTerms?.dateLoanDisbursed || "",
         emiStartDate: initialData?.loanTerms?.emiStartDate || "",
         emiEndDate: initialData?.loanTerms?.emiEndDate || "",
@@ -213,6 +227,8 @@ const LoanForm = ({
       },
     },
     validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
     enableReinitialize: true,
     onSubmit: async (values) => {
       // Clean up rtoWorkPending: ensure it's an array and filter out empty strings
@@ -530,26 +546,26 @@ const LoanForm = ({
               <div className="w-full md:w-auto min-w-[150px] flex justify-start md:justify-end">
                 {formik.values.status?.updatedBy && (
                   <div className="flex flex-col items-start md:items-end pointer-events-none">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
-                    Last Updated By
-                  </span>
-                  <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
-                      {typeof formik.values.status.updatedBy === "string"
-                        ? formik.values.status.updatedBy
-                        : formik.values.status.updatedBy.name}
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                      Last Updated By
                     </span>
-                    <span className="w-1 h-1 rounded-full bg-red-500/40" />
-                    <span className="text-[9px] font-bold text-slate-400 font-mono">
-                      {formik.values.status.updatedAt &&
-                        format(
-                          new Date(formik.values.status.updatedAt),
-                          "dd/MM/yy HH:mm",
-                        )}
-                    </span>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
+                      <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                        {typeof formik.values.status.updatedBy === "string"
+                          ? formik.values.status.updatedBy
+                          : formik.values.status.updatedBy.name}
+                      </span>
+                      <span className="w-1 h-1 rounded-full bg-red-500/40" />
+                      <span className="text-[9px] font-bold text-slate-400 font-mono">
+                        {formik.values.status.updatedAt &&
+                          format(
+                            new Date(formik.values.status.updatedAt),
+                            "dd/MM/yy HH:mm",
+                          )}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -578,7 +594,7 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Name <span className="text-red-500">*</span>
+                  Name
                 </label>
                 <input
                   type="text"
@@ -603,7 +619,7 @@ const LoanForm = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1 md:col-span-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Current Address <span className="text-red-500">*</span>
+                  Current Address
                 </label>
                 <textarea
                   name="customerDetails.address"
@@ -620,7 +636,7 @@ const LoanForm = ({
               <div className="space-y-6">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Own/Rent <span className="text-red-500">*</span>
+                    Own/Rent
                   </label>
                   <select
                     name="customerDetails.ownRent"
@@ -667,7 +683,7 @@ const LoanForm = ({
                 <div className="space-y-1">
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
-                      Mobile Numbers <span className="text-red-500">*</span>
+                      Mobile Numbers
                     </label>
                     <div className="space-y-2">
                       {formik.values.customerDetails.mobileNumbers.map(
@@ -859,8 +875,7 @@ const LoanForm = ({
                   {/* Guarantor Mobile Numbers */}
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
-                      Guarantor Mobile Numbers{" "}
-                      <span className="text-red-500">*</span>
+                      Guarantor Mobile Numbers
                     </label>
                     <div className="space-y-2">
                       {formik.values.customerDetails.guarantorMobileNumbers.map(
@@ -1014,7 +1029,7 @@ const LoanForm = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Amount <span className="text-red-500">*</span>
+                  Amount
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
@@ -1069,7 +1084,7 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Tenure (Months) <span className="text-red-500">*</span>
+                  Tenure (Months)
                 </label>
                 <input
                   type="number"
@@ -1084,7 +1099,7 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Interest Rate (%) <span className="text-red-500">*</span>
+                  Interest Rate (%)
                 </label>
                 <input
                   type="number"
@@ -1896,63 +1911,62 @@ const LoanForm = ({
                         </div>
                       </div>
                     )}
-                  </div>
-                )}
-
-                <ClientResponseSection
-                  clientResponse={formik.values.status.clientResponse}
-                  nextFollowUpDate={formik.values.status.nextFollowUpDate}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  nameResponse="status.clientResponse"
-                  nameDate="status.nextFollowUpDate"
-                  isViewOnly={isViewOnly}
-                  updatedBy={formik.values.status.updatedBy}
-                  updatedAt={formik.values.status.updatedAt}
-                />
-              </div>
-
-              {renderExtraActions && (
-                <div className="mt-4">{renderExtraActions()}</div>
+                </div>
               )}
+
+              <ClientResponseSection
+                clientResponse={formik.values.status.clientResponse}
+                nextFollowUpDate={formik.values.status.nextFollowUpDate}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                nameResponse="status.clientResponse"
+                nameDate="status.nextFollowUpDate"
+                isViewOnly={isViewOnly}
+                updatedBy={formik.values.status.updatedBy}
+                updatedAt={formik.values.status.updatedAt}
+              />
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              {isViewOnly ? (
+
+            {renderExtraActions && (
+              <div className="mt-4">{renderExtraActions()}</div>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            {isViewOnly ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all"
+              >
+                Back to List
+              </button>
+            ) : (
+              <>
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:bg-slate-200 transition-colors order-2 sm:order-1"
                 >
-                  Back to List
+                  Cancel
                 </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={onCancel}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:bg-slate-200 transition-colors order-2 sm:order-1"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={
-                      submitting || (formik.submitCount > 0 && !formik.isValid)
-                    }
-                    className="w-full sm:w-auto bg-primary text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all order-1 sm:order-2"
-                  >
-                    {submitting
-                      ? "Processing..."
-                      : initialData._id
-                        ? "Commit Changes"
-                        : "Create Profile"}
-                  </button>
-                </>
-              )}
-            </div>
-          </form>
-        </div>
-      
+                <button
+                  type="submit"
+                  disabled={
+                    submitting || (formik.submitCount > 0 && !formik.isValid)
+                  }
+                  className="w-full sm:w-auto bg-primary text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all order-1 sm:order-2"
+                >
+                  {submitting
+                    ? "Processing..."
+                    : initialData._id
+                      ? "Commit Changes"
+                      : "Create Profile"}
+                </button>
+              </>
+            )}
+          </div>
+        </form>
+      </div>
 
       {/* Contact Action Menu Popover */}
       {activeContactMenu && (
