@@ -16,6 +16,7 @@ const todoRoutes = require("./routes/todoRoutes");
 const collectionRoutes = require("./routes/collectionRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const { checkLoanNumberUniqueness } = require("./controllers/loanController");
 const compression = require("compression");
 
 const app = express();
@@ -151,6 +152,7 @@ app.use(cookieParser());
 app.use(express.json());
 
 // Routes
+app.get("/api/loans/check-uniqueness/:loanNumber", checkLoanNumberUniqueness);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/loans", loanRoutes);
