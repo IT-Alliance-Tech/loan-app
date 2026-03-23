@@ -11,7 +11,6 @@ const loanSchema = new mongoose.Schema(
       required: [true, "Loan number is required"],
       unique: true,
       trim: true,
-      index: true,
     },
     customerName: {
       type: String,

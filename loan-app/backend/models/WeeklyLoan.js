@@ -162,6 +162,5 @@ weeklyLoanSchema.index({ disbursementAmount: 1 });
 weeklyLoanSchema.index({ totalAmount: 1 });
 weeklyLoanSchema.index({ paidEmis: 1 });
 weeklyLoanSchema.index({ remainingEmis: 1 });
-weeklyLoanSchema.index({ loanNumber: 1 });
 
 module.exports = mongoose.model("WeeklyLoan", weeklyLoanSchema);
