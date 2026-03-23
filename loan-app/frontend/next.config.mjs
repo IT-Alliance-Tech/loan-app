@@ -11,6 +11,14 @@ const withPWA = withPWAInit({
 const nextConfig = {
   /* config options here */
   turbopack: {},
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "https://loan-app-dev-ofvk.onrender.com/api/:path*",
+      },
+    ];
+  },
 };
 
 export default withPWA(nextConfig);
