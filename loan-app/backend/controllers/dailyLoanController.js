@@ -19,6 +19,7 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     disbursementAmount,
     startDate,
+    dateLoanDisbursed,
     totalEmis,
     paidEmis,
     nextFollowUpDate,
@@ -83,6 +84,7 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     disbursementAmount: amount,
     startDate: disburseDate,
+    dateLoanDisbursed: dateLoanDisbursed ? new Date(dateLoanDisbursed) : disburseDate,
     emiStartDate: eStartDate,
     emiEndDate: eEndDate,
     totalEmis: totalDays,
@@ -275,6 +277,7 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     disbursementAmount,
     startDate,
+    dateLoanDisbursed,
     totalEmis,
     paidEmis,
     nextFollowUpDate,
@@ -311,6 +314,7 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
         ? parseFloat(disbursementAmount)
         : dailyLoan.disbursementAmount,
     startDate: startDate || dailyLoan.startDate,
+    dateLoanDisbursed: dateLoanDisbursed || dailyLoan.dateLoanDisbursed || startDate || dailyLoan.startDate,
     emiStartDate:
       emiStartDate ||
       dailyLoan.emiStartDate ||
