@@ -34,7 +34,7 @@ const {
 } = require("../middlewares/auth");
 
 router.get("/health", (req, res) =>
-  res.json({ status: "ok", version: "v4-deployment-test" }),
+  res.json({ status: "ok", version: "v5-cors-debugging" }),
 );
 router.get("/check-uniqueness/:loanNumber", checkLoanNumberUniqueness);
 router.get("/test-uniqueness", (req, res) => res.json({ message: "Uniqueness route group is accessible" }));
