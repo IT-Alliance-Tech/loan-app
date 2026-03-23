@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -704,13 +704,6 @@ const DailyLoanForm = ({
         updatedBy={values.updatedBy}
         updatedAt={values.updatedAt}
       />
-
-      {Object.keys(errors).length > 0 && (
-        <div className="bg-red-100 p-4 rounded-xl text-red-900 mt-6 font-mono text-xs whitespace-pre-wrap border border-red-200">
-          <p className="font-bold mb-2 uppercase text-red-600">Form Validation Errors Preventing Submission:</p>
-          {JSON.stringify(errors, null, 2)}
-        </div>
-      )}
 
       {!isViewOnly && (
         <div className="flex justify-end items-center gap-8 pt-6">
