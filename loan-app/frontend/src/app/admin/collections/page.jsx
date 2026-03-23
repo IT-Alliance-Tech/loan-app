@@ -101,7 +101,8 @@ const CollectionsPage = () => {
       setLoading(true);
       setError("");
       const res = await getAllExpenses(filters);
-      setExpenses(res.data || []);
+      const data = res.data;
+      setExpenses(Array.isArray(data) ? data : (data?.expenses || data?.data || []));
     } catch (err) {
       setError(err.message);
       showToast("Failed to fetch expenses", "error");
