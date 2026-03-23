@@ -20,6 +20,7 @@ const {
   getFollowupHistory,
   getTodoList,
   deleteLoan,
+  checkLoanNumberUniqueness,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
@@ -35,6 +36,7 @@ const {
 router.get("/health", (req, res) =>
   res.json({ status: "ok", version: "v4-deployment-test" }),
 );
+router.get("/check-uniqueness/:loanNumber", checkLoanNumberUniqueness);
 router.get("/todo-list", getTodoList);
 router.get("/expired-docs", getExpiredDocLoans);
 

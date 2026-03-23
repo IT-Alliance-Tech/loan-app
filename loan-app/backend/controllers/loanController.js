@@ -59,16 +59,8 @@ const createLoan = asyncHandler(async (req, res, next) => {
     status: statusObj,
   } = req.body;
 
-  if (
-    !loanTerms?.loanNumber ||
-    !customerDetails?.customerName ||
-    !customerDetails?.mobileNumbers ||
-    customerDetails.mobileNumbers.length === 0 ||
-    !loanTerms?.principalAmount ||
-    !loanTerms?.annualInterestRate ||
-    !loanTerms?.tenureMonths
-  ) {
-    return next(new ErrorHandler("Please provide all required fields", 400));
+  if (!loanTerms?.loanNumber) {
+    return next(new ErrorHandler("Loan number is required", 400));
   }
 
   const existingLoan = await Promise.all([
@@ -81,16 +73,18 @@ const createLoan = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Loan number already exists", 400));
   }
 
-  const monthlyEMI = calculateEMI(
-    loanTerms.principalAmount,
-    loanTerms.annualInterestRate,
-    loanTerms.tenureMonths,
-  );
+  const p = parseFloat(loanTerms?.principalAmount) || 0;
+  const r = parseFloat(loanTerms?.annualInterestRate) || 0;
+  const t = parseInt(loanTerms?.tenureMonths) || 0;
 
-  const calculatedTotalInterest =
-    parseFloat(loanTerms.principalAmount) *
-    (parseFloat(loanTerms.annualInterestRate) / 100) *
-    parseInt(loanTerms.tenureMonths);
+  let monthlyEMI = 0;
+  if (p > 0 && r >= 0 && t > 0) {
+    monthlyEMI = calculateEMI(p, r, t);
+  } else if (p > 0 && r === 0 && t > 0) {
+    monthlyEMI = Math.ceil(p / t);
+  }
+
+  const calculatedTotalInterest = p * (r / 100) * t;
 
   const loan = await Loan.create({
     // customerDetails
@@ -105,11 +99,11 @@ const createLoan = asyncHandler(async (req, res, next) => {
 
     // loanTerms
     loanNumber: loanTerms.loanNumber,
-    principalAmount: loanTerms.principalAmount,
-    processingFeeRate: loanTerms.processingFeeRate,
-    processingFee: loanTerms.processingFee,
-    tenureMonths: loanTerms.tenureMonths,
-    annualInterestRate: loanTerms.annualInterestRate,
+    principalAmount: parseFloat(loanTerms?.principalAmount) || 0,
+    processingFeeRate: parseFloat(loanTerms?.processingFeeRate) || 0,
+    processingFee: parseFloat(loanTerms?.processingFee) || 0,
+    tenureMonths: parseInt(loanTerms?.tenureMonths) || 0,
+    annualInterestRate: parseFloat(loanTerms?.annualInterestRate) || 0,
     dateLoanDisbursed: loanTerms.dateLoanDisbursed,
     emiStartDate: loanTerms.emiStartDate,
     emiEndDate: loanTerms.emiEndDate,
@@ -142,23 +136,26 @@ const createLoan = asyncHandler(async (req, res, next) => {
 
   // Generate EMIs
   const emis = [];
-  let currentEmiDate = new Date(
-    loan.emiStartDate || loan.dateLoanDisbursed || new Date(),
-  );
+  const baseDate = loan.emiStartDate || loan.dateLoanDisbursed;
+  if (baseDate) {
+    let currentEmiDate = new Date(baseDate);
 
-  for (let i = 1; i <= loanTerms.tenureMonths; i++) {
+    for (let i = 1; i <= t; i++) {
     emis.push({
       loanId: loan._id,
       loanNumber: loan.loanNumber,
       customerName: loan.customerName,
       emiNumber: i,
       dueDate: addMonths(new Date(currentEmiDate), i - 1),
-      emiAmount: monthlyEMI,
-      status: "Pending",
-    });
+        emiAmount: monthlyEMI,
+        status: "Pending",
+      });
+    }
   }
 
-  await EMI.insertMany(emis);
+  if (emis.length > 0) {
+    await EMI.insertMany(emis);
+  }
 
   // Create Payment record for processing fee if applicable
   if (loan.processingFee && parseFloat(loan.processingFee) > 0) {
@@ -2077,6 +2074,26 @@ const deleteLoan = asyncHandler(async (req, res, next) => {
 });
 
 // export all values
+const checkLoanNumberUniqueness = asyncHandler(async (req, res, next) => {
+  const { loanNumber } = req.params;
+
+  if (!loanNumber) {
+    return next(new ErrorHandler("Please provide a loan number", 400));
+  }
+
+  const existingLoan = await Promise.all([
+    Loan.findOne({ loanNumber: loanNumber.toUpperCase() }),
+    WeeklyLoan.findOne({ loanNumber: loanNumber.toUpperCase() }),
+    DailyLoan.findOne({ loanNumber: loanNumber.toUpperCase() }),
+  ]);
+
+  const exists = existingLoan.some((loan) => loan !== null);
+
+  sendResponse(res, 200, "success", "Uniqueness check completed", null, {
+    available: !exists,
+  });
+});
+
 module.exports = {
   createLoan,
   getAllLoans,
@@ -2097,4 +2114,5 @@ module.exports = {
   getFollowupHistory,
   getTodoList,
   deleteLoan,
+  checkLoanNumberUniqueness,
 };
