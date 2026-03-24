@@ -104,7 +104,7 @@ const Sidebar = () => {
       const permissionMap = {
         Dashboard: "dashboard",
         Analytics: "analytics",
-        "To-Do List": "dashboard", // To-do is part of dashboard/general access often
+        "To-Do List": true, // Always visible for employees to see their tasks
         Collections: "payments",
         Loans: "loans",
         Expired: "documents",
