@@ -2,8 +2,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Modal from "./Modal";
 import { getEmployees } from "../services/userService";
+import { getUserFromToken } from "../utils/auth";
 
 const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null }) => {
+  const user = getUserFromToken();
+  const isEmployee = user?.role === "EMPLOYEE";
+
   const [formData, setFormData] = useState({
     title: todoToEdit?.title || "",
     description: todoToEdit?.description || "",
@@ -18,6 +22,7 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
 
   const fetchEmployees = useCallback(async () => {
+    if (isEmployee) return; // Employees are not allowed to fetch employee list
     try {
       const res = await getEmployees();
       if (res.data && Array.isArray(res.data.employees)) {
@@ -73,7 +78,8 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
           <textarea
             name="description"
             rows="3"
-            className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300"
+            disabled={isEmployee}
+            className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300 ${isEmployee ? "opacity-60 cursor-not-allowed" : ""}`}
             placeholder="ENTER TASK DESCRIPTION..."
             value={formData.description}
             onChange={handleChange}
@@ -102,7 +108,8 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
             </label>
             <select
               name="priority"
-              className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none cursor-pointer"
+              disabled={isEmployee}
+              className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none cursor-pointer ${isEmployee ? "opacity-60 cursor-not-allowed" : ""}`}
               value={formData.priority}
               onChange={handleChange}
             >
@@ -121,7 +128,8 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
             <input
               type="date"
               name="dueDate"
-              className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+              disabled={isEmployee}
+              className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer ${isEmployee ? "opacity-60 cursor-not-allowed" : ""}`}
               value={formData.dueDate}
               onChange={handleChange}
             />
@@ -134,16 +142,19 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
           </label>
           <input
             type="text"
-            className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300"
-            placeholder="SEARCH EMPLOYEE BY NAME..."
+            className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300 ${isEmployee ? "opacity-60 cursor-not-allowed" : ""}`}
+            placeholder={isEmployee ? "ASSIGNED TO YOU" : "SEARCH EMPLOYEE BY NAME..."}
             value={employeeSearch}
+            disabled={isEmployee}
             onChange={(e) => {
               setEmployeeSearch(e.target.value);
               setShowEmployeeDropdown(true);
             }}
             onFocus={() => {
-              setShowEmployeeDropdown(true);
-              fetchEmployees();
+              if (!isEmployee) {
+                setShowEmployeeDropdown(true);
+                fetchEmployees();
+              }
             }}
           />
           {showEmployeeDropdown && employeeSearch.trim() && (

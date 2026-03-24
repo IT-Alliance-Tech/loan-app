@@ -10,6 +10,7 @@ import {
   toggleEmployeeStatus,
   deleteEmployee,
 } from "../../../../../services/userService";
+import TodoDashboardSection from "../../../../../components/analytics/TodoDashboardSection";
 
 const ViewEmployeePage = () => {
   const router = useRouter();
@@ -309,6 +310,14 @@ const ViewEmployeePage = () => {
                       </p>
                     </div>
                   </div>
+                </div>
+
+                {/* Tasks Section - NEW */}
+                <div className="mt-8">
+                  <TodoDashboardSection 
+                    employeeId={id} 
+                    title={`${employee.name.split(" ")[0]}'s Current Tasks`} 
+                  />
                 </div>
               </div>
             </div>
