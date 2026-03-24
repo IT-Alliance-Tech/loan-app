@@ -20,6 +20,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     disbursementAmount,
     startDate,
+    dateLoanDisbursed,
     totalEmis,
     paidEmis,
     nextFollowUpDate,
@@ -32,16 +33,8 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     guarantorMobileNumbers,
   } = req.body;
 
-  if (
-    !loanNumber ||
-    !customerName ||
-    !mobileNumbers ||
-    !mobileNumbers.length ||
-    !disbursementAmount ||
-    !startDate ||
-    !totalEmis
-  ) {
-    return next(new ErrorHandler("Please provide all required fields", 400));
+  if (!loanNumber) {
+    return next(new ErrorHandler("Loan number is required", 400));
   }
 
   const existingLoan = await Promise.all([
@@ -55,8 +48,8 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
   }
 
   // Calculations
-  const amount = parseFloat(disbursementAmount);
-  const totalWeeks = parseInt(totalEmis);
+  const amount = parseFloat(disbursementAmount) || 0;
+  const totalWeeks = parseInt(totalEmis) || 0;
   const feeRate = parseFloat(processingFeeRate) || 10;
   const currentPaidEmis = parseInt(paidEmis) || 0;
 
@@ -64,19 +57,21 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
   const processingFee = amount * (feeRate / 100);
 
   // Interest Calculation (Removed as requested)
-  const weeklyPrincipal = amount / totalWeeks;
+  const weeklyPrincipal = totalWeeks > 0 ? amount / totalWeeks : 0;
   const emiAmount = Math.ceil(weeklyPrincipal);
   const totalInterestAmount = 0;
 
   // Dates
-  const disburseDate = new Date(startDate);
+  const disburseDate = startDate ? new Date(startDate) : null;
   const eStartDate = emiStartDate
     ? new Date(emiStartDate)
-    : new Date(disburseDate);
-  const nextEmiDate = new Date(eStartDate);
+    : (disburseDate ? new Date(disburseDate) : null);
+  const nextEmiDate = eStartDate;
 
-  const eEndDate = new Date(eStartDate);
-  eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
+  const eEndDate = eStartDate ? new Date(eStartDate) : null;
+  if (eEndDate && totalWeeks > 0) {
+    eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
+  }
 
   const totalAmount = emiAmount * currentPaidEmis;
   const totalCollected = totalAmount + processingFee;
@@ -89,6 +84,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     disbursementAmount: amount,
     startDate: disburseDate,
+    dateLoanDisbursed: dateLoanDisbursed ? new Date(dateLoanDisbursed) : disburseDate,
     emiStartDate: eStartDate,
     emiEndDate: eEndDate,
     totalEmis: totalWeeks,
@@ -115,9 +111,10 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
 
   // Generate EMIs
   const emis = [];
-  let currentEmiDateArr = new Date(eStartDate);
+  if (eStartDate) {
+    let currentEmiDateArr = new Date(eStartDate);
 
-  for (let i = 1; i <= parseInt(totalEmis); i++) {
+    for (let i = 1; i <= totalWeeks; i++) {
     const isPaid = i <= currentPaidEmis;
     emis.push({
       loanId: weeklyLoan._id,
@@ -133,9 +130,12 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
       paymentMode: isPaid ? "CASH" : "",
     });
     currentEmiDateArr.setDate(currentEmiDateArr.getDate() + 7);
+    }
   }
 
-  await EMI.insertMany(emis);
+  if (emis.length > 0) {
+    await EMI.insertMany(emis);
+  }
 
   // Create Payment record for processing fee if applicable
   if (weeklyLoan.processingFee && parseFloat(weeklyLoan.processingFee) > 0) {
@@ -281,6 +281,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     disbursementAmount,
     startDate,
+    dateLoanDisbursed,
     totalEmis,
     paidEmis,
     nextFollowUpDate,
@@ -322,6 +323,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
         ? parseFloat(disbursementAmount)
         : weeklyLoan.disbursementAmount,
     startDate: startDate || weeklyLoan.startDate,
+    dateLoanDisbursed: dateLoanDisbursed || weeklyLoan.dateLoanDisbursed || startDate || weeklyLoan.startDate,
     emiStartDate:
       emiStartDate ||
       weeklyLoan.emiStartDate ||

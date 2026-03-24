@@ -1,35 +1,10 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { getUserFromToken } from "../utils/auth";
 import ClientResponseSection from "./ClientResponseSection";
-
-const validationSchema = Yup.object().shape({
-  loanNumber: Yup.string().required("Loan number is required"),
-  customerName: Yup.string().required("Customer name is required"),
-  mobileNumbers: Yup.array()
-    .of(
-      Yup.string()
-        .matches(/^[6-9]\d{9}$/, "Invalid mobile number")
-        .required("Mobile number is required"),
-    )
-    .min(1, "At least one mobile number is required")
-    .required("Mobile numbers are required"),
-  disbursementAmount: Yup.number()
-    .positive("Amount must be positive")
-    .required("Amount is required"),
-  totalEmis: Yup.number()
-    .positive("Tenure must be positive")
-    .integer("Tenure must be an integer")
-    .required("Tenure is required"),
-  startDate: Yup.string().required("Disbursement date is required"),
-  emiStartDate: Yup.string().required("EMI start date is required"),
-  guarantorName: Yup.string(),
-  guarantorMobileNumbers: Yup.array().of(
-    Yup.string().matches(/^[6-9]\d{9}$/, "Invalid mobile number"),
-  ),
-});
+import { checkLoanNumberUniqueness } from "../services/loan.service";
 
 const ErrorMsg = ({ name, touched, errors }) => {
   const [section, field] = name.includes(".") ? name.split(".") : [null, name];
@@ -43,6 +18,8 @@ const ErrorMsg = ({ name, touched, errors }) => {
   ) : null;
 };
 
+const _loanUniquenessCache = new Map();
+
 const WeeklyLoanForm = ({
   initialData,
   onSubmit,
@@ -52,6 +29,48 @@ const WeeklyLoanForm = ({
 }) => {
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  const validationSchema = Yup.object().shape({
+    loanNumber: Yup.string()
+      .required("Loan number is required")
+      .test("unique-loan-number", "Loan number already exists", async (value) => {
+        if (!value || isViewOnly) return true;
+        // If editing and same as initial, skip
+        if (initialData?.loanNumber === value) return true;
+
+        if (_loanUniquenessCache.has(value)) {
+          return _loanUniquenessCache.get(value);
+        }
+
+        try {
+          const res = await checkLoanNumberUniqueness(value);
+          _loanUniquenessCache.set(value, true);
+          return true;
+        } catch (err) {
+          _loanUniquenessCache.set(value, false);
+          return false; 
+        }
+      }),
+    customerName: Yup.string().nullable(),
+    mobileNumbers: Yup.array()
+      .of(
+        Yup.string()
+          .matches(/^(?:[6-9]\d{9})?$/, "Invalid mobile number")
+      )
+      .nullable(),
+    disbursementAmount: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+    totalEmis: Yup.number()
+      .transform((value, originalValue) => originalValue === "" ? null : value)
+      .integer("Tenure must be an integer")
+      .nullable(),
+    startDate: Yup.string().nullable(),
+    dateLoanDisbursed: Yup.string().nullable(),
+    emiStartDate: Yup.string().nullable(),
+    guarantorName: Yup.string().nullable(),
+    guarantorMobileNumbers: Yup.array().of(
+      Yup.string().matches(/^(?:[6-9]\d{9})?$/, "Invalid mobile number"),
+    ).nullable(),
+  });
 
   const initialValues = {
     ...initialData,
@@ -69,11 +88,14 @@ const WeeklyLoanForm = ({
     nextFollowUpDate: initialData?.nextFollowUpDate || "",
     status: initialData?.status || "Active",
     emiEndDate: initialData?.emiEndDate || "",
+    dateLoanDisbursed: initialData?.dateLoanDisbursed || initialData?.startDate || "",
   };
 
   const formik = useFormik({
     initialValues,
     validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
     enableReinitialize: true,
     onSubmit: (values) => {
       onSubmit({
@@ -84,7 +106,7 @@ const WeeklyLoanForm = ({
         totalAmount,
         totalCollected,
         nextEmiDate,
-        emiEndDate,
+        emiEndDate: values.emiEndDate,
         remainingPrincipalAmount,
       });
     },
@@ -96,17 +118,19 @@ const WeeklyLoanForm = ({
 
   // Auto-set EMI Start Date only when Disbursement Date explicitly changes
   useEffect(() => {
-    if (values.startDate && values.startDate !== lastDisbursementDate.current) {
-      const disbursementDate = new Date(values.startDate);
+    if (values.dateLoanDisbursed && values.dateLoanDisbursed !== lastDisbursementDate.current) {
+      const disbursementDate = new Date(values.dateLoanDisbursed);
       if (!isNaN(disbursementDate.getTime())) {
         const autoEmiStart = format(addDays(disbursementDate, 7), "yyyy-MM-dd");
         if (values.emiStartDate !== autoEmiStart) {
           setFieldValue("emiStartDate", autoEmiStart);
         }
-        lastDisbursementDate.current = values.startDate;
+        // Also sync startDate for backend compatibility
+        setFieldValue("startDate", values.dateLoanDisbursed);
+        lastDisbursementDate.current = values.dateLoanDisbursed;
       }
     }
-  }, [values.startDate, setFieldValue, values.emiStartDate]);
+  }, [values.dateLoanDisbursed, setFieldValue, values.emiStartDate]);
 
   // Auto-calculate EMI End Date from Start Date & Tenure
   useEffect(() => {
@@ -250,10 +274,15 @@ const WeeklyLoanForm = ({
               placeholder="Enter Loan Number"
             />
             <ErrorMsg touched={touched} errors={errors} name="loanNumber" />
+            {touched.loanNumber && !errors.loanNumber && values.loanNumber && !isViewOnly && (
+              <p className="text-[9px] font-bold text-emerald-500 mt-1 uppercase tracking-wider ml-1">
+                Loan number is available
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Customer Name <span className="text-red-500">*</span>
+              Customer Name
             </label>
             <input
               type="text"
@@ -270,7 +299,7 @@ const WeeklyLoanForm = ({
           <div className="space-y-4">
             <div className="flex justify-between items-center px-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                MOBILE NUMBERS <span className="text-red-500">*</span>
+                MOBILE NUMBERS
               </label>
             </div>
             <div className="flex flex-col gap-4">
@@ -346,7 +375,7 @@ const WeeklyLoanForm = ({
           <div className="space-y-4">
             <div className="flex justify-between items-center px-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                GUARANTOR MOBILE NUMBERS <span className="text-red-500">*</span>
+                GUARANTOR MOBILE NUMBERS
               </label>
             </div>
             <div className="flex flex-col gap-4 max-w-2xl">
@@ -412,7 +441,7 @@ const WeeklyLoanForm = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Amount <span className="text-red-500">*</span>
+              Amount
             </label>
             <input
               type="number"
@@ -462,7 +491,7 @@ const WeeklyLoanForm = ({
 
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Tenure (Weeks) <span className="text-red-500">*</span>
+              Tenure (Weeks)
             </label>
             <input
               type="number"
@@ -507,14 +536,14 @@ const WeeklyLoanForm = ({
             </label>
             <input
               type="date"
-              name="startDate"
-              value={values.startDate || ""}
+              name="dateLoanDisbursed"
+              value={values.dateLoanDisbursed || ""}
               onChange={formik.handleChange}
               onBlur={handleBlur}
               disabled={isViewOnly}
-              className={getFieldClass("startDate")}
+              className={getFieldClass("dateLoanDisbursed")}
             />
-            <ErrorMsg touched={touched} errors={errors} name="startDate" />
+            <ErrorMsg touched={touched} errors={errors} name="dateLoanDisbursed" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">

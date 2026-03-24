@@ -16,6 +16,7 @@ const todoRoutes = require("./routes/todoRoutes");
 const collectionRoutes = require("./routes/collectionRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const { checkLoanNumberUniqueness } = require("./controllers/loanController");
 const compression = require("compression");
 
 const app = express();
@@ -46,11 +47,11 @@ app.get("/", (req, res) => {
 app.set("trust proxy", 1);
 
 // Allow multiple origins for CORS
-const allowedOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(",").map((o) => o.trim())
-  : [];
-
-console.log("[CORS] Active Allowed Origins:", allowedOrigins);
+const rawAllowedOrigins = process.env.FRONTEND_URL || "";
+const allowedOrigins = rawAllowedOrigins
+  .split(",")
+  .map((o) => o.trim().replace(/\/$/, "")) // Remove trailing slashes
+  .filter((o) => o !== "");
 
 app.use(
   cors({
@@ -58,10 +59,15 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
 
-      // Log origin for debugging on the server
-      console.log(`[CORS] Request from Origin: ${origin}`);
+      // Normalize incoming origin for robust comparison
+      const normalizedOrigin = origin.replace(/\/$/, "");
 
-      if (allowedOrigins.includes(origin)) {
+      // Log origin for debugging on the server
+      console.log(
+        `[CORS] Request from Origin: ${origin} (normalized as: ${normalizedOrigin})`,
+      );
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
         return callback(null, true);
       } else {
         console.warn(`[CORS] Rejected Origin: ${origin}`);
@@ -71,7 +77,13 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
     optionsSuccessStatus: 200,
   }),
 );
@@ -140,6 +152,7 @@ app.use(cookieParser());
 app.use(express.json());
 
 // Routes
+app.get("/api/loans/check-uniqueness/:loanNumber", checkLoanNumberUniqueness);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/loans", loanRoutes);
