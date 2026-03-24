@@ -69,10 +69,11 @@ const LoanForm = ({
 
             try {
               const res = await checkLoanNumberUniqueness(value);
-              _monthlyLoanUniquenessCache.set(value, res.data.available);
-              return res.data.available;
-            } catch (err) {
+              _monthlyLoanUniquenessCache.set(value, true);
               return true;
+            } catch (err) {
+              _monthlyLoanUniquenessCache.set(value, false);
+              return false;
             }
           },
         ),
@@ -592,6 +593,11 @@ const LoanForm = ({
                   placeholder="LN-001"
                 />
                 <ErrorMsg name="loanTerms.loanNumber" />
+                {formik.touched.loanTerms?.loanNumber && !formik.errors.loanTerms?.loanNumber && formik.values.loanTerms.loanNumber && !isViewOnly && (
+                  <p className="text-[9px] font-bold text-emerald-500 mt-1 uppercase tracking-wider">
+                    Loan number is available
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">

@@ -2118,8 +2118,12 @@ const checkLoanNumberUniqueness = asyncHandler(async (req, res, next) => {
 
   const exists = existingLoan.some((loan) => loan !== null);
 
-  sendResponse(res, 200, "success", "Uniqueness check completed", null, {
-    available: !exists,
+  if (exists) {
+    return next(new ErrorHandler("Loan number already exists", 400));
+  }
+
+  sendResponse(res, 200, "success", "Loan number is available", null, {
+    available: true,
   });
 });
 

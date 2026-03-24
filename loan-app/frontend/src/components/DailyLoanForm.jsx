@@ -44,10 +44,11 @@ const DailyLoanForm = ({
 
         try {
           const res = await checkLoanNumberUniqueness(value);
-          _loanUniquenessCache.set(value, res.data.available);
-          return res.data.available;
+          _loanUniquenessCache.set(value, true);
+          return true;
         } catch (err) {
-          return true; 
+          _loanUniquenessCache.set(value, false);
+          return false; 
         }
       }),
     customerName: Yup.string().nullable(),
@@ -270,6 +271,11 @@ const DailyLoanForm = ({
               placeholder="Enter Loan Number"
             />
             <ErrorMsg touched={touched} errors={errors} name="loanNumber" />
+            {touched.loanNumber && !errors.loanNumber && values.loanNumber && !isViewOnly && (
+              <p className="text-[9px] font-bold text-emerald-500 mt-1 uppercase tracking-wider ml-1">
+                Loan number is available
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
