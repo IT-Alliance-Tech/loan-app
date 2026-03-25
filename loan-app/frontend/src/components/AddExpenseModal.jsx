@@ -10,6 +10,7 @@ const AddExpenseModal = ({ isOpen, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     loanNumber: "",
     vehicleNumber: "",
+    customerName: "",
     particulars: "",
     date: new Date().toISOString().split("T")[0],
     amount: "",
@@ -50,8 +51,9 @@ const AddExpenseModal = ({ isOpen, onClose, onSuccess }) => {
           ...prev,
           loanNumber: res.data.loanNumber,
           vehicleNumber: res.data.vehicleNumber || "",
+          customerName: res.data.customerName,
         }));
-        showToast("Loan details fetched", "success");
+        showToast(`Details for ${res.data.customerName} fetched`, "success");
       }
     } catch (err) {
       // Silently fail search if not found, let user type manually
@@ -69,10 +71,10 @@ const AddExpenseModal = ({ isOpen, onClose, onSuccess }) => {
       showToast("Expense added successfully", "success");
       onSuccess();
       onClose();
-      // Reset form
       setFormData({
         loanNumber: "",
         vehicleNumber: "",
+        customerName: "",
         particulars: "",
         date: new Date().toISOString().split("T")[0],
         amount: "",
@@ -134,36 +136,54 @@ const AddExpenseModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
 
           {!formData.isOfficeExpense && (
-            <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-300">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                  Loan Number
-                </label>
-                <input
-                  type="text"
-                  name="loanNumber"
-                  required={!formData.isOfficeExpense}
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all uppercase"
-                  value={formData.loanNumber}
-                  onChange={handleChange}
-                  onBlur={(e) => handleSearch(e.target.value)}
-                  placeholder="E.G. L-123"
-                />
+            <div className="space-y-4 animate-in fade-in duration-300">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                    Loan Number
+                  </label>
+                  <input
+                    type="text"
+                    name="loanNumber"
+                    required={!formData.isOfficeExpense}
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all uppercase"
+                    value={formData.loanNumber}
+                    onChange={handleChange}
+                    onBlur={(e) => handleSearch(e.target.value)}
+                    placeholder="E.G. L-123"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                    Vehicle Number
+                  </label>
+                  <input
+                    type="text"
+                    name="vehicleNumber"
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all uppercase"
+                    value={formData.vehicleNumber}
+                    onChange={handleChange}
+                    onBlur={(e) => handleSearch(e.target.value)}
+                    placeholder="E.G. GJ01..."
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                  Vehicle Number
-                </label>
-                <input
-                  type="text"
-                  name="vehicleNumber"
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all uppercase"
-                  value={formData.vehicleNumber}
-                  onChange={handleChange}
-                  onBlur={(e) => handleSearch(e.target.value)}
-                  placeholder="E.G. GJ01..."
-                />
-              </div>
+
+              {formData.customerName && (
+                <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl flex items-center justify-between group animate-in slide-in-from-top-2 duration-300">
+                  <div className="flex flex-col">
+                    <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest leading-none mb-1">
+                      Customer Name
+                    </span>
+                    <span className="text-xs font-black text-blue-600 uppercase tracking-tight">
+                      {formData.customerName}
+                    </span>
+                  </div>
+                  <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <span className="text-blue-500 text-xs font-bold">✓</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
