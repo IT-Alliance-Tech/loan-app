@@ -233,6 +233,7 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(Number(limit))
+    .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
   sendResponse(res, 200, "success", "Daily loans fetched successfully", null, {
@@ -252,6 +253,7 @@ exports.getDailyLoanById = asyncHandler(async (req, res, next) => {
   const dailyLoan = await DailyLoan.findById(req.params.id)
     .populate("closureDetails")
     .populate("followupHistory")
+    .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
   if (!dailyLoan) {
@@ -405,6 +407,7 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
   dailyLoan = await DailyLoan.findById(dailyLoan._id)
     .populate("closureDetails")
     .populate("followupHistory")
+    .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
   if (

@@ -209,6 +209,10 @@ const LoanForm = ({
         isSeized: initialData?.status?.isSeized || false,
         docChecklist: initialData?.status?.docChecklist || "",
         remarks: initialData?.status?.remarks || "",
+        createdBy: initialData?.status?.createdBy || null,
+        updatedBy: initialData?.status?.updatedBy || null,
+        createdAt: initialData?.status?.createdAt || null,
+        updatedAt: initialData?.status?.updatedAt || null,
         clientResponse: initialData?.status?.clientResponse || "",
         nextFollowUpDate: initialData?.status?.nextFollowUpDate || "",
         seizedStatus: initialData?.status?.seizedStatus || "",
@@ -545,19 +549,46 @@ const LoanForm = ({
                 </select>
               </div>
 
-              <div className="w-full md:w-auto min-w-[150px] flex justify-start md:justify-end">
-                {formik.values.status?.updatedBy && (
+              <div className="w-full md:w-auto min-w-[150px] flex flex-wrap justify-start md:justify-end gap-x-4 gap-y-2">
+                {/* Created By Section - Only show if not updated yet */}
+                {initialData?._id &&
+                  formik.values.status?.createdBy &&
+                  !formik.values.status?.updatedBy && (
+                    <div className="flex flex-col items-start md:items-end pointer-events-none">
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                        Created By
+                      </span>
+                      <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tight">
+                          {typeof formik.values.status.createdBy === "string"
+                            ? formik.values.status.createdBy
+                            : formik.values.status.createdBy.name}
+                        </span>
+                        <span className="w-1 h-1 rounded-full bg-emerald-500/40" />
+                        <span className="text-[9px] font-bold text-slate-400 font-mono">
+                          {formik.values.status.createdAt &&
+                            format(
+                              new Date(formik.values.status.createdAt),
+                              "dd/MM/yy HH:mm",
+                            )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Last Updated By Section - Only show after first edit */}
+                {initialData?._id && formik.values.status?.updatedBy && (
                   <div className="flex flex-col items-start md:items-end pointer-events-none">
                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
                       Last Updated By
                     </span>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
-                      <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                    <div className="flex items-center gap-2 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                      <span className="text-[10px] font-black text-amber-500 uppercase tracking-tight">
                         {typeof formik.values.status.updatedBy === "string"
                           ? formik.values.status.updatedBy
                           : formik.values.status.updatedBy.name}
                       </span>
-                      <span className="w-1 h-1 rounded-full bg-red-500/40" />
+                      <span className="w-1 h-1 rounded-full bg-amber-500/40" />
                       <span className="text-[9px] font-bold text-slate-400 font-mono">
                         {formik.values.status.updatedAt &&
                           format(

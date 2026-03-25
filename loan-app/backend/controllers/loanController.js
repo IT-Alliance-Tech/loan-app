@@ -296,7 +296,7 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
     // We select ALL fields required by the frontend table to avoid undefined errors
     loans = await Loan.find(query)
       .select(
-        "loanNumber customerName mobileNumbers guarantorName guarantorMobileNumbers monthlyEMI tenureMonths status isSeized clientResponse createdAt",
+        "loanNumber customerName mobileNumbers guarantorName guarantorMobileNumbers monthlyEMI tenureMonths status isSeized clientResponse createdBy updatedBy createdAt",
       )
       .sort({ createdAt: -1 })
       .skip(skip)
