@@ -239,6 +239,7 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(Number(limit))
+    .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
   sendResponse(res, 200, "success", "Weekly loans fetched successfully", null, {
@@ -258,6 +259,7 @@ exports.getWeeklyLoanById = asyncHandler(async (req, res, next) => {
   const weeklyLoan = await WeeklyLoan.findById(req.params.id)
     .populate("closureDetails")
     .populate("followupHistory")
+    .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
   if (!weeklyLoan) {
@@ -425,6 +427,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   weeklyLoan = await WeeklyLoan.findById(weeklyLoan._id)
     .populate("closureDetails")
     .populate("followupHistory")
+    .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
   // Synchronize EMIs if date or principal changed

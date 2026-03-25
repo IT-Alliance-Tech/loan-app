@@ -76,6 +76,7 @@ const formatLoanResponse = (loanDoc) => {
               : null,
             createdAt: loan.createdAt,
             updatedAt: loan.updatedAt,
+            createdBy: loan.createdBy || null,
             updatedBy: loan.updatedBy || null,
             clientResponse: loan.clientResponse,
           }
