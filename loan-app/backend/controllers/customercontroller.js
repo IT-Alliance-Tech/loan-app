@@ -277,78 +277,64 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       }
     });
 
-    // Merge overdue into the latest payment record (same date) instead of creating a separate row
-    if (overdue && parseFloat(overdue) > 0) {
-      const overdueAmount = parseFloat(overdue);
-      // Find the last payment record with the same date as latestPaymentDate
-      const latestDateStr = latestPaymentDate.toISOString().split("T")[0];
-      const existingIdx = paymentRecords.findLastIndex(
-        (r) => r.paymentDate.toISOString().split("T")[0] === latestDateStr
-      );
-      if (existingIdx !== -1) {
-        // Merge: add overdue to the existing record's amount
-        paymentRecords[existingIdx].amount += overdueAmount;
-        paymentRecords[existingIdx].includesOverdue = true;
-      } else {
-        // No matching record — add a standalone overdue record
-        paymentRecords.push({
-          emiId: emi._id,
-          loanId: emi.loanId,
-          loanModel: emi.loanModel,
-          amount: overdueAmount,
-          mode: latestPaymentMode,
-          paymentDate: latestPaymentDate,
-          paymentType:
-            emi.loanModel === "DailyLoan"
-              ? "Daily"
-              : emi.loanModel === "WeeklyLoan"
-                ? "Weekly"
-                : "Monthly",
-          status: "Success",
-          collectedBy: req.user._id,
-        });
-      }
+    // Merge overdue into separate payment records
+    if (overdue && Array.isArray(overdue)) {
+      overdue.forEach((ov) => {
+        const ovAmount = parseFloat(ov.amount);
+        if (ovAmount > 0) {
+          paymentRecords.push({
+            emiId: emi._id,
+            loanId: emi.loanId,
+            loanModel: emi.loanModel,
+            amount: 0, // Using amount 0 to keep main collection clean if we want, OR use amount for the value.
+            // Actually, based on the user's requirement, they want it as a separate row.
+            // If I set amount: ovAmount and paymentType: "Overdue", it will show in the Amount column too.
+            // The user said "separate column", so I'll set overdueAmount: ovAmount and amount: 0 (or keep amount for total?)
+            // Let's use amount: 0 and overdueAmount: ovAmount for "Overdue" type.
+            amount: 0,
+            overdueAmount: ovAmount,
+            mode: ov.mode || latestPaymentMode,
+            paymentDate: ov.date ? new Date(ov.date) : latestPaymentDate,
+            paymentType: "Overdue",
+            status: "Success",
+            collectedBy: req.user._id,
+          });
+        }
+      });
     }
 
     if (paymentRecords.length > 0) {
       await Payment.insertMany(paymentRecords);
     }
   } else {
-    // Handle single payment updates (standard adding logic)
+    // Single payment updates (Legacy/Fallback)
+    if (overdue && Array.isArray(overdue)) {
+      for (const ov of overdue) {
+        const ovAmount = parseFloat(ov.amount);
+        if (ovAmount > 0) {
+          await Payment.create({
+            emiId: emi._id,
+            loanId: emi.loanId,
+            loanModel: emi.loanModel,
+            amount: 0,
+            overdueAmount: ovAmount,
+            mode: ov.mode || paymentMode || "CASH",
+            paymentDate: ov.date ? new Date(ov.date) : new Date(),
+            paymentType: "Overdue",
+            status: "Success",
+            collectedBy: req.user._id,
+          });
+        }
+      }
+    }
+
     if (addedAmount && parseFloat(addedAmount) > 0) {
       await Payment.create({
         emiId: emi._id,
         loanId: emi.loanId,
         loanModel: emi.loanModel,
         amount: parseFloat(addedAmount),
-        mode: paymentMode || "CASH",
-        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-        paymentType:
-          emi.loanModel === "DailyLoan"
-            ? "Daily"
-            : emi.loanModel === "WeeklyLoan"
-              ? "Weekly"
-              : "Monthly",
-        status: "Success",
-        collectedBy: req.user._id,
-      });
-    }
-
-    // Merge overdue into the same payment record as the EMI amount (no separate row)
-    if (overdue && parseFloat(overdue) > 0 && addedAmount && parseFloat(addedAmount) > 0) {
-      // Already created one Payment above — update its amount to include overdue
-      await Payment.findOneAndUpdate(
-        { emiId: emi._id, paymentDate: paymentDate ? new Date(paymentDate) : new Date() },
-        { $inc: { amount: parseFloat(overdue) }, $set: { includesOverdue: true } },
-        { sort: { createdAt: -1 } }
-      );
-    } else if (overdue && parseFloat(overdue) > 0) {
-      // No regular payment was made — create a single record for overdue only
-      await Payment.create({
-        emiId: emi._id,
-        loanId: emi.loanId,
-        loanModel: emi.loanModel,
-        amount: parseFloat(overdue),
+        overdueAmount: 0,
         mode: paymentMode || "CASH",
         paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
         paymentType:
@@ -381,8 +367,9 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   } else if (newAmountPaid > 0) {
     newStatus = "Partially Paid";
   } else {
-    // Only set to Pending if it's currently NOT Overdue or if we want to reset it
-    newStatus = overdue > 0 ? "Overdue" : "Pending";
+    // Check if there are any overdue entries
+    const hasOverdue = overdue && Array.isArray(overdue) && overdue.some(ov => parseFloat(ov.amount) > 0);
+    newStatus = hasOverdue ? "Overdue" : "Pending";
   }
 
   // Update properties on the document directly

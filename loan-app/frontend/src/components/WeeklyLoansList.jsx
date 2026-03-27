@@ -12,6 +12,7 @@ import TableActionMenu from "./TableActionMenu";
 import Pagination from "./Pagination";
 import { Trash2 } from "lucide-react";
 import { exportLoansToExcel } from "../utils/excelExport";
+import ContactActionMenu from "./ContactActionMenu";
 import { getUserFromToken } from "../utils/auth";
 
 const WeeklyLoansList = ({ type, title }) => {
@@ -25,6 +26,7 @@ const WeeklyLoansList = ({ type, title }) => {
   const [limit] = useState(25);
   const { showToast } = useToast();
   const [selectedRowId, setSelectedRowId] = useState(null);
+  const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
 
   const toggleHighlight = (e, id) => {
     // Don't toggle if clicking a link or button directly
@@ -305,9 +307,26 @@ const WeeklyLoansList = ({ type, title }) => {
                         </span>
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
-                        <span className="text-slate-600 font-bold text-[10px]">
-                          {loan.mobileNumbers?.[0] || loan.mobileNumber}
-                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          {(loan.mobileNumbers || [loan.mobileNumber]).map((num, idx) => (
+                            <button
+                              key={idx}
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setActiveContactMenu({
+                                  number: num,
+                                  name: loan.customerName,
+                                  type: "Applicant",
+                                  x: rect.left,
+                                  y: rect.bottom,
+                                });
+                              }}
+                              className="text-[10px] font-bold text-primary hover:underline transition-colors text-left"
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
                         <span className="font-black text-slate-900 text-xs uppercase tracking-tighter">
@@ -315,9 +334,28 @@ const WeeklyLoansList = ({ type, title }) => {
                         </span>
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
-                        <span className="text-slate-600 font-bold text-[10px]">
-                          {loan.guarantorMobileNumbers?.[0] || loan.guarantorMobile || "—"}
-                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          {(loan.guarantorMobileNumbers || [loan.guarantorMobile]).map((num, idx) => 
+                            num ? (
+                              <button
+                                key={idx}
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setActiveContactMenu({
+                                    number: num,
+                                    name: loan.guarantorName,
+                                    type: "Guarantor",
+                                    x: rect.left,
+                                    y: rect.bottom,
+                                  });
+                                }}
+                                className="text-[10px] font-bold text-primary hover:underline transition-colors text-left"
+                              >
+                                {num}
+                              </button>
+                            ) : idx === 0 ? "—" : null
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-5 text-center whitespace-nowrap">
                         <div className="flex flex-col items-center">
@@ -516,14 +554,50 @@ const WeeklyLoansList = ({ type, title }) => {
                       </span>
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
-                      <span className="text-slate-600 font-bold text-xs tracking-widest">
-                        {loan.mobileNumbers?.[0] || loan.mobileNumber}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        {(loan.mobileNumbers || [loan.mobileNumber]).map((num, idx) => (
+                          <button
+                            key={idx}
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActiveContactMenu({
+                                number: num,
+                                name: loan.customerName,
+                                type: "Applicant",
+                                x: rect.left,
+                                y: rect.bottom,
+                              });
+                            }}
+                            className="text-slate-600 font-bold text-xs tracking-widest hover:text-primary transition-colors text-left"
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <span className="font-extrabold text-slate-800 text-xs uppercase tracking-tight">
-                        {loan.guarantorName || "—"}
-                      </span>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-1 items-start">
+                        {(loan.guarantorMobileNumbers || [loan.guarantorMobile]).map((num, idx) => 
+                          num ? (
+                            <button
+                              key={idx}
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setActiveContactMenu({
+                                  number: num,
+                                  name: loan.guarantorName,
+                                  type: "Guarantor",
+                                  x: rect.left,
+                                  y: rect.bottom,
+                                });
+                              }}
+                              className="text-slate-600 font-bold text-xs tracking-widest hover:text-primary transition-colors text-left"
+                            >
+                              {num}
+                            </button>
+                          ) : idx === 0 ? "—" : null
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap font-black text-primary text-xs">
                       ₹{loan.emiAmount?.toLocaleString()}
@@ -642,6 +716,11 @@ const WeeklyLoansList = ({ type, title }) => {
           limit={limit}
         />
       )}
+
+      <ContactActionMenu
+        contact={activeContactMenu}
+        onClose={() => setActiveContactMenu(null)}
+      />
     </div>
   );
 };

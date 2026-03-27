@@ -155,6 +155,7 @@ const CollectionsPage = () => {
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Loan No</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer Name</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amount</th>
+          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Overdue</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Type</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Payment Mode</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Date</th>
@@ -178,11 +179,17 @@ const CollectionsPage = () => {
                 </Link>
               </td>
               <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">{item.customerName}</td>
-              <td className="px-6 py-4 text-xs text-right font-black text-emerald-600">₹{item.amount.toLocaleString()}</td>
+              <td className="px-6 py-4 text-xs text-right font-black text-emerald-600">
+                {item.paymentType === 'Overdue' || item.amount === 0 ? '-' : `₹${item.amount.toLocaleString()}`}
+              </td>
+              <td className="px-6 py-4 text-xs text-right font-black text-red-600">
+                {item.overdue > 0 ? `₹${item.overdue.toLocaleString()}` : '-'}
+              </td>
               <td className="px-6 py-4 text-xs text-center">
                 <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase border ${
                   item.paymentType === 'Monthly' ? 'bg-purple-50 text-purple-600 border-purple-100' :
                   item.paymentType === 'Weekly' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                  item.paymentType === 'Overdue' ? 'bg-red-50 text-red-600 border-red-100' :
                   'bg-emerald-50 text-emerald-600 border-emerald-100'
                 }`}>
                   {item.paymentType}

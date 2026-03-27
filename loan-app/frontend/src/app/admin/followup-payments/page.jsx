@@ -33,7 +33,8 @@ const FollowupPaymentsPage = () => {
     customerName: "",
     vehicleNumber: "",
     mobileNumber: "",
-    nextFollowUpDate: today,
+    startDate: today,
+    endDate: today,
   });
   const [activeContactMenu, setActiveContactMenu] = useState(null);
   const [showSeizeModal, setShowSeizeModal] = useState(false);
@@ -127,7 +128,8 @@ const FollowupPaymentsPage = () => {
       customerName: "",
       vehicleNumber: "",
       mobileNumber: "",
-      nextFollowUpDate: today, // Reset to today instead of empty
+      startDate: today,
+      endDate: today,
     };
     setFilters(resetValues);
     setSearchQuery("");
@@ -589,17 +591,31 @@ const FollowupPaymentsPage = () => {
                       className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
-                      Follow-up Date
-                    </label>
-                    <input
-                      type="date"
-                      name="nextFollowUpDate"
-                      value={filters.nextFollowUpDate}
-                      onChange={handleFilterChange}
-                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                        From Date
+                      </label>
+                      <input
+                        type="date"
+                        name="startDate"
+                        value={filters.startDate}
+                        onChange={handleFilterChange}
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                        To Date
+                      </label>
+                      <input
+                        type="date"
+                        name="endDate"
+                        value={filters.endDate}
+                        onChange={handleFilterChange}
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
+                      />
+                    </div>
                   </div>
                 </form>
               </div>

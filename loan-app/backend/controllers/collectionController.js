@@ -83,7 +83,7 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
   const transactions = await Payment.find(match)
     .populate({
       path: "emiId",
-      select: "loanNumber customerName",
+      select: "loanNumber customerName overdue",
     })
     .populate({
       path: "collectedBy",
@@ -100,6 +100,7 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
     loanModel: txn.loanModel,
     loanNumber: txn.emiId ? txn.emiId.loanNumber : "Unknown",
     customerName: txn.emiId ? txn.emiId.customerName : "Unknown",
+    overdue: txn.overdueAmount || 0,
     amount: txn.amount,
     paymentMode: txn.mode,
     paymentType: txn.paymentType,
