@@ -229,12 +229,95 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
 
   const skip = (page - 1) * limit;
   const total = await DailyLoan.countDocuments(query);
-  const dailyLoans = await DailyLoan.find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(Number(limit))
-    .populate("createdBy", "name")
-    .populate("updatedBy", "name");
+  const dailyLoans = await DailyLoan.aggregate([
+    { $match: query },
+    { $sort: { createdAt: -1 } },
+    { $skip: skip },
+    { $limit: Number(limit) },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $addFields: {
+        repaymentStats: {
+          totalCollected: {
+            $add: [
+              { $sum: "$emis.amountPaid" },
+              { $ifNull: ["$processingFee", 0] },
+            ],
+          },
+          overdueAmount: {
+            $reduce: {
+              input: "$emis",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $cond: [
+                      {
+                        $and: [
+                          { $ne: ["$$this.status", "Paid"] },
+                          { $lt: ["$$this.dueDate", new Date()] },
+                          { $eq: ["$$this.loanModel", "DailyLoan"] },
+                        ],
+                      },
+                      {
+                        $subtract: [
+                          { $toDouble: "$$this.emiAmount" },
+                          { $ifNull: [{ $toDouble: "$$this.amountPaid" }, 0] },
+                        ],
+                      },
+                      0,
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          paidEmisCount: {
+            $size: {
+              $filter: {
+                input: "$emis",
+                as: "emi",
+                cond: { $eq: ["$$emi.status", "Paid"] },
+              },
+            },
+          },
+          remainingTenure: {
+            $size: {
+              $filter: {
+                input: "$emis",
+                as: "emi",
+                cond: { $ne: ["$$emi.status", "Paid"] },
+              },
+            },
+          },
+          nextEmiDate: {
+            $min: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: "$emis",
+                    as: "emi",
+                    cond: { $ne: ["$$emi.status", "Paid"] },
+                  },
+                },
+                as: "f",
+                in: "$$f.dueDate",
+              },
+            },
+          },
+        },
+      },
+    },
+    { $project: { emis: 0 } },
+  ]);
 
   sendResponse(res, 200, "success", "Daily loans fetched successfully", null, {
     dailyLoans,
@@ -625,6 +708,8 @@ exports.getDailyFollowupLoans = asyncHandler(async (req, res, next) => {
     loanNumber,
     mobileNumber,
     nextFollowUpDate,
+    startDate,
+    endDate,
     pageNum = 1,
     limitNum = 10,
   } = req.query;
@@ -639,13 +724,21 @@ exports.getDailyFollowupLoans = asyncHandler(async (req, res, next) => {
   if (mobileNumber)
     query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
 
-  const dateToFilter =
-    nextFollowUpDate || new Date().toISOString().split("T")[0];
-  const start = new Date(dateToFilter);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(dateToFilter);
-  end.setHours(23, 59, 59, 999);
-  query.nextFollowUpDate = { $gte: start, $lte: end };
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    query.nextFollowUpDate = { $gte: start, $lte: end };
+  } else {
+    const dateToFilter =
+      nextFollowUpDate || new Date().toISOString().split("T")[0];
+    const start = new Date(dateToFilter);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(dateToFilter);
+    end.setHours(23, 59, 59, 999);
+    query.nextFollowUpDate = { $gte: start, $lte: end };
+  }
 
   const result = await DailyLoan.aggregate([
     {

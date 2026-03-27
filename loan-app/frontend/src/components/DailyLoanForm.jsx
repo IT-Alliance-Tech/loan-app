@@ -233,8 +233,8 @@ const DailyLoanForm = ({
           </div>
 
           <div className="w-full md:w-auto min-w-[150px] flex flex-wrap justify-start md:justify-end gap-x-4 gap-y-2">
-            {/* Created By Section - Only show if not updated yet */}
-            {isEditMode && values.createdBy && !values.updatedBy && (
+            {/* Created By Section */}
+            {isEditMode && values.createdBy && (
               <div className="flex flex-col items-start md:items-end pointer-events-none">
                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
                   Created By
@@ -254,7 +254,7 @@ const DailyLoanForm = ({
               </div>
             )}
 
-            {/* Last Updated By Section - Only show after first edit */}
+            {/* Last Updated By Section */}
             {isEditMode && values.updatedBy && (
               <div className="flex flex-col items-start md:items-end pointer-events-none">
                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">

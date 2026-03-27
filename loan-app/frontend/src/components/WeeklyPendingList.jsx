@@ -229,22 +229,26 @@ const WeeklyPendingList = () => {
                       {item.customerName}
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
-                      <button
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const num = item.mobileNumbers?.[0] || item.mobileNumber;
-                          setActiveContactMenu({
-                            number: num,
-                            name: item.customerName,
-                            type: "Applicant",
-                            x: rect.left,
-                            y: rect.bottom,
-                          });
-                        }}
-                        className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
-                      >
-                        {item.mobileNumbers?.[0] || item.mobileNumber}
-                      </button>
+                      <div className="flex flex-col gap-0.5">
+                        {(item.mobileNumbers || [item.mobileNumber]).map((num, idx) => (
+                          <button
+                            key={idx}
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActiveContactMenu({
+                                number: num,
+                                name: item.customerName,
+                                type: "Applicant",
+                                x: rect.left,
+                                y: rect.bottom,
+                                });
+                            }}
+                            className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-md">
@@ -380,6 +384,11 @@ const WeeklyPendingList = () => {
           </div>
         </div>
       )}
+
+      <ContactActionMenu
+        contact={activeContactMenu}
+        onClose={() => setActiveContactMenu(null)}
+      />
     </div>
   );
 };

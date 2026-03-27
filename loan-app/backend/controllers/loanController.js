@@ -286,6 +286,36 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
                 },
               },
             },
+            nextEmiDueDate: {
+              $min: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: "$emis",
+                      as: "emi",
+                      cond: { $ne: ["$$emi.status", "Paid"] },
+                    },
+                  },
+                  as: "f",
+                  in: "$$f.dueDate",
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          "repaymentStats.remainingPrincipal": {
+            $multiply: [
+              {
+                $divide: [
+                  { $ifNull: ["$principalAmount", 0] },
+                  { $cond: [{ $gt: ["$tenureMonths", 0] }, "$tenureMonths", 1] },
+                ],
+              },
+              "$repaymentStats.remainingTenure",
+            ],
           },
         },
       },
@@ -313,19 +343,45 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
       _id: loan._id,
       customerDetails: {
         customerName: loan.customerName,
+        address: loan.address,
+        ownRent: loan.ownRent,
         mobileNumbers: loan.mobileNumbers || [],
+        panNumber: loan.panNumber,
+        aadharNumber: loan.aadharNumber,
         guarantorName: loan.guarantorName,
         guarantorMobileNumbers: loan.guarantorMobileNumbers || [],
       },
       loanTerms: {
         loanNumber: loan.loanNumber,
-        monthlyEMI: loan.monthlyEMI,
+        principalAmount: loan.principalAmount,
+        annualInterestRate: loan.annualInterestRate,
+        processingFee: loan.processingFee,
+        tenureType: loan.tenureType,
         tenureMonths: loan.tenureMonths,
+        emiStartDate: loan.emiStartDate,
+        emiEndDate: loan.emiEndDate,
+        monthlyEMI: loan.monthlyEMI,
+      },
+      vehicleInformation: {
+        vehicleNumber: loan.vehicleNumber,
+        chassisNumber: loan.chassisNumber,
+        engineNumber: loan.engineNumber,
+        typeOfVehicle: loan.typeOfVehicle,
+        modelYear: loan.modelYear,
+        ywBoard: loan.ywBoard,
+        dealerName: loan.dealerName,
+        dealerNumber: loan.dealerNumber,
+        hpEntry: loan.hpEntry,
+        fcDate: loan.fcDate,
+        insuranceDate: loan.insuranceDate,
+        rtoWorkPending: loan.rtoWorkPending,
       },
       status: {
         status: loan.status,
         isSeized: loan.isSeized,
         clientResponse: loan.clientResponse,
+        docChecklist: loan.docChecklist,
+        remarks: loan.remarks,
       },
       createdAt: loan.createdAt,
       repaymentStats: loan.repaymentStats || null,
@@ -1343,6 +1399,8 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     vehicleNumber,
     mobileNumber,
     nextFollowUpDate,
+    startDate,
+    endDate,
     loanType: queryLoanType,
   } = req.query;
   const page = parseInt(req.query.page, 10) || 1;
@@ -1350,13 +1408,22 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
   const skip = (page - 1) * limit;
 
   // Filter for nextFollowUpDate
-  const dateToFilter =
-    nextFollowUpDate || new Date().toISOString().split("T")[0];
-  const start = new Date(dateToFilter);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(dateToFilter);
-  end.setHours(23, 59, 59, 999);
-  const dateFilter = { nextFollowUpDate: { $gte: start, $lte: end } };
+  let dateFilter = {};
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    dateFilter = { nextFollowUpDate: { $gte: start, $lte: end } };
+  } else {
+    const dateToFilter =
+      nextFollowUpDate || new Date().toISOString().split("T")[0];
+    const start = new Date(dateToFilter);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(dateToFilter);
+    end.setHours(23, 59, 59, 999);
+    dateFilter = { nextFollowUpDate: { $gte: start, $lte: end } };
+  }
 
   // Common filters
   let commonQuery = { ...dateFilter, status: { $ne: "Closed" } };

@@ -21,40 +21,57 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
     fileName = `${typeOrFileName}_Loans_Report_${new Date().toLocaleDateString("en-IN").replace(/\//g, "-")}.xlsx`;
     headers = [
       "Loan No",
-      "Name",
-      "Number",
+      "Customer Name",
+      "Mobile Numbers",
+      "Guarantor",
+      "Guar. Mobile",
       "Amount",
-      "Disbursed date",
-      "start date",
+      "Processing Fee",
+      "Start Date",
+      "End Date",
       "Total EMIs",
       "EMI Amount",
       "Paid EMIs",
       "Remaining EMIs",
-      "Total Amount paid",
-      "Next EMI duedate",
+      "Total Collected",
+      "Overdue",
+      "Remaining Principal",
+      "Next EMI Date",
+      "Status",
       "Remarks",
     ];
 
     data.forEach((loan) => {
+      const stats = loan.repaymentStats || {};
       columns.push([
         loan.loanNumber || "",
         loan.customerName || "",
-        loan.mobileNumber || "",
+        Array.isArray(loan.mobileNumbers)
+          ? loan.mobileNumbers.join(", ")
+          : loan.mobileNumbers || "",
+        loan.guarantorName || "",
+        Array.isArray(loan.guarantorMobileNumbers)
+          ? loan.guarantorMobileNumbers.join(", ")
+          : loan.guarantorMobileNumbers || "",
         loan.disbursementAmount || 0,
-        loan.startDate
-          ? new Date(loan.startDate).toLocaleDateString("en-IN")
-          : "",
-        loan.emiStartDate
-          ? new Date(loan.emiStartDate).toLocaleDateString("en-IN")
-          : "",
+        loan.processingFee || 0,
+        loan.startDate ? new Date(loan.startDate).toLocaleDateString("en-IN") : "-",
+        loan.emiEndDate
+          ? new Date(loan.emiEndDate).toLocaleDateString("en-IN")
+          : "-",
         loan.totalEmis || 0,
         loan.emiAmount || 0,
         loan.paidEmis || 0,
         loan.remainingEmis || 0,
-        loan.totalAmount || 0,
-        loan.nextEmiDate
-          ? new Date(loan.nextEmiDate).toLocaleDateString("en-IN")
-          : "",
+        stats.totalCollected || loan.totalCollected || 0,
+        stats.overdueAmount || 0,
+        loan.remainingPrincipalAmount || 0,
+        stats.nextEmiDate
+          ? new Date(stats.nextEmiDate).toLocaleDateString("en-IN")
+          : loan.nextEmiDate
+            ? new Date(loan.nextEmiDate).toLocaleDateString("en-IN")
+            : "-",
+        loan.status || "",
         loan.remarks || "",
       ]);
     });
@@ -237,6 +254,11 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
         right: { style: "thin" },
       };
       cell.font = { size: 9 };
+
+      // Format 0 as "-"
+      if (typeof cell.value === "number" && cell.value === 0) {
+        cell.value = "-";
+      }
     });
   });
 
