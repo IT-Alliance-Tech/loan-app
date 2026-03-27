@@ -235,19 +235,41 @@ const WeeklyLoanForm = ({
             </select>
           </div>
 
-          <div className="w-full md:w-auto min-w-[150px] flex justify-start md:justify-end">
-            {values.updatedBy && (
+          <div className="w-full md:w-auto min-w-[150px] flex flex-wrap justify-start md:justify-end gap-x-4 gap-y-2">
+            {/* Created By Section */}
+            {isEditMode && values.createdBy && (
+              <div className="flex flex-col items-start md:items-end pointer-events-none">
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                  Created By
+                </span>
+                <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tight">
+                    {typeof values.createdBy === "string"
+                      ? values.createdBy
+                      : values.createdBy.name}
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-emerald-500/40" />
+                  <span className="text-[9px] font-bold text-slate-400 font-mono">
+                    {values.createdAt &&
+                      format(new Date(values.createdAt), "dd/MM/yy HH:mm")}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Last Updated By Section */}
+            {isEditMode && values.updatedBy && (
               <div className="flex flex-col items-start md:items-end pointer-events-none">
                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
                   Last Updated By
                 </span>
-                <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                <div className="flex items-center gap-2 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  <span className="text-[10px] font-black text-amber-500 uppercase tracking-tight">
                     {typeof values.updatedBy === "string"
                       ? values.updatedBy
                       : values.updatedBy.name}
                   </span>
-                  <span className="w-1 h-1 rounded-full bg-red-500/40" />
+                  <span className="w-1 h-1 rounded-full bg-amber-500/40" />
                   <span className="text-[9px] font-bold text-slate-400 font-mono">
                     {values.updatedAt &&
                       format(new Date(values.updatedAt), "dd/MM/yy HH:mm")}

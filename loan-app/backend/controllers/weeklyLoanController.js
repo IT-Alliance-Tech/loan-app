@@ -235,11 +235,95 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
 
   const skip = (page - 1) * limit;
   const total = await WeeklyLoan.countDocuments(query);
-  const weeklyLoans = await WeeklyLoan.find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(Number(limit))
-    .populate("updatedBy", "name");
+  const weeklyLoans = await WeeklyLoan.aggregate([
+    { $match: query },
+    { $sort: { createdAt: -1 } },
+    { $skip: skip },
+    { $limit: Number(limit) },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $addFields: {
+        repaymentStats: {
+          totalCollected: {
+            $add: [
+              { $sum: "$emis.amountPaid" },
+              { $ifNull: ["$processingFee", 0] },
+            ],
+          },
+          overdueAmount: {
+            $reduce: {
+              input: "$emis",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $cond: [
+                      {
+                        $and: [
+                          { $ne: ["$$this.status", "Paid"] },
+                          { $lt: ["$$this.dueDate", new Date()] },
+                          { $eq: ["$$this.loanModel", "WeeklyLoan"] },
+                        ],
+                      },
+                      {
+                        $subtract: [
+                          { $toDouble: "$$this.emiAmount" },
+                          { $ifNull: [{ $toDouble: "$$this.amountPaid" }, 0] },
+                        ],
+                      },
+                      0,
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          paidEmisCount: {
+            $size: {
+              $filter: {
+                input: "$emis",
+                as: "emi",
+                cond: { $eq: ["$$emi.status", "Paid"] },
+              },
+            },
+          },
+          remainingTenure: {
+            $size: {
+              $filter: {
+                input: "$emis",
+                as: "emi",
+                cond: { $ne: ["$$emi.status", "Paid"] },
+              },
+            },
+          },
+          nextEmiDate: {
+            $min: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: "$emis",
+                    as: "emi",
+                    cond: { $ne: ["$$emi.status", "Paid"] },
+                  },
+                },
+                as: "f",
+                in: "$$f.dueDate",
+              },
+            },
+          },
+        },
+      },
+    },
+    { $project: { emis: 0 } },
+  ]);
 
   sendResponse(res, 200, "success", "Weekly loans fetched successfully", null, {
     weeklyLoans,
@@ -258,6 +342,7 @@ exports.getWeeklyLoanById = asyncHandler(async (req, res, next) => {
   const weeklyLoan = await WeeklyLoan.findById(req.params.id)
     .populate("closureDetails")
     .populate("followupHistory")
+    .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
   if (!weeklyLoan) {
@@ -425,6 +510,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   weeklyLoan = await WeeklyLoan.findById(weeklyLoan._id)
     .populate("closureDetails")
     .populate("followupHistory")
+    .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
   // Synchronize EMIs if date or principal changed
@@ -645,6 +731,8 @@ exports.getWeeklyFollowupLoans = asyncHandler(async (req, res, next) => {
     loanNumber,
     mobileNumber,
     nextFollowUpDate,
+    startDate,
+    endDate,
     pageNum = 1,
     limitNum = 10,
   } = req.query;
@@ -659,14 +747,21 @@ exports.getWeeklyFollowupLoans = asyncHandler(async (req, res, next) => {
   if (mobileNumber)
     query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
 
-  // Mandatory date filtering for follow-ups
-  const dateToFilter =
-    nextFollowUpDate || new Date().toISOString().split("T")[0];
-  const start = new Date(dateToFilter);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(dateToFilter);
-  end.setHours(23, 59, 59, 999);
-  query.nextFollowUpDate = { $gte: start, $lte: end };
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    query.nextFollowUpDate = { $gte: start, $lte: end };
+  } else {
+    const dateToFilter =
+      nextFollowUpDate || new Date().toISOString().split("T")[0];
+    const start = new Date(dateToFilter);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(dateToFilter);
+    end.setHours(23, 59, 59, 999);
+    query.nextFollowUpDate = { $gte: start, $lte: end };
+  }
 
   const result = await WeeklyLoan.aggregate([
     {

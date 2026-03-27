@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { login } from "../../../services/auth.service";
 import { useToast } from "../../../context/ToastContext";
 import Logo from "../../../components/Logo";
+import { User, Lock, Key, Mail, Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -30,39 +31,7 @@ const LoginPage = () => {
     }
   };
 
-  const EyeIcon = () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-      <circle cx="12" cy="12" r="3"></circle>
-    </svg>
-  );
-
-  const EyeOffIcon = () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-      <line x1="1" y1="1" x2="23" y2="23"></line>
-    </svg>
-  );
+  // Removing old inline SVGs since we are using lucide-react
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-slate-900">
@@ -107,25 +76,13 @@ const LoginPage = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-bold"
+                  className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-300 placeholder:font-bold"
                   placeholder="e.g. administrator@sf.com"
                   required
                   suppressHydrationWarning
                 />
-                <div className="absolute inset-y-0 right-4 flex items-center text-slate-400 group-focus-within/input:text-blue-500 transition-colors">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
+                <div className="absolute inset-y-0 right-4 flex items-center text-slate-400 group-focus-within/input:text-primary transition-colors duration-300 pointer-events-none">
+                  <Mail className="w-5 h-5" />
                 </div>
               </div>
             </div>
@@ -149,18 +106,21 @@ const LoginPage = () => {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-5 py-4 bg-white border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400"
+                  className="w-full px-5 pr-12 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-300"
                   placeholder="••••••••"
                   required
                   suppressHydrationWarning
                 />
+                <div className="absolute inset-y-0 right-12 flex items-center text-slate-400 group-focus-within/input:text-primary transition-colors duration-300 pointer-events-none">
+                  <Lock className="w-4 h-4 opacity-50" />
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition-all p-1"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-primary transition-all p-1"
                   suppressHydrationWarning
                 >
-                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
@@ -174,17 +134,20 @@ const LoginPage = () => {
                   type={showAccessKey ? "text" : "password"}
                   value={accessKey}
                   onChange={(e) => setAccessKey(e.target.value)}
-                  className="w-full px-5 py-4 bg-white border border-blue-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-blue-300"
+                  className="w-full px-5 pr-12 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all text-sm font-bold text-slate-800 placeholder:text-slate-200"
                   placeholder="••••••••"
                   suppressHydrationWarning
                 />
+                <div className="absolute inset-y-0 right-12 flex items-center text-slate-400 group-focus-within/input:text-primary transition-colors duration-300 pointer-events-none">
+                  <Key className="w-4 h-4 opacity-50" />
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowAccessKey(!showAccessKey)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300 hover:text-blue-500 transition-all p-1"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-primary transition-all p-1"
                   suppressHydrationWarning
                 >
-                  {showAccessKey ? <EyeOffIcon /> : <EyeIcon />}
+                  {showAccessKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
@@ -195,47 +158,17 @@ const LoginPage = () => {
               className="w-full relative group/btn overflow-hidden"
               suppressHydrationWarning
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 transition-all group-hover:scale-105 active:scale-95 duration-300"></div>
-              <div className="relative py-4 w-full flex items-center justify-center gap-3 text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-500/25">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-indigo-600 transition-all group-hover:scale-105 active:scale-95 duration-300"></div>
+              <div className="relative py-4 w-full flex items-center justify-center gap-3 text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-blue-500/10">
                 {loading ? (
                   <>
-                    <svg
-                      className="animate-spin h-5 w-5 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
+                    <Loader2 className="w-5 h-5 animate-spin text-white" />
                     Executing...
                   </>
                 ) : (
                   <>
-                    Login
-                    <svg
-                      className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="3"
-                        d="M14 5l7 7m0 0l-7 7m7-7H3"
-                      />
-                    </svg>
+                    Continue
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
               </div>

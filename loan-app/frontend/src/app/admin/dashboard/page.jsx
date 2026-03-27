@@ -16,6 +16,7 @@ import {
   CheckCircle,
   BarChart3,
 } from "lucide-react";
+import TodoDashboardSection from "../../../components/analytics/TodoDashboardSection";
 
 const DashboardPage = () => {
   const user = getUserFromToken();
@@ -118,6 +119,28 @@ const DashboardPage = () => {
                       {loading
                         ? "..."
                         : stats?.cards?.userCounts?.EMPLOYEE || "0"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Todo Section - NEW */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                  <TodoDashboardSection />
+                </div>
+                <div className="space-y-6">
+                  {/* Additional dashboard widgets could go here in the future */}
+                  <div className="bg-gradient-to-br from-primary to-blue-600 p-8 rounded-[2rem] text-white shadow-xl shadow-blue-100 flex flex-col justify-between min-h-[300px]">
+                    <div>
+                      <h3 className="text-xl font-black mb-2 uppercase tracking-tight">Need Help?</h3>
+                      <p className="text-blue-100 font-bold text-xs uppercase tracking-widest leading-relaxed">
+                        If you have issues with assigned tasks or permissions, please contact your administrator.
+                      </p>
+                    </div>
+                    <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-md">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1">Current Role</p>
+                      <p className="text-sm font-black text-white uppercase">{user?.role}</p>
                     </div>
                   </div>
                 </div>

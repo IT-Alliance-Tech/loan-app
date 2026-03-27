@@ -19,6 +19,9 @@ const DailyFollowupList = () => {
   const [activeContactMenu, setActiveContactMenu] = useState(null);
 
   // Pagination State
+  const today = new Date().toISOString().split("T")[0];
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -35,6 +38,8 @@ const DailyFollowupList = () => {
         limit,
         followup: "true",
         searchQuery: searchQuery,
+        startDate,
+        endDate,
       };
 
       const res = await getDailyFollowupLoans(params);
@@ -69,7 +74,7 @@ const DailyFollowupList = () => {
       fetchFollowups();
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery, currentPage]);
+  }, [searchQuery, currentPage, startDate, endDate]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -88,8 +93,8 @@ const DailyFollowupList = () => {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mb-8">
-        <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center h-[46px]">
+      <div className="flex flex-col md:flex-row items-end gap-3 mb-8">
+        <div className="flex-1 w-full bg-white rounded-xl border border-slate-200 shadow-sm flex items-center h-[46px]">
           <div className="flex-1 flex items-center px-4">
             <div className="text-slate-300 text-lg">🔍</div>
             <input
@@ -101,8 +106,32 @@ const DailyFollowupList = () => {
             />
           </div>
         </div>
+        <div className="flex flex-row items-center gap-2">
+          <div className="flex flex-col">
+            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">From</label>
+            <input
+              type="date"
+              className="h-[46px] px-4 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-primary shadow-sm"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">To</label>
+            <input
+              type="date"
+              className="h-[46px] px-4 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-primary shadow-sm"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+        </div>
         <button
-          onClick={() => setSearchQuery("")}
+          onClick={() => {
+            setSearchQuery("");
+            setStartDate(today);
+            setEndDate(today);
+          }}
           className="flex-none px-6 h-[46px] bg-red-50 border border-red-100 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 shadow-sm"
         >
           Clear
@@ -174,22 +203,26 @@ const DailyFollowupList = () => {
                       {loan.customerName}
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
-                      <button
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const num = loan.mobileNumbers?.[0] || loan.mobileNumber;
-                          setActiveContactMenu({
-                            number: num,
-                            name: loan.customerName,
-                            type: "Applicant",
-                            x: rect.left,
-                            y: rect.bottom,
-                          });
-                        }}
-                        className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
-                      >
-                        {loan.mobileNumbers?.[0] || loan.mobileNumber}
-                      </button>
+                      <div className="flex flex-col gap-0.5">
+                        {(loan.mobileNumbers || [loan.mobileNumber]).map((num, idx) => (
+                          <button
+                            key={idx}
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActiveContactMenu({
+                                number: num,
+                                name: loan.customerName,
+                                type: "Applicant",
+                                x: rect.left,
+                                y: rect.bottom,
+                              });
+                            }}
+                            className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span className="text-[11px] font-black text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
