@@ -32,7 +32,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
     setEditData({
       overdue: (emi.overdue && emi.overdue.length > 0)
         ? emi.overdue.map(ov => ({ ...ov, id: Math.random(), mode: ov.mode || "CASH" }))
-        : [{ id: Date.now(), date: new Date().toISOString().split("T")[0], amount: "", mode: "CASH" }],
+        : [],
       status: emi.status || "Pending",
       remarks: emi.remarks || "",
     });
@@ -616,7 +616,6 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                               value={ov.date ? new Date(ov.date).toISOString().split('T')[0] : ''}
                               onChange={(e) => handleOverdueChange(ov.id, "date", e.target.value)}
                               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-red-500/10 transition-all font-mono"
-                              required
                             />
                           </div>
                           {editData.overdue.length > 1 && (
