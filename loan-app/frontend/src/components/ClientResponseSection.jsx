@@ -61,9 +61,20 @@ const ClientResponseSection = ({
           />
         </div>
         <div className="md:col-span-4 space-y-3">
-          <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-1">
-            Follow-up Date
-          </label>
+          <div className="flex justify-between items-center">
+            <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-1">
+              Follow-up Date
+            </label>
+            {nextFollowUpDate && (
+              <button
+                type="button"
+                onClick={() => onChange({ target: { name: nameDate, value: "" } })}
+                className="text-[9px] font-black uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors mr-1"
+              >
+                Clear
+              </button>
+            )}
+          </div>
           <input
             type="date"
             name={nameDate}

@@ -64,6 +64,10 @@ const dailyLoanSchema = new mongoose.Schema(
     nextFollowUpDate: {
       type: Date,
     },
+    odAmount: {
+      type: Number,
+      default: 0,
+    },
     remarks: {
       type: String,
       trim: true,

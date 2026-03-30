@@ -109,6 +109,7 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
       dueDate: new Date(currentEmiDate),
       emiAmount: monthlyEMI,
       status: "Pending",
+      overdue: [],
     });
     currentEmiDate.setMonth(currentEmiDate.getMonth() + 1);
   }
@@ -403,6 +404,16 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       const weeklyLoan = await WeeklyLoan.findById(emi.loanId);
       if (weeklyLoan) {
         weeklyLoan.paidEmis = paidEmisCount;
+        
+        // Update odAmount
+        const totalOdAmount = allEmis.reduce((acc, currentEmi) => {
+          if (Array.isArray(currentEmi.overdue)) {
+            return acc + currentEmi.overdue.reduce((oAcc, ov) => oAcc + (parseFloat(ov.amount) || 0), 0);
+          }
+          return acc + (parseFloat(currentEmi.overdue) || 0);
+        }, 0);
+        weeklyLoan.odAmount = totalOdAmount;
+
         if (isAllPaid) {
           weeklyLoan.status = "Closed";
         } else if (weeklyLoan.status === "Closed") {
@@ -429,6 +440,16 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       const dailyLoan = await DailyLoan.findById(emi.loanId);
       if (dailyLoan) {
         dailyLoan.paidEmis = paidEmisCount;
+
+        // Update odAmount
+        const totalOdAmount = allEmis.reduce((acc, currentEmi) => {
+          if (Array.isArray(currentEmi.overdue)) {
+            return acc + currentEmi.overdue.reduce((oAcc, ov) => oAcc + (parseFloat(ov.amount) || 0), 0);
+          }
+          return acc + (parseFloat(currentEmi.overdue) || 0);
+        }, 0);
+        dailyLoan.odAmount = totalOdAmount;
+
         if (isAllPaid) {
           dailyLoan.status = "Closed";
         } else if (dailyLoan.status === "Closed") {
@@ -471,6 +492,15 @@ const updateEMI = asyncHandler(async (req, res, next) => {
             loan.status = "Active";
           }
         }
+        // Update odAmount
+        const totalOdAmount = allEmis.reduce((acc, currentEmi) => {
+          if (Array.isArray(currentEmi.overdue)) {
+            return acc + currentEmi.overdue.reduce((oAcc, ov) => oAcc + (parseFloat(ov.amount) || 0), 0);
+          }
+          return acc + (parseFloat(currentEmi.overdue) || 0);
+        }, 0);
+        loan.odAmount = totalOdAmount;
+
         await loan.save();
       }
     } catch (err) {

@@ -122,6 +122,7 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
         amountPaid: isPaid ? emiAmount : 0,
         paymentDate: isPaid ? new Date(eStartDate) : null,
         paymentMode: isPaid ? "CASH" : "",
+        overdue: [],
       });
       currentEmiDateArr.setDate(currentEmiDateArr.getDate() + 1);
     }
@@ -247,11 +248,35 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
         repaymentStats: {
           totalCollected: {
             $add: [
-              { $sum: "$emis.amountPaid" },
+              { $sum: { $ifNull: ["$emis.amountPaid", [0]] } },
+              { 
+                $reduce: {
+                  input: "$emis",
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+                    ]
+                  }
+                }
+              },
               { $ifNull: ["$processingFee", 0] },
             ],
           },
           overdueAmount: {
+            $reduce: {
+              input: "$emis",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+                ]
+              }
+            }
+          },
+          arrearsAmount: {
             $reduce: {
               input: "$emis",
               initialValue: 0,
@@ -651,6 +676,18 @@ exports.getDailyPendingPayments = asyncHandler(async (req, res, next) => {
               ],
             },
           },
+        },
+        penalOverdue: {
+          $reduce: {
+            input: "$emis", // Sum from ALL emis of the loan
+            initialValue: 0,
+            in: {
+              $add: [
+                "$$value",
+                { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+              ]
+            }
+          }
         },
         earliestDueDate: { $min: "$pendingEmisList.dueDate" },
         earliestEmiId: {
