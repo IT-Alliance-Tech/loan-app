@@ -45,13 +45,16 @@ const emiSchema = new mongoose.Schema(
     paymentDate: {
       type: Date,
     },
-    overdue: [
-      {
-        date: { type: Date, required: true },
-        amount: { type: Number, required: true },
-        mode: { type: String, default: "CASH" },
-      },
-    ],
+    overdue: {
+      type: [
+        {
+          date: { type: Date, required: true },
+          amount: { type: Number, required: true },
+          mode: { type: String, default: "CASH" },
+        },
+      ],
+      default: [],
+    },
     status: {
       type: String,
       enum: ["Pending", "Paid", "Partially Paid", "Overdue"],

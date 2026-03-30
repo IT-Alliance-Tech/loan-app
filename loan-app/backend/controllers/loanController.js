@@ -149,6 +149,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
         dueDate: addMonths(new Date(currentEmiDate), i - 1),
         emiAmount: monthlyEMI,
         status: "Pending",
+        overdue: [],
       });
     }
   }
@@ -262,12 +263,34 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
           repaymentStats: {
             totalCollected: {
               $add: [
-                { $sum: "$emis.amountPaid" },
-                { $sum: { $ifNull: ["$emis.overdue", 0] } },
+                { $sum: { $ifNull: ["$emis.amountPaid", [0]] } },
+                { 
+                  $reduce: {
+                    input: "$emis",
+                    initialValue: 0,
+                    in: {
+                      $add: [
+                        "$$value",
+                        { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+                      ]
+                    }
+                  }
+                },
                 { $ifNull: ["$processingFee", 0] },
               ],
             },
-            overdueAmount: { $sum: "$emis.overdue" },
+            overdueAmount: { 
+              $reduce: {
+                input: "$emis",
+                initialValue: 0,
+                in: {
+                  $add: [
+                    "$$value",
+                    { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+                  ]
+                }
+              }
+            },
             paidEmisCount: {
               $size: {
                 $filter: {
@@ -1164,6 +1187,18 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
                 ],
               },
             },
+          },
+          penalOverdue: {
+            $reduce: {
+              input: "$emis",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+                ]
+              }
+            }
           },
           earliestDueDate: { $min: "$pendingEmisList.dueDate" },
           earliestEmiId: {

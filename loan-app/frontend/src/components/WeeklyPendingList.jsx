@@ -181,6 +181,9 @@ const WeeklyPendingList = () => {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Total Due
                 </th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap text-red-500">
+                  Penalty
+                </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Overdue Days
                 </th>
@@ -258,6 +261,9 @@ const WeeklyPendingList = () => {
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap font-black text-red-600 text-sm tracking-tight">
                       ₹{item.totalDueAmount.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-5 text-center whitespace-nowrap font-black text-rose-500 text-xs tracking-tight bg-red-50/30">
+                      {item.penalOverdue > 0 ? `₹${item.penalOverdue.toLocaleString()}` : "—"}
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       {(() => {

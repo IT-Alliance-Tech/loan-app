@@ -242,6 +242,9 @@ const PendingPaymentsPage = () => {
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Remaining Amount
                         </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap text-red-500">
+                          Penalty
+                        </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Days
                         </th>
@@ -361,6 +364,9 @@ const PendingPaymentsPage = () => {
                                   ₹{item.totalDueAmount.toLocaleString()}
                                 </span>
                               </div>
+                            </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap font-black text-rose-500 text-xs tracking-tight bg-red-50/30">
+                              {item.penalOverdue > 0 ? `₹${item.penalOverdue.toLocaleString()}` : "—"}
                             </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                                 {(() => {

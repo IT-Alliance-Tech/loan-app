@@ -1,10 +1,11 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import AddTodoModal from "../../../components/AddTodoModal";
 import { getTodos, createTodo, updateTodo, deleteTodo } from "../../../services/todoService";
+import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { useToast } from "../../../context/ToastContext";
 
@@ -16,6 +17,8 @@ const TodoListPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [todoToEdit, setTodoToEdit] = useState(null);
   const { showToast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Pagination State
   const [pagination, setPagination] = useState({
@@ -32,7 +35,6 @@ const TodoListPage = () => {
     keyword: "",
     status: "",
     priority: "",
-    assignedTo: "",
     dueDate: "",
   });
 
@@ -41,6 +43,19 @@ const TodoListPage = () => {
   useEffect(() => {
     fetchTodos(pagination.page, filters);
   }, [pagination.page]);
+
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (editId && todos.length > 0) {
+      const todo = todos.find(t => t._id === editId);
+      if (todo) {
+        handleEditClick(todo);
+        // Clear the query param so it doesn't reopen on every refresh or filter
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+      }
+    }
+  }, [searchParams, todos]);
 
   const fetchTodos = async (page = 1, currentFilters = filters) => {
     try {
@@ -251,7 +266,7 @@ const TodoListPage = () => {
                   <div className="flex items-end">
                     <button
                       onClick={() => {
-                        const cleared = { keyword: "", status: "", priority: "", assignedTo: "", dueDate: "" };
+                        const cleared = { keyword: "", status: "", priority: "", dueDate: "" };
                         setFilters(cleared);
                         fetchTodos(1, cleared);
                       }}
@@ -276,11 +291,11 @@ const TodoListPage = () => {
                       <tr className="bg-slate-50/50 border-b border-slate-100">
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Title</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Description</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Latest Update</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Date</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Status</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Priority</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Due Date</th>
-                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Assigned To</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Created By</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Updated By</th>
                         <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Actions</th>
@@ -289,7 +304,7 @@ const TodoListPage = () => {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan="9" className="px-6 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                          <td colSpan="10" className="px-6 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
                             <div className="flex flex-col items-center gap-4">
                               <span className="animate-spin text-3xl">⚙️</span>
                               Loading tasks...
@@ -298,7 +313,7 @@ const TodoListPage = () => {
                         </tr>
                       ) : todos.length === 0 ? (
                         <tr>
-                          <td colSpan="9" className="px-6 py-20 text-center">
+                          <td colSpan="10" className="px-6 py-20 text-center">
                             <div className="text-slate-200 text-5xl mb-4">📋</div>
                             <h2 className="text-slate-400 font-black text-sm uppercase tracking-tight">No tasks found</h2>
                             <p className="text-slate-300 text-[10px] font-bold uppercase tracking-widest mt-1">Adjust filters or search keywords</p>
@@ -313,6 +328,11 @@ const TodoListPage = () => {
                             <td className="px-6 py-5 min-w-[250px]">
                               <div className="max-h-16 overflow-y-auto scrollbar-hide pr-2">
                                 <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed text-wrap">{todo.description || "—"}</p>
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 min-w-[200px]">
+                              <div className="max-h-16 overflow-y-auto scrollbar-hide pr-2">
+                                <p className="text-[10px] font-bold text-primary uppercase leading-relaxed text-wrap italic">{todo.comment || "—"}</p>
                               </div>
                             </td>
                             <td className="px-6 py-5 whitespace-nowrap">
@@ -331,11 +351,6 @@ const TodoListPage = () => {
                                   : "text-slate-500 bg-slate-100"
                               }`}>
                                 {todo.dueDate ? format(new Date(todo.dueDate), "dd MMM yyyy") : "—"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5 whitespace-nowrap">
-                              <span className="text-[10px] font-black text-primary uppercase bg-blue-50 px-2 py-1 rounded-lg">
-                                {todo.assignedTo?.name || "UNASSIGNED"}
                               </span>
                             </td>
                             <td className="px-6 py-5 whitespace-nowrap">
@@ -413,4 +428,10 @@ const TodoListPage = () => {
   );
 };
 
-export default TodoListPage;
+const TodoListPageWithSuspense = () => (
+  <Suspense fallback={<div>Loading tasks...</div>}>
+    <TodoListPage />
+  </Suspense>
+);
+
+export default TodoListPageWithSuspense;

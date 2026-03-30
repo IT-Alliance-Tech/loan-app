@@ -20,9 +20,6 @@ const TodoDashboardSection = ({ employeeId = null, title = "Active Tasks" }) => 
       setLoading(true);
       // Fetch only "Todo" and "In Progress" tasks
       const params = { limit: 5, status: ["Todo", "In Progress"].join(",") };
-      if (employeeId) {
-        params.assignedTo = employeeId;
-      }
       const res = await getTodos(params);
       if (res.data) {
         setTodos(res.data.todos || []);
@@ -60,7 +57,7 @@ const TodoDashboardSection = ({ employeeId = null, title = "Active Tasks" }) => 
         <div>
           <h3 className="text-lg font-black text-slate-900 tracking-tight">{title}</h3>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-            {employeeId ? "Current tasks for this operator" : "Directly assigned to you"}
+            Shared tasks for the whole team
           </p>
         </div>
         <Link 
@@ -81,22 +78,15 @@ const TodoDashboardSection = ({ employeeId = null, title = "Active Tasks" }) => 
           </div>
         ) : (
           todos.map((todo) => (
-            <div key={todo._id} className="p-5 hover:bg-slate-50/50 transition-colors group">
+            <Link 
+              key={todo._id} 
+              href={`/admin/todo?edit=${todo._id}`}
+              className="p-5 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-all group block"
+            >
               <div className="flex items-start gap-4">
-                <button
-                  onClick={() => handleStatusUpdate(todo._id, todo.status)}
-                  className={`mt-1 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                    todo.status === "In Progress" 
-                      ? "border-blue-400 bg-blue-50 text-blue-500" 
-                      : "border-slate-200 text-transparent hover:border-primary hover:text-primary/30"
-                  }`}
-                >
-                  <CheckCircle2 className="w-3 h-3" />
-                </button>
-                
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight truncate">
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight truncate group-hover:text-primary transition-colors">
                       {todo.title}
                     </h4>
                     <div className="flex items-center gap-2">
@@ -133,7 +123,7 @@ const TodoDashboardSection = ({ employeeId = null, title = "Active Tasks" }) => 
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
           ))
         )}
       </div>
