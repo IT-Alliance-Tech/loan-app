@@ -19,9 +19,17 @@ const paymentSchema = new mongoose.Schema(
     },
     amount: {
       type: Number,
-      required: true,
+      default: 0,
+    },
+    emiAmount: {
+      type: Number,
+      default: 0,
     },
     overdueAmount: {
+      type: Number,
+      default: 0,
+    },
+    totalAmount: {
       type: Number,
       default: 0,
     },
