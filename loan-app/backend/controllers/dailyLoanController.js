@@ -67,7 +67,7 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     eEndDate.setDate(eEndDate.getDate() + (totalDays - 1));
   }
 
-  const totalAmount = emiAmount * currentPaidEmis;
+  const totalAmount = emiAmount * currentPaidEmis + (parseFloat(req.body.odAmount) || 0);
   const totalCollected = totalAmount + processingFee;
   const remainingEmis = totalDays - currentPaidEmis;
   const remainingPrincipalAmount = amount - dailyPrincipal * currentPaidEmis;
@@ -460,7 +460,7 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
   eEndDate.setDate(eEndDate.getDate() + (totalDays - 1));
   updateData.emiEndDate = eEndDate;
 
-  const totalAmount = emiAmount * currentPaidEmis;
+  const totalAmount = emiAmount * currentPaidEmis + (dailyLoan.odAmount || 0);
   const totalCollected = totalAmount + processingFee;
   const remainingEmis = totalDays - currentPaidEmis;
   const remainingPrincipalAmount = amount - dailyPrincipal * currentPaidEmis;

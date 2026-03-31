@@ -73,7 +73,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
   }
 
-  const totalAmount = emiAmount * currentPaidEmis;
+  const totalAmount = emiAmount * currentPaidEmis + (parseFloat(req.body.odAmount) || 0);
   const totalCollected = totalAmount + processingFee;
   const remainingEmis = totalWeeks - currentPaidEmis;
   const remainingPrincipalAmount = amount - (emiAmount * currentPaidEmis); // Using rounded EMI
@@ -479,7 +479,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
   updateData.emiEndDate = eEndDate;
 
-  const totalAmount = emiAmount * currentPaidEmis;
+  const totalAmount = emiAmount * currentPaidEmis + (weeklyLoan.odAmount || 0);
   const totalCollected = totalAmount + processingFee;
   const remainingEmis = totalWeeks - currentPaidEmis;
   const remainingPrincipalAmount = amount - (emiAmount * currentPaidEmis);

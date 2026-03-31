@@ -161,7 +161,7 @@ const DailyLoanForm = ({
   // Daily Principal Calculation (No Interest) - Round Up
   const emiAmount = totalDays > 0 ? Math.ceil(amount / totalDays) : 0;
 
-  const totalAmount = (emiAmount * paidDays).toFixed(2);
+  const totalAmount = (emiAmount * paidDays + (parseFloat(values.odAmount) || 0)).toFixed(2);
   const totalCollected = (
     parseFloat(totalAmount) + parseFloat(processingFee)
   ).toFixed(2);

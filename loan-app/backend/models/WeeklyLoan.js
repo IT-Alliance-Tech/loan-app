@@ -152,7 +152,7 @@ weeklyLoanSchema.pre("save", async function () {
     this.processingFee =
       this.disbursementAmount * (this.processingFeeRate / 100);
     this.remainingEmis = this.totalEmis - this.paidEmis;
-    this.totalAmount = this.emiAmount * this.paidEmis;
+    this.totalAmount = this.emiAmount * this.paidEmis + (this.odAmount || 0);
     this.totalCollected = this.totalAmount + this.processingFee;
   }
 });

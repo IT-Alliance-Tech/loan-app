@@ -289,7 +289,7 @@ const DailyLoansList = ({ type, title }) => {
                         }`}
                       >
                         <Link
-                          href={`/admin/daily-loans/${loan._id}`}
+                          href={`/admin/daily-loans/edit/${loan._id}`}
                           className="text-[10px] font-black text-primary uppercase tracking-tighter bg-blue-50 px-2 py-1 rounded-md"
                         >
                           {loan.loanNumber}
@@ -533,7 +533,7 @@ const DailyLoansList = ({ type, title }) => {
                       }`}
                     >
                       <Link
-                        href={`/admin/daily-loans/${loan._id}`}
+                        href={`/admin/daily-loans/edit/${loan._id}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
                       >
                         {loan.loanNumber}
