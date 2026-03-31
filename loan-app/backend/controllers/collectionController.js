@@ -36,7 +36,7 @@ const getCollectionReport = asyncHandler(async (req, res, next) => {
           mode: "$mode",
           type: "$paymentType"
         },
-        totalAmount: { $sum: "$amount" },
+        totalAmount: { $sum: { $ifNull: ["$totalAmount", "$amount"] } },
         count: { $sum: 1 },
       },
     },
@@ -100,8 +100,10 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
     loanModel: txn.loanModel,
     loanNumber: txn.emiId ? txn.emiId.loanNumber : "Unknown",
     customerName: txn.emiId ? txn.emiId.customerName : "Unknown",
-    overdue: txn.overdueAmount || 0,
-    amount: txn.amount,
+    emiAmount: txn.emiAmount || (txn.overdueAmount ? 0 : txn.amount) || 0,
+    overdueAmount: txn.overdueAmount || 0,
+    totalAmount: txn.totalAmount || txn.amount || txn.overdueAmount || 0,
+    amount: txn.totalAmount || txn.amount || txn.overdueAmount || 0, // Fallback for UI
     paymentMode: txn.mode,
     paymentType: txn.paymentType,
     date: txn.paymentDate,

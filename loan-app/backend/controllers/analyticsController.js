@@ -167,7 +167,7 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
                 $sum: {
                   $add: [
                     { $ifNull: ["$amountPaid", 0] },
-                    { $sum: "$overdue.amount" },
+                    { $ifNull: [{ $sum: "$overdue.amount" }, 0] },
                   ],
                 },
               },

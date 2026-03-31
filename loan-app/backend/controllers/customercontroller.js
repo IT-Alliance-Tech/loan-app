@@ -203,9 +203,13 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("EMI record not found", 404));
   }
 
-  // Process payments from dateGroups if provided (replaces existing history)
+  // CALCULATE DELTAS FOR IMMUTABLE TRANSACTION RECORDING
+  const oldEmiSum = parseFloat(emi.amountPaid) || 0;
+  const oldOverdueSum = (emi.overdue || []).reduce((acc, ov) => acc + (parseFloat(ov.amount) || 0), 0);
+
+  // Process payments from dateGroups if provided
   if (dateGroups && Array.isArray(dateGroups)) {
-    emi.paymentHistory = []; // Clear current history to replace with updated state from modal
+    emi.paymentHistory = [];
     dateGroups.forEach((group) => {
       if (group.date && group.payments) {
         group.payments.forEach((p) => {
@@ -221,7 +225,6 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       }
     });
   } else if (addedAmount && parseFloat(addedAmount) > 0) {
-    // Fallback/Legacy support: Add a single payment if dateGroups is missing but addedAmount is present
     emi.paymentHistory.push({
       amount: parseFloat(addedAmount),
       mode: paymentMode || "CASH",
@@ -229,125 +232,47 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     });
   }
 
-  // CREATE PAYMENT RECORDS FOR NEW PAYMENTS
-  if (dateGroups && Array.isArray(dateGroups)) {
-    // Delete existing payment records for this EMI to sync with the new history
-    await Payment.deleteMany({ emiId: emi._id });
+  const newEmiSum = emi.paymentHistory.reduce((acc, curr) => acc + curr.amount, 0);
+  const newOverdueSum = (overdue || []).reduce((acc, ov) => acc + (parseFloat(ov.amount) || 0), 0);
 
-    const paymentRecords = [];
-    let latestPaymentDate = paymentDate ? new Date(paymentDate) : new Date();
-    let latestPaymentMode = paymentMode || "CASH";
+  const deltaEmi = newEmiSum - oldEmiSum;
+  const deltaOverdue = newOverdueSum - oldOverdueSum;
 
-    // Sort to find the actual latest date for overdue attribution
-    const sortedGroups = [...dateGroups]
-      .filter((g) => g.date)
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (deltaEmi !== 0 || deltaOverdue !== 0) {
+    // Determine latest mode and date from request for the transaction record
+    let latestMode = paymentMode || "CASH";
+    let latestDate = paymentDate ? new Date(paymentDate) : new Date();
 
-    if (sortedGroups.length > 0) {
-      if (!paymentDate) latestPaymentDate = new Date(sortedGroups[0].date);
-      if (!paymentMode && sortedGroups[0].payments?.length > 0) {
-        latestPaymentMode =
-          sortedGroups[0].payments[sortedGroups[0].payments.length - 1].mode ||
-          "CASH";
+    if (dateGroups && Array.isArray(dateGroups) && dateGroups.length > 0) {
+      const sortedGroups = [...dateGroups].filter(g => g.date).sort((a, b) => new Date(b.date) - new Date(a.date));
+      if (sortedGroups.length > 0) {
+        latestDate = new Date(sortedGroups[0].date);
+        if (sortedGroups[0].payments?.length > 0) {
+          latestMode = sortedGroups[0].payments[sortedGroups[0].payments.length - 1].mode || "CASH";
+        }
       }
+    } else if (overdue && Array.isArray(overdue) && overdue.length > 0) {
+      const lastOv = overdue[overdue.length - 1];
+      latestDate = lastOv.date ? new Date(lastOv.date) : latestDate;
+      latestMode = lastOv.mode || latestMode;
     }
 
-    dateGroups.forEach((group) => {
-      if (group.date && group.payments) {
-        group.payments.forEach((p) => {
-          const amount = parseFloat(p.amount);
-          if (amount > 0) {
-            paymentRecords.push({
-              emiId: emi._id,
-              loanId: emi.loanId,
-              loanModel: emi.loanModel,
-              amount: amount,
-              mode: p.mode || "CASH",
-              paymentDate: new Date(group.date),
-              paymentType:
-                emi.loanModel === "DailyLoan"
-                  ? "Daily"
-                  : emi.loanModel === "WeeklyLoan"
-                    ? "Weekly"
-                    : "Monthly",
-              status: "Success",
-              collectedBy: req.user._id,
-            });
-          }
-        });
-      }
+    // CREATE ONE IMMUTABLE TRANSACTION RECORD FOR THIS ACTION
+    await Payment.create({
+      emiId: emi._id,
+      loanId: emi.loanId,
+      loanModel: emi.loanModel,
+      emiAmount: deltaEmi,
+      overdueAmount: deltaOverdue,
+      totalAmount: deltaEmi + deltaOverdue,
+      amount: deltaEmi + deltaOverdue, // Fallback for legacy fields
+      mode: latestMode,
+      paymentDate: latestDate,
+      paymentType: emi.loanModel === "DailyLoan" ? "Daily" : emi.loanModel === "WeeklyLoan" ? "Weekly" : "Monthly",
+      status: "Success",
+      collectedBy: req.user._id,
+      remarks: remarks || "",
     });
-
-    // Merge overdue into separate payment records
-    if (overdue && Array.isArray(overdue)) {
-      overdue.forEach((ov) => {
-        const ovAmount = parseFloat(ov.amount);
-        if (ovAmount > 0) {
-          paymentRecords.push({
-            emiId: emi._id,
-            loanId: emi.loanId,
-            loanModel: emi.loanModel,
-            amount: 0, // Using amount 0 to keep main collection clean if we want, OR use amount for the value.
-            // Actually, based on the user's requirement, they want it as a separate row.
-            // If I set amount: ovAmount and paymentType: "Overdue", it will show in the Amount column too.
-            // The user said "separate column", so I'll set overdueAmount: ovAmount and amount: 0 (or keep amount for total?)
-            // Let's use amount: 0 and overdueAmount: ovAmount for "Overdue" type.
-            amount: 0,
-            overdueAmount: ovAmount,
-            mode: ov.mode || latestPaymentMode,
-            paymentDate: ov.date ? new Date(ov.date) : latestPaymentDate,
-            paymentType: "Overdue",
-            status: "Success",
-            collectedBy: req.user._id,
-          });
-        }
-      });
-    }
-
-    if (paymentRecords.length > 0) {
-      await Payment.insertMany(paymentRecords);
-    }
-  } else {
-    // Single payment updates (Legacy/Fallback)
-    if (overdue && Array.isArray(overdue)) {
-      for (const ov of overdue) {
-        const ovAmount = parseFloat(ov.amount);
-        if (ovAmount > 0) {
-          await Payment.create({
-            emiId: emi._id,
-            loanId: emi.loanId,
-            loanModel: emi.loanModel,
-            amount: 0,
-            overdueAmount: ovAmount,
-            mode: ov.mode || paymentMode || "CASH",
-            paymentDate: ov.date ? new Date(ov.date) : new Date(),
-            paymentType: "Overdue",
-            status: "Success",
-            collectedBy: req.user._id,
-          });
-        }
-      }
-    }
-
-    if (addedAmount && parseFloat(addedAmount) > 0) {
-      await Payment.create({
-        emiId: emi._id,
-        loanId: emi.loanId,
-        loanModel: emi.loanModel,
-        amount: parseFloat(addedAmount),
-        overdueAmount: 0,
-        mode: paymentMode || "CASH",
-        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-        paymentType:
-          emi.loanModel === "DailyLoan"
-            ? "Daily"
-            : emi.loanModel === "WeeklyLoan"
-              ? "Weekly"
-              : "Monthly",
-        status: "Success",
-        collectedBy: req.user._id,
-      });
-    }
   }
 
   // Recalculate amountPaid and paymentMode from full history
