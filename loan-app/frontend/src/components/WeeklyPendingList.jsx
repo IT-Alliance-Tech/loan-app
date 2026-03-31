@@ -222,7 +222,7 @@ const WeeklyPendingList = () => {
                   >
                     <td className="px-6 py-5 whitespace-nowrap">
                       <Link
-                        href={`/admin/weekly-loans/pending/view/${item.earliestEmiId}?from=pending`}
+                        href={`/admin/weekly-loans/edit/${item.loanId}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
                       >
                         {item.loanNumber}

@@ -80,7 +80,7 @@ const ForeclosurePage = () => {
       // Auto-calculate charge amount if percentage changes
       if (name === "foreclosureChargePercent" && selectedLoan) {
         const principal = selectedLoan.loanTerms?.remainingPrincipalAmount || 0;
-        updated.foreclosureChargeAmount = (principal * numValue) / 100;
+        updated.foreclosureChargeAmount = Math.ceil((principal * numValue) / 100);
       }
 
       // Update remarks if text
@@ -312,8 +312,8 @@ const ForeclosurePage = () => {
                         <p className="text-base font-black text-primary tracking-tight">
                           ₹
                           {remainingPrincipal.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
                           })}
                         </p>
                       </td>
@@ -343,8 +343,8 @@ const ForeclosurePage = () => {
                           {formData.foreclosureChargeAmount.toLocaleString(
                             undefined,
                             {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0,
                             },
                           )}
                         </p>
@@ -410,8 +410,8 @@ const ForeclosurePage = () => {
                     <p className="text-2xl font-black text-white tracking-tighter">
                       ₹
                       {totalAmount.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
                       })}
                     </p>
                   </div>
@@ -486,8 +486,8 @@ const ForeclosurePage = () => {
                           <p className="text-xs font-black text-slate-900">
                             ₹
                             {remainingPrincipal.toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0,
                             })}
                           </p>
                         </div>
@@ -500,8 +500,8 @@ const ForeclosurePage = () => {
                         <p className="text-lg font-black text-white tracking-tighter">
                           ₹
                           {totalAmount.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
                           })}
                         </p>
                       </div>

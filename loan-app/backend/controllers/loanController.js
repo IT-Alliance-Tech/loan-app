@@ -84,7 +84,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     monthlyEMI = Math.ceil(p / t);
   }
 
-  const calculatedTotalInterest = p * (r / 100) * t;
+  const calculatedTotalInterest = Math.ceil(p * (r / 100) * t);
 
   const loan = await Loan.create({
     // customerDetails
@@ -101,7 +101,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     loanNumber: loanTerms.loanNumber,
     principalAmount: parseFloat(loanTerms?.principalAmount) || 0,
     processingFeeRate: parseFloat(loanTerms?.processingFeeRate) || 0,
-    processingFee: parseFloat(loanTerms?.processingFee) || 0,
+    processingFee: Math.ceil(parseFloat(loanTerms?.processingFee)) || 0,
     tenureMonths: parseInt(loanTerms?.tenureMonths) || 0,
     annualInterestRate: parseFloat(loanTerms?.annualInterestRate) || 0,
     dateLoanDisbursed: loanTerms.dateLoanDisbursed,
@@ -484,15 +484,10 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
 
   const principalPerMonth =
     (loan.principalAmount || 0) / (loan.tenureMonths || 1);
-  const remainingPrincipalAmount = Math.max(
-    0,
-    remainingTenureCount * principalPerMonth,
-  );
+  const remainingPrincipalAmount = Math.ceil(remainingTenureCount * principalPerMonth);
 
   const formattedLoan = formatLoanResponse(loan);
-  formattedLoan.loanTerms.remainingPrincipalAmount = parseFloat(
-    remainingPrincipalAmount.toFixed(2),
-  );
+  formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
 
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
@@ -618,15 +613,10 @@ const getLoanById = asyncHandler(async (req, res, next) => {
 
   const principalPerMonth =
     (loan.principalAmount || 0) / (loan.tenureMonths || 1);
-  const remainingPrincipalAmount = Math.max(
-    0,
-    remainingTenureCount * principalPerMonth,
-  );
+  const remainingPrincipalAmount = Math.ceil(remainingTenureCount * principalPerMonth);
 
   const formattedLoan = formatLoanResponse(loan);
-  formattedLoan.loanTerms.remainingPrincipalAmount = parseFloat(
-    remainingPrincipalAmount.toFixed(2),
-  );
+  formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
 
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
@@ -771,10 +761,11 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       : loan.tenureMonths;
 
   const monthlyEMI = calculateEMI(currentPrincipal, currentRoi, currentTenure);
-  const calculatedTotalInterest =
+  const calculatedTotalInterest = Math.ceil(
     parseFloat(currentPrincipal) *
     (parseFloat(currentRoi) / 100) *
-    parseInt(currentTenure);
+    parseInt(currentTenure)
+  );
 
   const updateData = {
     // Flatten customerDetails

@@ -222,7 +222,7 @@ const DailyPendingList = () => {
                   >
                     <td className="px-6 py-5 whitespace-nowrap">
                       <Link
-                        href={`/admin/daily-loans/pending/view/${item.earliestEmiId}?from=pending`}
+                        href={`/admin/daily-loans/edit/${item.loanId}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
                       >
                         {item.loanNumber}
