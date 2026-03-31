@@ -156,17 +156,15 @@ const DailyLoanForm = ({
   const eStartDate = values.emiStartDate ? new Date(values.emiStartDate) : null;
 
   // Processing Fee
-  const processingFee = (amount * (feeRate / 100)).toFixed(2);
+  const processingFee = Math.ceil(amount * (feeRate / 100));
 
   // Daily Principal Calculation (No Interest) - Round Up
   const emiAmount = totalDays > 0 ? Math.ceil(amount / totalDays) : 0;
 
-  const totalAmount = (emiAmount * paidDays + (parseFloat(values.odAmount) || 0)).toFixed(2);
-  const totalCollected = (
-    parseFloat(totalAmount) + parseFloat(processingFee)
-  ).toFixed(2);
+  const totalAmount = Math.ceil(emiAmount * paidDays + (parseFloat(values.odAmount) || 0));
+  const totalCollected = Math.ceil(totalAmount + processingFee);
   const remainingEmis = totalDays - paidDays;
-  const remainingPrincipalAmount = (amount - emiAmount * paidDays).toFixed(2);
+  const remainingPrincipalAmount = Math.ceil(amount - emiAmount * paidDays);
 
   const nextEmiDate =
     eStartDate && !isNaN(eStartDate.getTime())
