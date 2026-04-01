@@ -34,7 +34,7 @@ const getCollectionReport = asyncHandler(async (req, res, next) => {
           date: { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate" } },
           collector: "$collector.name",
           mode: "$mode",
-          type: "$paymentType"
+          type: "$paymentType",
         },
         totalAmount: { $sum: { $ifNull: ["$totalAmount", "$amount"] } },
         count: { $sum: 1 },
@@ -79,7 +79,7 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
   const skip = (pageNum - 1) * limitNum;
 
   const total = await Payment.countDocuments(match);
-  
+
   const transactions = await Payment.find(match)
     .populate({
       path: "emiId",
@@ -123,14 +123,11 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
         page: pageNum,
         limit: limitNum,
         totalPages: Math.ceil(total / limitNum),
-      }
+      },
     },
   );
 });
 
-// @desc    Get summary of newly disbursed loans
-// @route   GET /api/collections/loans-given
-// @access  Private
 const getLoansGivenSummary = asyncHandler(async (req, res, next) => {
   const { startDate, endDate, page = 1, limit = 25 } = req.query;
   const matchDate = {};
@@ -159,118 +156,146 @@ const getLoansGivenSummary = asyncHandler(async (req, res, next) => {
 
   // Monthly Loans
   const monthlyPipeline = [
-    { 
-      $match: Object.keys(matchDate).length > 0 ? { dateLoanDisbursed: matchDate } : {} 
+    {
+      $match:
+        Object.keys(matchDate).length > 0
+          ? { dateLoanDisbursed: matchDate }
+          : {},
     },
-    { 
-      $project: { 
-        _id: 1, 
-        loanNumber: 1, 
-        customerName: 1, 
-        mobileNumbers: 1, 
-        amount: "$principalAmount", 
-        date: { $ifNull: ["$dateLoanDisbursed", "$createdAt"] }, 
-        createdAt: 1, 
-        createdBy: 1, 
-        type: { $literal: "Monthly" } 
-      } 
+    {
+      $project: {
+        _id: 1,
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumbers: 1,
+        amount: "$principalAmount",
+        date: { $ifNull: ["$dateLoanDisbursed", "$createdAt"] },
+        createdAt: 1,
+        createdBy: 1,
+        type: { $literal: "Monthly" },
+      },
     },
   ];
 
   // Weekly Loans - Fallback to startDate if dateLoanDisbursed is missing
   const weeklyPipeline = [
-    { 
-      $match: Object.keys(matchDate).length > 0 ? {
-        $or: [
-          { dateLoanDisbursed: matchDate },
-          { $and: [{ dateLoanDisbursed: { $exists: false } }, { startDate: matchDate }] }
-        ]
-      } : {}
+    {
+      $match:
+        Object.keys(matchDate).length > 0
+          ? {
+              $or: [
+                { dateLoanDisbursed: matchDate },
+                {
+                  $and: [
+                    { dateLoanDisbursed: { $exists: false } },
+                    { startDate: matchDate },
+                  ],
+                },
+              ],
+            }
+          : {},
     },
-    { 
-      $project: { 
-        _id: 1, 
-        loanNumber: 1, 
-        customerName: 1, 
-        mobileNumbers: 1, 
-        amount: "$disbursementAmount", 
-        date: { $ifNull: ["$dateLoanDisbursed", { $ifNull: ["$startDate", "$createdAt"] }] }, 
-        createdAt: 1, 
-        createdBy: 1, 
-        type: { $literal: "Weekly" } 
-      } 
+    {
+      $project: {
+        _id: 1,
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumbers: 1,
+        amount: "$disbursementAmount",
+        date: {
+          $ifNull: [
+            "$dateLoanDisbursed",
+            { $ifNull: ["$startDate", "$createdAt"] },
+          ],
+        },
+        createdAt: 1,
+        createdBy: 1,
+        type: { $literal: "Weekly" },
+      },
     },
   ];
 
   // Daily Loans - Fallback to startDate if dateLoanDisbursed is missing
   const dailyPipeline = [
-    { 
-      $match: Object.keys(matchDate).length > 0 ? {
-        $or: [
-          { dateLoanDisbursed: matchDate },
-          { $and: [{ dateLoanDisbursed: { $exists: false } }, { startDate: matchDate }] }
-        ]
-      } : {}
+    {
+      $match:
+        Object.keys(matchDate).length > 0
+          ? {
+              $or: [
+                { dateLoanDisbursed: matchDate },
+                {
+                  $and: [
+                    { dateLoanDisbursed: { $exists: false } },
+                    { startDate: matchDate },
+                  ],
+                },
+              ],
+            }
+          : {},
     },
-    { 
-      $project: { 
-        _id: 1, 
-        loanNumber: 1, 
-        customerName: 1, 
-        mobileNumbers: 1, 
-        amount: "$disbursementAmount", 
-        date: { $ifNull: ["$dateLoanDisbursed", { $ifNull: ["$startDate", "$createdAt"] }] }, 
-        createdAt: 1, 
-        createdBy: 1, 
-        type: { $literal: "Daily" } 
-      } 
+    {
+      $project: {
+        _id: 1,
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumbers: 1,
+        amount: "$disbursementAmount",
+        date: {
+          $ifNull: [
+            "$dateLoanDisbursed",
+            { $ifNull: ["$startDate", "$createdAt"] },
+          ],
+        },
+        createdAt: 1,
+        createdBy: 1,
+        type: { $literal: "Daily" },
+      },
     },
   ];
 
   const [monthlyRes, weeklyRes, dailyRes] = await Promise.all([
     Loan.aggregate(monthlyPipeline),
     WeeklyLoan.aggregate(weeklyPipeline),
-    DailyLoan.aggregate(dailyPipeline)
+    DailyLoan.aggregate(dailyPipeline),
   ]);
 
-  const allLoansRaw = [...monthlyRes, ...weeklyRes, ...dailyRes]
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const allLoansRaw = [...monthlyRes, ...weeklyRes, ...dailyRes].sort(
+    (a, b) => new Date(b.date) - new Date(a.date),
+  );
 
   const total = allLoansRaw.length;
   const paginatedLoans = allLoansRaw.slice(skip, skip + limitNum);
 
   // Populate createdBy
   const User = mongoose.model("User");
-  const loanResults = await Promise.all(paginatedLoans.map(async (loan) => {
-    const creator = await User.findById(loan.createdBy).select("name").lean();
-    return {
-      _id: loan._id,
-      loanNumber: loan.loanNumber,
-      customerName: loan.customerName,
-      mobileNumber: (loan.mobileNumbers && loan.mobileNumbers.length > 0) ? loan.mobileNumbers[0] : "N/A",
-      loanAmount: loan.amount,
-      type: loan.type,
-      date: loan.date || loan.createdAt,
-      createdBy: creator ? creator.name : "System",
-    };
-  }));
-
-  sendResponse(
-    res,
-    200,
-    "success",
-    "Loans given fetched successfully",
-    null,
-    {
-      loans: loanResults,
-      pagination: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        totalPages: Math.ceil(total / limitNum),
-      }
-    },
+  const loanResults = await Promise.all(
+    paginatedLoans.map(async (loan) => {
+      const creator = await User.findById(loan.createdBy).select("name").lean();
+      return {
+        _id: loan._id,
+        loanNumber: loan.loanNumber,
+        customerName: loan.customerName,
+        mobileNumber:
+          loan.mobileNumbers && loan.mobileNumbers.length > 0
+            ? loan.mobileNumbers[0]
+            : "N/A",
+        loanAmount: loan.amount,
+        type: loan.type,
+        date: loan.date || loan.createdAt,
+        createdBy: creator ? creator.name : "System",
+      };
+    }),
   );
+
+  sendResponse(res, 200, "success", "Loans given fetched successfully", null, {
+    loans: loanResults,
+    pagination: {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    },
+  });
 });
 
 module.exports = {
