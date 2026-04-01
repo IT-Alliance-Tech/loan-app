@@ -8,199 +8,203 @@ const User = require("../models/User");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 
-/**
- * @desc    Get analytics stats for the dashboard
- * @route   GET /api/analytics/stats
- * @access  Private/Admin
- */
 const getAnalyticsStats = asyncHandler(async (req, res, next) => {
   const startTotal = performance.now();
 
-  const [loanMetrics, dailyMetrics, weeklyMetrics, expenseStats, userStats, pendingMetrics, partialMetrics] =
-    await Promise.all([
-      // 1. Monthly Loan Metrics (Active & Closed)
-      Loan.aggregate([
-        {
-          $facet: {
-            disbursement: [
-              { $group: { _id: null, total: { $sum: "$principalAmount" } } },
-            ],
-            foreclosure: [
-              {
-                $group: {
-                  _id: null,
-                  total: { $sum: { $ifNull: ["$foreclosureAmount", 0] } },
-                },
+  const [
+    loanMetrics,
+    dailyMetrics,
+    weeklyMetrics,
+    expenseStats,
+    userStats,
+    pendingMetrics,
+    partialMetrics,
+  ] = await Promise.all([
+    // 1. Monthly Loan Metrics (Active & Closed)
+    Loan.aggregate([
+      {
+        $facet: {
+          disbursement: [
+            { $group: { _id: null, total: { $sum: "$principalAmount" } } },
+          ],
+          foreclosure: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: { $ifNull: ["$foreclosureAmount", 0] } },
               },
-            ],
-            processingFees: [
-              {
-                $group: {
-                  _id: null,
-                  total: { $sum: { $ifNull: ["$processingFee", 0] } },
-                },
+            },
+          ],
+          processingFees: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: { $ifNull: ["$processingFee", 0] } },
               },
-            ],
-            sold: [
-              {
-                $group: {
-                  _id: null,
-                  total: {
-                    $sum: {
-                      $ifNull: [
-                        "$soldDetails.totalAmount",
-                        "$soldDetails.sellAmount",
-                        0,
-                      ],
-                    },
+            },
+          ],
+          sold: [
+            {
+              $group: {
+                _id: null,
+                total: {
+                  $sum: {
+                    $ifNull: [
+                      "$soldDetails.totalAmount",
+                      "$soldDetails.sellAmount",
+                      0,
+                    ],
                   },
-                },
-              },
-            ],
-            counts: [
-              {
-                $group: {
-                  _id: null,
-                  active: {
-                    $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
-                  },
-                  closed: {
-                    $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
-                  },
-                },
-              },
-            ],
-            vehicleStatus: [
-              { $match: { isSeized: true } },
-              {
-                $group: {
-                  _id: {
-                    $switch: {
-                      branches: [
-                        {
-                          case: { $eq: ["$seizedStatus", "Seized"] },
-                          then: "Seized",
-                        },
-                        {
-                          case: { $eq: ["$seizedStatus", "Sold"] },
-                          then: "Sold",
-                        },
-                      ],
-                      default: "For Seizing",
-                    },
-                  },
-                  count: { $sum: 1 },
-                },
-              },
-            ],
-          },
-        },
-      ]),
-
-      // 2. Daily Loan Metrics
-      DailyLoan.aggregate([
-        {
-          $facet: {
-            disbursement: [
-              {
-                $group: {
-                  _id: null,
-                  total: { $sum: "$disbursementAmount" },
-                  collected: { $sum: "$totalCollected" },
-                },
-              },
-            ],
-            counts: [
-              {
-                $group: {
-                  _id: null,
-                  active: {
-                    $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
-                  },
-                  closed: {
-                    $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
-                  },
-                },
-              },
-            ],
-          },
-        },
-      ]),
-
-      // 3. Weekly Loan Metrics
-      WeeklyLoan.aggregate([
-        {
-          $facet: {
-            disbursement: [
-              {
-                $group: {
-                  _id: null,
-                  total: { $sum: "$disbursementAmount" },
-                  collected: { $sum: "$totalCollected" },
-                },
-              },
-            ],
-            counts: [
-              {
-                $group: {
-                  _id: null,
-                  active: {
-                    $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
-                  },
-                  closed: {
-                    $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
-                  },
-                },
-              },
-            ],
-          },
-        },
-      ]),
-
-      // 4. EMI Collections & Expenses
-      Promise.all([
-        EMI.aggregate([
-          {
-            $group: {
-              _id: null,
-              total: {
-                $sum: {
-                  $add: [
-                    { $ifNull: ["$amountPaid", 0] },
-                    { $ifNull: [{ $sum: "$overdue.amount" }, 0] },
-                  ],
                 },
               },
             },
-          },
-        ]),
-        Expense.aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]),
-      ]),
+          ],
+          counts: [
+            {
+              $group: {
+                _id: null,
+                active: {
+                  $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+                },
+                closed: {
+                  $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
+                },
+              },
+            },
+          ],
+          vehicleStatus: [
+            { $match: { isSeized: true } },
+            {
+              $group: {
+                _id: {
+                  $switch: {
+                    branches: [
+                      {
+                        case: { $eq: ["$seizedStatus", "Seized"] },
+                        then: "Seized",
+                      },
+                      {
+                        case: { $eq: ["$seizedStatus", "Sold"] },
+                        then: "Sold",
+                      },
+                    ],
+                    default: "For Seizing",
+                  },
+                },
+                count: { $sum: 1 },
+              },
+            },
+          ],
+        },
+      },
+    ]),
 
-      // 5. User Roles
-      User.aggregate([
+    // 2. Daily Loan Metrics
+    DailyLoan.aggregate([
+      {
+        $facet: {
+          disbursement: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: "$disbursementAmount" },
+                collected: { $sum: "$totalCollected" },
+              },
+            },
+          ],
+          counts: [
+            {
+              $group: {
+                _id: null,
+                active: {
+                  $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+                },
+                closed: {
+                  $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
+                },
+              },
+            },
+          ],
+        },
+      },
+    ]),
+
+    // 3. Weekly Loan Metrics
+    WeeklyLoan.aggregate([
+      {
+        $facet: {
+          disbursement: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: "$disbursementAmount" },
+                collected: { $sum: "$totalCollected" },
+              },
+            },
+          ],
+          counts: [
+            {
+              $group: {
+                _id: null,
+                active: {
+                  $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+                },
+                closed: {
+                  $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
+                },
+              },
+            },
+          ],
+        },
+      },
+    ]),
+
+    // 4. EMI Collections & Expenses
+    Promise.all([
+      EMI.aggregate([
         {
           $group: {
-            _id: "$role",
-            count: { $sum: 1 },
+            _id: null,
+            total: {
+              $sum: {
+                $add: [
+                  { $ifNull: ["$amountPaid", 0] },
+                  { $ifNull: [{ $sum: "$overdue.amount" }, 0] },
+                ],
+              },
+            },
           },
         },
       ]),
-
-      // 6. Pending Counts (Unique loans with at least one Pending EMI)
-      EMI.aggregate([
-        { $match: { status: "Pending" } },
-        { $group: { _id: "$loanId" } },
-        { $count: "count" }
+      Expense.aggregate([
+        { $group: { _id: null, total: { $sum: "$amount" } } },
       ]),
+    ]),
 
-      // 7. Partial Counts (Unique Monthly Loans with at least one Partially Paid EMI)
-      EMI.aggregate([
-        { $match: { status: "Partially Paid", loanModel: "Loan" } },
-        { $group: { _id: "$loanId" } },
-        { $count: "count" }
-      ])
-    ]);
+    // 5. User Roles
+    User.aggregate([
+      {
+        $group: {
+          _id: "$role",
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+
+    // 6. Pending Counts (Unique loans with at least one Pending EMI)
+    EMI.aggregate([
+      { $match: { status: "Pending" } },
+      { $group: { _id: "$loanId" } },
+      { $count: "count" },
+    ]),
+
+    // 7. Partial Counts (Unique Monthly Loans with at least one Partially Paid EMI)
+    EMI.aggregate([
+      { $match: { status: "Partially Paid", loanModel: "Loan" } },
+      { $group: { _id: "$loanId" } },
+      { $count: "count" },
+    ]),
+  ]);
 
   // Destructure Results
   const lMain = loanMetrics[0];
@@ -274,7 +278,7 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     "success",
     "Analytics stats fetched successfully",
     null,
-    statsResponse
+    statsResponse,
   );
 });
 

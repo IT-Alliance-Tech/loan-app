@@ -264,32 +264,32 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
             totalCollected: {
               $add: [
                 { $sum: { $ifNull: ["$emis.amountPaid", [0]] } },
-                { 
+                {
                   $reduce: {
                     input: "$emis",
                     initialValue: 0,
                     in: {
                       $add: [
                         "$$value",
-                        { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
-                      ]
-                    }
-                  }
+                        { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } },
+                      ],
+                    },
+                  },
                 },
                 { $ifNull: ["$processingFee", 0] },
               ],
             },
-            overdueAmount: { 
+            overdueAmount: {
               $reduce: {
                 input: "$emis",
                 initialValue: 0,
                 in: {
                   $add: [
                     "$$value",
-                    { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
-                  ]
-                }
-              }
+                    { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } },
+                  ],
+                },
+              },
             },
             paidEmisCount: {
               $size: {
@@ -334,7 +334,9 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
               {
                 $divide: [
                   { $ifNull: ["$principalAmount", 0] },
-                  { $cond: [{ $gt: ["$tenureMonths", 0] }, "$tenureMonths", 1] },
+                  {
+                    $cond: [{ $gt: ["$tenureMonths", 0] }, "$tenureMonths", 1],
+                  },
                 ],
               },
               "$repaymentStats.remainingTenure",
@@ -345,8 +347,6 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
       { $project: { emis: 0 } },
     ]);
   } else {
-    // CRITICAL OPTIMIZATION: .lean() and .select()
-    // We select ALL fields required by the frontend table to avoid undefined errors
     loans = await Loan.find(query)
       .select(
         "loanNumber customerName mobileNumbers guarantorName guarantorMobileNumbers monthlyEMI tenureMonths status isSeized clientResponse createdBy updatedBy createdAt",
@@ -484,7 +484,9 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
 
   const principalPerMonth =
     (loan.principalAmount || 0) / (loan.tenureMonths || 1);
-  const remainingPrincipalAmount = Math.ceil(remainingTenureCount * principalPerMonth);
+  const remainingPrincipalAmount = Math.ceil(
+    remainingTenureCount * principalPerMonth,
+  );
 
   const formattedLoan = formatLoanResponse(loan);
   formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
@@ -613,7 +615,9 @@ const getLoanById = asyncHandler(async (req, res, next) => {
 
   const principalPerMonth =
     (loan.principalAmount || 0) / (loan.tenureMonths || 1);
-  const remainingPrincipalAmount = Math.ceil(remainingTenureCount * principalPerMonth);
+  const remainingPrincipalAmount = Math.ceil(
+    remainingTenureCount * principalPerMonth,
+  );
 
   const formattedLoan = formatLoanResponse(loan);
   formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
@@ -763,8 +767,8 @@ const updateLoan = asyncHandler(async (req, res, next) => {
   const monthlyEMI = calculateEMI(currentPrincipal, currentRoi, currentTenure);
   const calculatedTotalInterest = Math.ceil(
     parseFloat(currentPrincipal) *
-    (parseFloat(currentRoi) / 100) *
-    parseInt(currentTenure)
+      (parseFloat(currentRoi) / 100) *
+      parseInt(currentTenure),
   );
 
   const updateData = {
@@ -1186,10 +1190,10 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
               in: {
                 $add: [
                   "$$value",
-                  { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
-                ]
-              }
-            }
+                  { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } },
+                ],
+              },
+            },
           },
           earliestDueDate: { $min: "$pendingEmisList.dueDate" },
           earliestEmiId: {
