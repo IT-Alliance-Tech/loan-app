@@ -50,7 +50,7 @@ const calculateEMIApi = asyncHandler(async (req, res, next) => {
     emi,
   });
 });
-
+// create loan
 const createLoan = asyncHandler(async (req, res, next) => {
   const {
     customerDetails,
@@ -174,6 +174,8 @@ const createLoan = asyncHandler(async (req, res, next) => {
       });
     } catch (err) {
       console.error("Error creating processing fee payment record:", err);
+      // We don't want to fail the whole loan creation if just the payment record fails,
+      // but in a production app we might want more robust handling.
     }
   }
 
@@ -2213,8 +2215,12 @@ const checkLoanNumberUniqueness = asyncHandler(async (req, res, next) => {
 
   const exists = existingLoan.some((loan) => loan !== null);
 
-  sendResponse(res, 200, "success", "Uniqueness check completed", null, {
-    available: !exists,
+  if (exists) {
+    return next(new ErrorHandler("Loan number already exists", 400));
+  }
+
+  sendResponse(res, 200, "success", "Loan number is available", null, {
+    available: true,
   });
 });
 
