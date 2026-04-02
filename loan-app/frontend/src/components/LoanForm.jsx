@@ -453,13 +453,15 @@ const LoanForm = ({
   useEffect(() => {
     let total = 0;
     if (emis && emis.length > 0) {
-      total = emis.reduce(
-        (sum, emi) =>
-          sum +
-          (parseFloat(emi.amountPaid) || 0) +
-          (parseFloat(emi.overdue) || 0),
-        0,
-      );
+      total = emis.reduce((sum, emi) => {
+        const overdueSum = Array.isArray(emi.overdue)
+          ? emi.overdue.reduce(
+              (oSum, ov) => oSum + (parseFloat(ov.amount) || 0),
+              0,
+            )
+          : parseFloat(emi.overdue) || 0;
+        return sum + (parseFloat(emi.amountPaid) || 0) + overdueSum;
+      }, 0);
     }
 
     // Add foreclosure amount if loan is closed

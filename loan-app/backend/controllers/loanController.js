@@ -2170,9 +2170,6 @@ const getTodoList = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Delete a loan
-// @route   DELETE /api/loans/:id
-// @access  Private/Admin
 const deleteLoan = asyncHandler(async (req, res, next) => {
   const loan = await Loan.findById(req.params.id);
 
