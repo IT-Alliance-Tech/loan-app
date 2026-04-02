@@ -3,9 +3,6 @@ const Loan = require("../models/Loan");
 const sendResponse = require("../utils/response");
 const { formatLoanResponse } = require("../utils/loanFormatter");
 
-// @desc    Get loans with expired FC or Insurance dates
-// @route   GET /api/loans/expired-docs
-// @access  Private
 const getExpiredDocLoans = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
@@ -26,8 +23,8 @@ const getExpiredDocLoans = asyncHandler(async (req, res) => {
       $or: [
         { loanNumber: { $regex: search, $options: "i" } },
         { customerName: { $regex: search, $options: "i" } },
-        { vehicleNumber: { $regex: search, $options: "i" } }
-      ]
+        { vehicleNumber: { $regex: search, $options: "i" } },
+      ],
     });
   }
 
@@ -35,7 +32,7 @@ const getExpiredDocLoans = asyncHandler(async (req, res) => {
   if (date) {
     // Expected format: DD/MM/YYYY or YYYY-MM-DD
     let searchDateStart, searchDateEnd;
-    
+
     if (date.includes("/")) {
       const [d, m, y] = date.split("/");
       searchDateStart = new Date(y, m - 1, d);
@@ -57,8 +54,8 @@ const getExpiredDocLoans = asyncHandler(async (req, res) => {
       query.$and.push({
         $or: [
           { fcDate: { $gte: searchDateStart, $lte: searchDateEnd } },
-          { insuranceDate: { $gte: searchDateStart, $lte: searchDateEnd } }
-        ]
+          { insuranceDate: { $gte: searchDateStart, $lte: searchDateEnd } },
+        ],
       });
     }
   } else {
@@ -71,10 +68,7 @@ const getExpiredDocLoans = asyncHandler(async (req, res) => {
       // Default: show if EITHER FC or Insurance is expired
       query.$and = query.$and || [];
       query.$and.push({
-        $or: [
-          { fcDate: { $lt: today } },
-          { insuranceDate: { $lt: today } }
-        ]
+        $or: [{ fcDate: { $lt: today } }, { insuranceDate: { $lt: today } }],
       });
     }
   }
@@ -85,17 +79,24 @@ const getExpiredDocLoans = asyncHandler(async (req, res) => {
     .skip(skip)
     .limit(limit);
 
-  const loans = loansRaw.map(loan => formatLoanResponse(loan));
+  const loans = loansRaw.map((loan) => formatLoanResponse(loan));
 
-  sendResponse(res, 200, "success", "Expired document loans fetched successfully", null, {
-    loans,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Expired document loans fetched successfully",
+    null,
+    {
+      loans,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     },
-  });
+  );
 });
 
 module.exports = {

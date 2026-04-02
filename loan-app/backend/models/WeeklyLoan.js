@@ -64,6 +64,10 @@ const weeklyLoanSchema = new mongoose.Schema(
     nextFollowUpDate: {
       type: Date,
     },
+    odAmount: {
+      type: Number,
+      default: 0,
+    },
     remarks: {
       type: String,
       trim: true,
@@ -145,11 +149,12 @@ weeklyLoanSchema.virtual("followupHistory", {
 weeklyLoanSchema.pre("save", async function () {
   if (this.disbursementAmount && this.totalEmis) {
     this.emiAmount = Math.ceil(this.disbursementAmount / this.totalEmis);
-    this.processingFee =
-      this.disbursementAmount * (this.processingFeeRate / 100);
+    this.processingFee = Math.ceil(
+      this.disbursementAmount * (this.processingFeeRate / 100),
+    );
     this.remainingEmis = this.totalEmis - this.paidEmis;
-    this.totalAmount = this.emiAmount * this.paidEmis;
-    this.totalCollected = this.totalAmount + this.processingFee;
+    this.totalAmount = Math.ceil(this.emiAmount * this.paidEmis + (this.odAmount || 0));
+    this.totalCollected = Math.ceil(this.totalAmount + this.processingFee);
   }
 });
 

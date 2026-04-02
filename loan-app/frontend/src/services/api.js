@@ -1,6 +1,9 @@
 import { getToken, setToken, removeToken } from "../utils/auth";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL === "undefined"
+    ? ""
+    : process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 if (!BASE_URL && typeof window !== "undefined") {
   console.warn(
@@ -31,7 +34,18 @@ const apiHandler = async (endpoint, options = {}, isRetry = false) => {
       ? `${BASE_URL}${endpoint.startsWith("/") ? endpoint.slice(1) : endpoint}`
       : `${BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
-    const response = await fetch(url, config);
+    let response;
+    try {
+      response = await fetch(url, config);
+    } catch (fetchErr) {
+      console.error("Network Fetch Error:", fetchErr.message, "URL:", url);
+      if (url.includes("localhost") || url.includes("127.0.0.1")) {
+        throw new Error(
+          `Failed to connect to local server at ${url}. Please ensure the backend is running on the correct port.`,
+        );
+      }
+      throw new Error(`Cloud connection failed: ${fetchErr.message}`);
+    }
 
     // If unauthorized and not already retrying, attempt to refresh token
     // EXCEPTION: Don't intercept login failures (401/403) so we can show specific error messages

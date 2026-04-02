@@ -6,9 +6,6 @@ const ErrorHandler = require("../utils/ErrorHandler");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 
-// @desc    Create new expense
-// @route   POST /api/expenses
-// @access  Private/Admin
 const createExpense = asyncHandler(async (req, res, next) => {
   const {
     loanNumber,
@@ -92,7 +89,10 @@ const getAllExpenses = asyncHandler(async (req, res, next) => {
   }
 
   const [expenses, total] = await Promise.all([
-    Expense.find(match).sort({ date: -1, createdAt: -1 }).skip(skip).limit(limit),
+    Expense.find(match)
+      .sort({ date: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
     Expense.countDocuments(match),
   ]);
 
@@ -106,7 +106,6 @@ const getAllExpenses = asyncHandler(async (req, res, next) => {
     },
   });
 });
-
 
 // @desc    Search loan/vehicle info
 // @route   GET /api/expenses/search

@@ -5,14 +5,11 @@ const ErrorHandler = require("../utils/ErrorHandler");
 
 // Get all todos (Admin gets all, Employee gets only assigned to them)
 const getTodos = asyncHandler(async (req, res, next) => {
-  const { page = 1, limit = 10, keyword, status, priority, assignedTo, dueDate } = req.query;
+  const { page = 1, limit = 10, keyword, status, priority, dueDate } = req.query;
   const skip = (page - 1) * limit;
 
   let query = {};
   
-  if (req.user.role === "EMPLOYEE") {
-    query.assignedTo = req.user._id;
-  }
 
   // Search by keyword (title or description)
   if (keyword) {
@@ -23,9 +20,11 @@ const getTodos = asyncHandler(async (req, res, next) => {
   }
 
   // Filters
-  if (status) query.status = status;
+  if (status) {
+    const statusArray = status.split(",");
+    query.status = statusArray.length > 1 ? { $in: statusArray } : statusArray[0];
+  }
   if (priority) query.priority = priority;
-  if (assignedTo) query.assignedTo = assignedTo;
   if (dueDate) {
     const startOfDay = new Date(dueDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -36,7 +35,6 @@ const getTodos = asyncHandler(async (req, res, next) => {
 
   const totalCount = await Todo.countDocuments(query);
   const todos = await Todo.find(query)
-    .populate("assignedTo", "name")
     .populate("createdBy", "name")
     .populate("updatedBy", "name")
     .sort({ createdAt: -1 })
@@ -62,7 +60,7 @@ const getTodos = asyncHandler(async (req, res, next) => {
 
 // Create a new todo
 const createTodo = asyncHandler(async (req, res, next) => {
-  const { title, description, status, priority, dueDate, assignedTo } = req.body;
+  const { title, description, comment, status, priority, dueDate } = req.body;
 
   if (!title) {
     return next(new ErrorHandler("Title is required", 400));
@@ -71,15 +69,14 @@ const createTodo = asyncHandler(async (req, res, next) => {
   const todo = await Todo.create({
     title,
     description,
+    comment,
     status,
     priority,
     dueDate,
-    assignedTo: assignedTo || null,
     createdBy: req.user._id,
   });
 
   const populatedTodo = await Todo.findById(todo._id)
-    .populate("assignedTo", "name")
     .populate("createdBy", "name");
 
   sendResponse(res, 201, "success", "Todo created successfully", null, populatedTodo);
@@ -93,13 +90,13 @@ const updateTodo = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Todo not found", 404));
   }
 
-  const updateData = { ...req.body, updatedBy: req.user._id };
+  const { title, description, comment, status, priority, dueDate } = req.body;
+  const updateData = { title, description, comment, status, priority, dueDate, updatedBy: req.user._id };
 
   todo = await Todo.findByIdAndUpdate(req.params.id, updateData, {
     new: true,
     runValidators: true,
   })
-    .populate("assignedTo", "name")
     .populate("createdBy", "name")
     .populate("updatedBy", "name");
 

@@ -157,20 +157,15 @@ const WeeklyLoanForm = ({
   const eStartDate = values.emiStartDate ? new Date(values.emiStartDate) : null;
 
   // Processing Fee
-  const processingFee = (amount * (feeRate / 100)).toFixed(2);
+  const processingFee = Math.ceil(amount * (feeRate / 100));
 
   // Weekly Principal Calculation (No Interest) - Round Up
   const emiAmount = totalWeeks > 0 ? Math.ceil(amount / totalWeeks) : 0;
 
-  const totalAmount = (emiAmount * paidWeeks).toFixed(2);
-  const totalCollected = (
-    parseFloat(totalAmount) + parseFloat(processingFee)
-  ).toFixed(2);
+  const totalAmount = Math.ceil(emiAmount * paidWeeks + (parseFloat(values.odAmount) || 0));
+  const totalCollected = Math.ceil(totalAmount + processingFee);
   const remainingEmis = totalWeeks - paidWeeks;
-  const remainingPrincipalAmount = (
-    amount -
-    emiAmount * paidWeeks
-  ).toFixed(2);
+  const remainingPrincipalAmount = Math.ceil(amount - emiAmount * paidWeeks);
 
   const nextEmiDate =
     eStartDate && !isNaN(eStartDate.getTime())

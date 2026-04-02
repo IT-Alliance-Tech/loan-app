@@ -470,9 +470,20 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                     >
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex-1">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                            Payment Date
-                          </label>
+                          <div className="flex justify-between items-center px-1 mb-2">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              Payment Date
+                            </label>
+                            {group.date && (
+                              <button
+                                type="button"
+                                onClick={() => handleGroupDateChange(group.id, "")}
+                                className="text-[9px] font-black uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
                           <input
                             type="date"
                             value={group.date}
@@ -608,9 +619,20 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                       <div key={ov.id} className="space-y-4 p-4 border border-red-50 rounded-2xl bg-white shadow-sm relative">
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex-1">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                              Overdue Date
-                            </label>
+                            <div className="flex justify-between items-center px-1 mb-2">
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Overdue Date
+                              </label>
+                              {ov.date && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOverdueChange(ov.id, "date", "")}
+                                  className="text-[9px] font-black uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors"
+                                >
+                                  Clear
+                                </button>
+                              )}
+                            </div>
                             <input
                               type="date"
                               value={ov.date ? new Date(ov.date).toISOString().split('T')[0] : ''}

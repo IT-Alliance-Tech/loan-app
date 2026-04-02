@@ -327,7 +327,7 @@ const LoanForm = ({
     formik.setFieldValue("loanTerms.processingFeeRate", rate);
     const principal = parseFloat(formik.values.loanTerms.principalAmount) || 0;
     if (principal && !isNaN(rate)) {
-      const fee = ((principal * parseFloat(rate)) / 100).toFixed(2);
+      const fee = Math.ceil((principal * parseFloat(rate)) / 100);
       formik.setFieldValue("loanTerms.processingFee", fee);
     }
   };
@@ -360,7 +360,7 @@ const LoanForm = ({
             const totalInt = principal * (rate / 100) * tenure;
             formik.setFieldValue(
               "loanTerms.totalInterestAmount",
-              totalInt.toFixed(2),
+              Math.ceil(totalInt),
             );
           }
         } catch (err) {
@@ -438,8 +438,8 @@ const LoanForm = ({
         remainingTenureCount = tenure;
       }
 
-      const remainingPrincipal = principalPerMonth * remainingTenureCount;
-      setRemainingPrincipalAmount(remainingPrincipal.toFixed(2));
+      const remainingPrincipal = Math.ceil(principalPerMonth * remainingTenureCount);
+      setRemainingPrincipalAmount(remainingPrincipal);
     } else {
       setRemainingPrincipalAmount(0);
     }
@@ -453,13 +453,15 @@ const LoanForm = ({
   useEffect(() => {
     let total = 0;
     if (emis && emis.length > 0) {
-      total = emis.reduce(
-        (sum, emi) =>
-          sum +
-          (parseFloat(emi.amountPaid) || 0) +
-          (parseFloat(emi.overdue) || 0),
-        0,
-      );
+      total = emis.reduce((sum, emi) => {
+        const overdueSum = Array.isArray(emi.overdue)
+          ? emi.overdue.reduce(
+              (oSum, ov) => oSum + (parseFloat(ov.amount) || 0),
+              0,
+            )
+          : parseFloat(emi.overdue) || 0;
+        return sum + (parseFloat(emi.amountPaid) || 0) + overdueSum;
+      }, 0);
     }
 
     // Add foreclosure amount if loan is closed
@@ -482,8 +484,8 @@ const LoanForm = ({
 
     setTotalCollectedAmount(
       total.toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
       }),
     );
   }, [

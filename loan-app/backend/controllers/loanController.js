@@ -84,7 +84,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     monthlyEMI = Math.ceil(p / t);
   }
 
-  const calculatedTotalInterest = p * (r / 100) * t;
+  const calculatedTotalInterest = Math.ceil(p * (r / 100) * t);
 
   const loan = await Loan.create({
     // customerDetails
@@ -101,7 +101,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     loanNumber: loanTerms.loanNumber,
     principalAmount: parseFloat(loanTerms?.principalAmount) || 0,
     processingFeeRate: parseFloat(loanTerms?.processingFeeRate) || 0,
-    processingFee: parseFloat(loanTerms?.processingFee) || 0,
+    processingFee: Math.ceil(parseFloat(loanTerms?.processingFee)) || 0,
     tenureMonths: parseInt(loanTerms?.tenureMonths) || 0,
     annualInterestRate: parseFloat(loanTerms?.annualInterestRate) || 0,
     dateLoanDisbursed: loanTerms.dateLoanDisbursed,
@@ -149,6 +149,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
         dueDate: addMonths(new Date(currentEmiDate), i - 1),
         emiAmount: monthlyEMI,
         status: "Pending",
+        overdue: [],
       });
     }
   }
@@ -262,12 +263,34 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
           repaymentStats: {
             totalCollected: {
               $add: [
-                { $sum: "$emis.amountPaid" },
-                { $sum: { $ifNull: ["$emis.overdue", 0] } },
+                { $sum: { $ifNull: ["$emis.amountPaid", [0]] } },
+                {
+                  $reduce: {
+                    input: "$emis",
+                    initialValue: 0,
+                    in: {
+                      $add: [
+                        "$$value",
+                        { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } },
+                      ],
+                    },
+                  },
+                },
                 { $ifNull: ["$processingFee", 0] },
               ],
             },
-            overdueAmount: { $sum: "$emis.overdue" },
+            overdueAmount: {
+              $reduce: {
+                input: "$emis",
+                initialValue: 0,
+                in: {
+                  $add: [
+                    "$$value",
+                    { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } },
+                  ],
+                },
+              },
+            },
             paidEmisCount: {
               $size: {
                 $filter: {
@@ -311,7 +334,9 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
               {
                 $divide: [
                   { $ifNull: ["$principalAmount", 0] },
-                  { $cond: [{ $gt: ["$tenureMonths", 0] }, "$tenureMonths", 1] },
+                  {
+                    $cond: [{ $gt: ["$tenureMonths", 0] }, "$tenureMonths", 1],
+                  },
                 ],
               },
               "$repaymentStats.remainingTenure",
@@ -322,8 +347,6 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
       { $project: { emis: 0 } },
     ]);
   } else {
-    // CRITICAL OPTIMIZATION: .lean() and .select()
-    // We select ALL fields required by the frontend table to avoid undefined errors
     loans = await Loan.find(query)
       .select(
         "loanNumber customerName mobileNumbers guarantorName guarantorMobileNumbers monthlyEMI tenureMonths status isSeized clientResponse createdBy updatedBy createdAt",
@@ -461,15 +484,12 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
 
   const principalPerMonth =
     (loan.principalAmount || 0) / (loan.tenureMonths || 1);
-  const remainingPrincipalAmount = Math.max(
-    0,
+  const remainingPrincipalAmount = Math.ceil(
     remainingTenureCount * principalPerMonth,
   );
 
   const formattedLoan = formatLoanResponse(loan);
-  formattedLoan.loanTerms.remainingPrincipalAmount = parseFloat(
-    remainingPrincipalAmount.toFixed(2),
-  );
+  formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
 
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
@@ -595,15 +615,12 @@ const getLoanById = asyncHandler(async (req, res, next) => {
 
   const principalPerMonth =
     (loan.principalAmount || 0) / (loan.tenureMonths || 1);
-  const remainingPrincipalAmount = Math.max(
-    0,
+  const remainingPrincipalAmount = Math.ceil(
     remainingTenureCount * principalPerMonth,
   );
 
   const formattedLoan = formatLoanResponse(loan);
-  formattedLoan.loanTerms.remainingPrincipalAmount = parseFloat(
-    remainingPrincipalAmount.toFixed(2),
-  );
+  formattedLoan.loanTerms.remainingPrincipalAmount = remainingPrincipalAmount;
 
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
@@ -748,10 +765,11 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       : loan.tenureMonths;
 
   const monthlyEMI = calculateEMI(currentPrincipal, currentRoi, currentTenure);
-  const calculatedTotalInterest =
+  const calculatedTotalInterest = Math.ceil(
     parseFloat(currentPrincipal) *
-    (parseFloat(currentRoi) / 100) *
-    parseInt(currentTenure);
+      (parseFloat(currentRoi) / 100) *
+      parseInt(currentTenure),
+  );
 
   const updateData = {
     // Flatten customerDetails
@@ -1161,6 +1179,18 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
                       { $toDouble: { $ifNull: ["$$this.amountPaid", 0] } },
                     ],
                   },
+                ],
+              },
+            },
+          },
+          penalOverdue: {
+            $reduce: {
+              input: "$emis",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } },
                 ],
               },
             },
@@ -2140,9 +2170,6 @@ const getTodoList = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Delete a loan
-// @route   DELETE /api/loans/:id
-// @access  Private/Admin
 const deleteLoan = asyncHandler(async (req, res, next) => {
   const loan = await Loan.findById(req.params.id);
 

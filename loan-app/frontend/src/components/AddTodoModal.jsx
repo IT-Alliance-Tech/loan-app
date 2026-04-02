@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import Modal from "./Modal";
-import { getEmployees } from "../services/userService";
 import { getUserFromToken } from "../utils/auth";
 
 const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null }) => {
@@ -14,26 +13,9 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
     status: todoToEdit?.status || "Todo",
     priority: todoToEdit?.priority || "Medium",
     dueDate: todoToEdit?.dueDate ? new Date(todoToEdit.dueDate).toISOString().split("T")[0] : "",
-    assignedTo: todoToEdit?.assignedTo?._id || todoToEdit?.assignedTo || "",
+    comment: todoToEdit?.comment || "",
   });
 
-  const [employees, setEmployees] = useState([]);
-  const [employeeSearch, setEmployeeSearch] = useState(todoToEdit?.assignedTo?.name || "");
-  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
-
-  const fetchEmployees = useCallback(async () => {
-    if (isEmployee) return; // Employees are not allowed to fetch employee list
-    try {
-      const res = await getEmployees();
-      if (res.data && Array.isArray(res.data.employees)) {
-        setEmployees(res.data.employees);
-      } else if (Array.isArray(res.data)) {
-        setEmployees(res.data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch employees", err);
-    }
-  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,9 +31,6 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
     onSubmit(formData);
   };
 
-  const filteredEmployees = Array.isArray(employees) ? employees.filter((emp) =>
-    emp.name.toLowerCase().includes(employeeSearch.toLowerCase())
-  ) : [];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={todoToEdit ? "Edit To-Do" : "Add New To-Do"} size="lg">
@@ -78,8 +57,7 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
           <textarea
             name="description"
             rows="3"
-            disabled={isEmployee}
-            className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300 ${isEmployee ? "opacity-60 cursor-not-allowed" : ""}`}
+            className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300`}
             placeholder="ENTER TASK DESCRIPTION..."
             value={formData.description}
             onChange={handleChange}
@@ -108,8 +86,7 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
             </label>
             <select
               name="priority"
-              disabled={isEmployee}
-              className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none cursor-pointer ${isEmployee ? "opacity-60 cursor-not-allowed" : ""}`}
+              className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none cursor-pointer`}
               value={formData.priority}
               onChange={handleChange}
             >
@@ -128,60 +105,27 @@ const AddTodoModal = ({ isOpen, onClose, onSubmit, submitting, todoToEdit = null
             <input
               type="date"
               name="dueDate"
-              disabled={isEmployee}
-              className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer ${isEmployee ? "opacity-60 cursor-not-allowed" : ""}`}
+               className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer`}
               value={formData.dueDate}
               onChange={handleChange}
             />
           </div>
         </div>
-
-        <div className="relative">
+ 
+        <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 block mb-2">
-            Assigned To
+            Task Update / Comment
           </label>
-          <input
-            type="text"
-            className={`w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300 ${isEmployee ? "opacity-60 cursor-not-allowed" : ""}`}
-            placeholder={isEmployee ? "ASSIGNED TO YOU" : "SEARCH EMPLOYEE BY NAME..."}
-            value={employeeSearch}
-            disabled={isEmployee}
-            onChange={(e) => {
-              setEmployeeSearch(e.target.value);
-              setShowEmployeeDropdown(true);
-            }}
-            onFocus={() => {
-              if (!isEmployee) {
-                setShowEmployeeDropdown(true);
-                fetchEmployees();
-              }
-            }}
+          <textarea
+            name="comment"
+            rows="2"
+            className="w-full bg-slate-50 border border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-300"
+            placeholder="ADD A COMMENT OR STATUS UPDATE..."
+            value={formData.comment}
+            onChange={handleChange}
           />
-          {showEmployeeDropdown && employeeSearch.trim() && (
-            <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl max-h-48 overflow-y-auto">
-              {filteredEmployees.length > 0 ? (
-                filteredEmployees.map((emp) => (
-                  <button
-                    key={emp._id}
-                    type="button"
-                    className="w-full px-5 py-3 text-left hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 font-bold text-xs uppercase text-slate-700"
-                    onClick={() => {
-                      setFormData((prev) => ({ ...prev, assignedTo: emp._id }));
-                      setEmployeeSearch(emp.name);
-                      setShowEmployeeDropdown(false);
-                    }}
-                  >
-                    {emp.name} ({emp.role})
-                  </button>
-                ))
-              ) : (
-                <div className="px-5 py-3 text-slate-400 font-bold text-[10px] uppercase">
-                  No employees found
-                </div>
-              )}
-            </div>
-          )}
         </div>
+
 
         <div className="pt-4">
           <button

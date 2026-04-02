@@ -154,23 +154,24 @@ const CollectionsPage = () => {
         <tr className="bg-slate-50 border-b border-slate-200">
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Loan No</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer Name</th>
-          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amount</th>
+          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">EMI Paid</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Overdue</th>
+          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Type</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Payment Mode</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Date</th>
-          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Updated By</th>
+          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Collector</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">
         {loading ? (
-          <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase">Loading...</td></tr>
+          <tr><td colSpan="9" className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase tracking-widest">Synchronizing records...</td></tr>
         ) : collections.length === 0 ? (
-          <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase">No collections found for this period</td></tr>
+          <tr><td colSpan="9" className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase tracking-widest">No transactions found for this period</td></tr>
         ) : (
           collections.map((item, idx) => (
             <tr key={idx} className="hover:bg-slate-50 transition-colors">
-              <td className="px-6 py-4 text-xs font-black text-slate-900">
+              <td className="px-6 py-4 text-xs font-black text-slate-900 whitespace-nowrap">
                 <Link 
                   href={getLoanEditLink(item.loanId, item.loanModel)}
                   className="text-primary hover:underline underline-offset-4 decoration-2"
@@ -178,12 +179,15 @@ const CollectionsPage = () => {
                   {item.loanNumber}
                 </Link>
               </td>
-              <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">{item.customerName}</td>
+              <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase whitespace-nowrap truncate max-w-[150px]">{item.customerName}</td>
               <td className="px-6 py-4 text-xs text-right font-black text-emerald-600">
-                {item.paymentType === 'Overdue' || item.amount === 0 ? '-' : `₹${item.amount.toLocaleString()}`}
+                {item.emiAmount && item.emiAmount !== 0 ? `₹${Math.abs(item.emiAmount).toLocaleString()}${item.emiAmount < 0 ? ' (Rev)' : ''}` : '-'}
               </td>
               <td className="px-6 py-4 text-xs text-right font-black text-red-600">
-                {item.overdue > 0 ? `₹${item.overdue.toLocaleString()}` : '-'}
+                {item.overdueAmount && item.overdueAmount !== 0 ? `₹${Math.abs(item.overdueAmount).toLocaleString()}${item.overdueAmount < 0 ? ' (Rev)' : ''}` : '-'}
+              </td>
+              <td className="px-6 py-4 text-xs text-right font-black text-indigo-600 bg-slate-50/30">
+                ₹{item.totalAmount?.toLocaleString() || item.amount?.toLocaleString() || '0'}
               </td>
               <td className="px-6 py-4 text-xs text-center">
                 <span className={`px-2 py-1 rounded-lg font-black text-[9px] uppercase border ${
@@ -195,11 +199,15 @@ const CollectionsPage = () => {
                   {item.paymentType}
                 </span>
               </td>
-              <td className="px-6 py-4 text-xs text-center">
-                <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg font-black text-[9px] uppercase border border-blue-100">{item.paymentMode}</span>
+              <td className="px-6 py-4 text-xs text-center font-bold text-slate-500 uppercase whitespace-nowrap">
+                {item.paymentMode || '-'}
               </td>
-              <td className="px-6 py-4 text-xs font-bold text-slate-500 text-center">{format(new Date(item.date), "dd-MM-yyyy")}</td>
-              <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase text-center">{item.updatedBy}</td>
+              <td className="px-6 py-4 text-xs font-bold text-slate-500 text-center whitespace-nowrap">
+                {item.date ? format(new Date(item.date), "dd-MM-yyyy") : '-'}
+              </td>
+              <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase text-center whitespace-nowrap">
+                {item.updatedBy || 'N/A'}
+              </td>
             </tr>
           ))
         )}

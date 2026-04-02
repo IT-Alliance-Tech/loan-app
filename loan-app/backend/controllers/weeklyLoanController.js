@@ -54,7 +54,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
   const currentPaidEmis = parseInt(paidEmis) || 0;
 
   // Processing Fee
-  const processingFee = amount * (feeRate / 100);
+  const processingFee = Math.ceil(amount * (feeRate / 100));
 
   // Interest Calculation (Removed as requested)
   const weeklyPrincipal = totalWeeks > 0 ? amount / totalWeeks : 0;
@@ -73,10 +73,10 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
   }
 
-  const totalAmount = emiAmount * currentPaidEmis;
-  const totalCollected = totalAmount + processingFee;
+  const totalAmount = Math.ceil(emiAmount * currentPaidEmis + (parseFloat(req.body.odAmount) || 0));
+  const totalCollected = Math.ceil(totalAmount + processingFee);
   const remainingEmis = totalWeeks - currentPaidEmis;
-  const remainingPrincipalAmount = amount - (emiAmount * currentPaidEmis); // Using rounded EMI
+  const remainingPrincipalAmount = Math.ceil(amount - (emiAmount * currentPaidEmis)); // Using rounded EMI
 
   const weeklyLoan = await WeeklyLoan.create({
     loanNumber,
@@ -128,6 +128,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
       amountPaid: isPaid ? emiAmount : 0,
       paymentDate: isPaid ? new Date(eStartDate) : null,
       paymentMode: isPaid ? "CASH" : "",
+      overdue: [],
     });
     currentEmiDateArr.setDate(currentEmiDateArr.getDate() + 7);
     }
@@ -196,9 +197,9 @@ exports.getWeeklyLoanEMIs = asyncHandler(async (req, res, next) => {
         customerName: weeklyLoan.customerName,
         emiNumber: i,
         dueDate: new Date(currentEmiDateArr),
-        emiAmount: emiAmt.toFixed(2),
+        emiAmount: Math.ceil(emiAmt),
         status: isPaid ? "Paid" : "Pending",
-        amountPaid: isPaid ? emiAmt.toFixed(2) : 0,
+        amountPaid: isPaid ? Math.ceil(emiAmt) : 0,
         paymentDate: isPaid ? new Date(weeklyLoan.startDate) : null,
         paymentMode: isPaid ? "CASH" : "",
       });
@@ -253,11 +254,35 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
         repaymentStats: {
           totalCollected: {
             $add: [
-              { $sum: "$emis.amountPaid" },
+              { $sum: { $ifNull: ["$emis.amountPaid", [0]] } },
+              { 
+                $reduce: {
+                  input: "$emis",
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+                    ]
+                  }
+                }
+              },
               { $ifNull: ["$processingFee", 0] },
             ],
           },
           overdueAmount: {
+            $reduce: {
+              input: "$emis",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+                ]
+              }
+            }
+          },
+          arrearsAmount: {
             $reduce: {
               input: "$emis",
               initialValue: 0,
@@ -441,7 +466,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   const feeRate = updateData.processingFeeRate;
 
   // Processing Fee
-  const processingFee = amount * (feeRate / 100);
+  const processingFee = Math.ceil(amount * (feeRate / 100));
 
   // Interest Calculation (Removed)
   const weeklyPrincipal = amount / totalWeeks;
@@ -454,10 +479,10 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
   updateData.emiEndDate = eEndDate;
 
-  const totalAmount = emiAmount * currentPaidEmis;
-  const totalCollected = totalAmount + processingFee;
+  const totalAmount = Math.ceil(emiAmount * currentPaidEmis + (weeklyLoan.odAmount || 0));
+  const totalCollected = Math.ceil(totalAmount + processingFee);
   const remainingEmis = totalWeeks - currentPaidEmis;
-  const remainingPrincipalAmount = amount - (emiAmount * currentPaidEmis);
+  const remainingPrincipalAmount = Math.ceil(amount - (emiAmount * currentPaidEmis));
 
   Object.assign(updateData, {
     emiAmount,
@@ -531,7 +556,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
 
         return EMI.findByIdAndUpdate(emi._id, {
           dueDate: newDueDate,
-          emiAmount: weeklyLoan.emiAmount.toFixed(2),
+          emiAmount: Math.ceil(weeklyLoan.emiAmount),
           // We don't change status/amountPaid here to preserve payment history
         });
       });
@@ -674,6 +699,18 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
               ],
             },
           },
+        },
+        penalOverdue: {
+          $reduce: {
+            input: "$emis",
+            initialValue: 0,
+            in: {
+              $add: [
+                "$$value",
+                { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+              ]
+            }
+          }
         },
         earliestDueDate: { $min: "$pendingEmisList.dueDate" },
         earliestEmiId: {
