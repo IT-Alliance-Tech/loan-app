@@ -238,25 +238,29 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   const deltaEmi = newEmiSum - oldEmiSum;
   const deltaOverdue = newOverdueSum - oldOverdueSum;
 
-  if (deltaEmi !== 0 || deltaOverdue !== 0) {
-    // Determine latest mode and date from request for the transaction record
-    let latestMode = paymentMode || "CASH";
-    let latestDate = paymentDate ? new Date(paymentDate) : new Date();
+  // Determine latest mode and date from request for the transaction record
+  let latestMode = paymentMode || "CASH";
+  let latestDate = paymentDate ? new Date(paymentDate) : new Date();
 
-    if (dateGroups && Array.isArray(dateGroups) && dateGroups.length > 0) {
-      const sortedGroups = [...dateGroups].filter(g => g.date).sort((a, b) => new Date(b.date) - new Date(a.date));
-      if (sortedGroups.length > 0) {
-        latestDate = new Date(sortedGroups[0].date);
-        if (sortedGroups[0].payments?.length > 0) {
-          latestMode = sortedGroups[0].payments[sortedGroups[0].payments.length - 1].mode || "CASH";
-        }
+  if (dateGroups && Array.isArray(dateGroups) && dateGroups.length > 0) {
+    const sortedGroups = [...dateGroups]
+      .filter((g) => g.date)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (sortedGroups.length > 0) {
+      latestDate = new Date(sortedGroups[0].date);
+      if (sortedGroups[0].payments?.length > 0) {
+        latestMode =
+          sortedGroups[0].payments[sortedGroups[0].payments.length - 1].mode ||
+          "CASH";
       }
-    } else if (overdue && Array.isArray(overdue) && overdue.length > 0) {
-      const lastOv = overdue[overdue.length - 1];
-      latestDate = lastOv.date ? new Date(lastOv.date) : latestDate;
-      latestMode = lastOv.mode || latestMode;
     }
+  } else if (overdue && Array.isArray(overdue) && overdue.length > 0) {
+    const lastOv = overdue[overdue.length - 1];
+    latestDate = lastOv.date ? new Date(lastOv.date) : latestDate;
+    latestMode = lastOv.mode || latestMode;
+  }
 
+  if (deltaEmi !== 0 || deltaOverdue !== 0) {
     // CREATE ONE IMMUTABLE TRANSACTION RECORD FOR THIS ACTION
     await Payment.create({
       emiId: emi._id,
@@ -268,11 +272,25 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       amount: deltaEmi + deltaOverdue, // Fallback for legacy fields
       mode: latestMode,
       paymentDate: latestDate,
-      paymentType: emi.loanModel === "DailyLoan" ? "Daily" : emi.loanModel === "WeeklyLoan" ? "Weekly" : "Monthly",
+      paymentType:
+        emi.loanModel === "DailyLoan"
+          ? "Daily"
+          : emi.loanModel === "WeeklyLoan"
+            ? "Weekly"
+            : "Monthly",
       status: "Success",
       collectedBy: req.user._id,
       remarks: remarks || "",
     });
+  } else if (emi.paymentHistory.length > 0) {
+    // If no delta, but dates might have been corrected, update the most recent Payment record for this EMI
+    // This handles the case where a user corrects a date in the EMI history without changing the amount.
+    const lastPayment = await Payment.findOne({ emiId: emi._id }).sort({ createdAt: -1 });
+    if (lastPayment) {
+      lastPayment.paymentDate = latestDate;
+      lastPayment.mode = latestMode;
+      await lastPayment.save();
+    }
   }
 
   // Recalculate amountPaid and paymentMode from full history
