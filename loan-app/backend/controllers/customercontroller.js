@@ -247,7 +247,11 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       .filter((g) => g.date)
       .sort((a, b) => new Date(b.date) - new Date(a.date));
     if (sortedGroups.length > 0) {
-      latestDate = new Date(sortedGroups[0].date);
+      // Ensure date is treated as midnight local/UTC consistently
+      const d = new Date(sortedGroups[0].date);
+      d.setHours(0, 0, 0, 0);
+      latestDate = d;
+      
       if (sortedGroups[0].payments?.length > 0) {
         latestMode =
           sortedGroups[0].payments[sortedGroups[0].payments.length - 1].mode ||
@@ -256,9 +260,14 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     }
   } else if (overdue && Array.isArray(overdue) && overdue.length > 0) {
     const lastOv = overdue[overdue.length - 1];
-    latestDate = lastOv.date ? new Date(lastOv.date) : latestDate;
+    const d = lastOv.date ? new Date(lastOv.date) : latestDate;
+    d.setHours(0, 0, 0, 0);
+    latestDate = d;
     latestMode = lastOv.mode || latestMode;
   }
+  
+  // Final fallback: Ensure latestDate is at midnight
+  latestDate.setHours(0, 0, 0, 0);
 
   if (deltaEmi !== 0 || deltaOverdue !== 0) {
     // CREATE ONE IMMUTABLE TRANSACTION RECORD FOR THIS ACTION
@@ -283,14 +292,12 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       remarks: remarks || "",
     });
   } else if (emi.paymentHistory.length > 0) {
-    // If no delta, but dates might have been corrected, update the most recent Payment record for this EMI
-    // This handles the case where a user corrects a date in the EMI history without changing the amount.
-    const lastPayment = await Payment.findOne({ emiId: emi._id }).sort({ createdAt: -1 });
-    if (lastPayment) {
-      lastPayment.paymentDate = latestDate;
-      lastPayment.mode = latestMode;
-      await lastPayment.save();
-    }
+    // If no delta, but dates/modes might have been corrected, update ALL Payment records for this EMI
+    // to match the latest state. This prevents orphaned dates in the Collections tab.
+    await Payment.updateMany(
+      { emiId: emi._id },
+      { $set: { paymentDate: latestDate, mode: latestMode } }
+    );
   }
 
   // Recalculate amountPaid and paymentMode from full history
