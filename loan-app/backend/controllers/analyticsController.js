@@ -64,7 +64,18 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
               $group: {
                 _id: null,
                 active: {
-                  $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+                  $sum: {
+                    $cond: [
+                      {
+                        $and: [
+                          { $ne: ["$status", "Closed"] },
+                          { $ne: ["$seizedStatus", "Sold"] },
+                        ],
+                      },
+                      1,
+                      0,
+                    ],
+                  },
                 },
                 closed: {
                   $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
@@ -117,7 +128,7 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
               $group: {
                 _id: null,
                 active: {
-                  $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+                  $sum: { $cond: [{ $ne: ["$status", "Closed"] }, 1, 0] },
                 },
                 closed: {
                   $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
@@ -147,7 +158,7 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
               $group: {
                 _id: null,
                 active: {
-                  $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+                  $sum: { $cond: [{ $ne: ["$status", "Closed"] }, 1, 0] },
                 },
                 closed: {
                   $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
