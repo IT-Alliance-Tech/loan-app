@@ -99,6 +99,7 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
     loanId: txn.loanId,
     loanModel: txn.loanModel,
     loanNumber: txn.emiId ? txn.emiId.loanNumber : "Unknown",
+    emiNo: txn.emiId ? txn.emiId.emiNumber : "-",
     customerName: txn.emiId ? txn.emiId.customerName : "Unknown",
     emiAmount: txn.emiAmount || (txn.overdueAmount ? 0 : txn.amount) || 0,
     overdueAmount: txn.overdueAmount || 0,
