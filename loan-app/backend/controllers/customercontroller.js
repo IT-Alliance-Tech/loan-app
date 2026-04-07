@@ -5,6 +5,7 @@ const Payment = require("../models/Payment");
 const ErrorHandler = require("../utils/ErrorHandler");
 const { formatLoanResponse } = require("../utils/loanFormatter");
 const asyncHandler = require("../utils/asyncHandler");
+const { parseDateInLocalFormat, normalizeToMidnight } = require('../utils/dateUtils');
 const sendResponse = require("../utils/response");
 
 const calculateEMI = (principal, roi, tenureMonths) => {
@@ -207,6 +208,10 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   const oldEmiSum = parseFloat(emi.amountPaid) || 0;
   const oldOverdueSum = (emi.overdue || []).reduce((acc, ov) => acc + (parseFloat(ov.amount) || 0), 0);
 
+  // Update properties on the document directly (before bucket logic)
+  if (overdue !== undefined) emi.overdue = overdue;
+  if (remarks !== undefined) emi.remarks = remarks;
+
   // Process payments from dateGroups if provided
   if (dateGroups && Array.isArray(dateGroups)) {
     emi.paymentHistory = [];
@@ -228,76 +233,90 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     emi.paymentHistory.push({
       amount: parseFloat(addedAmount),
       mode: paymentMode || "CASH",
-      date: paymentDate ? new Date(paymentDate) : new Date(),
+      date: normalizeToMidnight(parseDateInLocalFormat(paymentDate || new Date())),
     });
   }
 
+  // --- GRANULAR MULTI-TRANSACTION LOGIC ---
   const newEmiSum = emi.paymentHistory.reduce((acc, curr) => acc + curr.amount, 0);
   const newOverdueSum = (overdue || []).reduce((acc, ov) => acc + (parseFloat(ov.amount) || 0), 0);
 
-  const deltaEmi = newEmiSum - oldEmiSum;
-  const deltaOverdue = newOverdueSum - oldOverdueSum;
+  // 1. Group Old/New by Date Only (to merge different modes in one row per date)
+  const getGroupKey = (date) => {
+    const d = normalizeToMidnight(new Date(date));
+    return d.toISOString();
+  };
 
-  // Determine latest mode and date from request for the transaction record
-  let latestMode = paymentMode || "CASH";
-  let latestDate = paymentDate ? new Date(paymentDate) : new Date();
-
-  if (dateGroups && Array.isArray(dateGroups) && dateGroups.length > 0) {
-    const sortedGroups = [...dateGroups]
-      .filter((g) => g.date)
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-    if (sortedGroups.length > 0) {
-      // Ensure date is treated as midnight local/UTC consistently
-      const d = new Date(sortedGroups[0].date);
-      d.setHours(0, 0, 0, 0);
-      latestDate = d;
-      
-      if (sortedGroups[0].payments?.length > 0) {
-        latestMode =
-          sortedGroups[0].payments[sortedGroups[0].payments.length - 1].mode ||
-          "CASH";
-      }
-    }
-  } else if (overdue && Array.isArray(overdue) && overdue.length > 0) {
-    const lastOv = overdue[overdue.length - 1];
-    const d = lastOv.date ? new Date(lastOv.date) : latestDate;
-    d.setHours(0, 0, 0, 0);
-    latestDate = d;
-    latestMode = lastOv.mode || latestMode;
-  }
+  // We need the original EMI to get OLD payments/overdue
+  // BUT emi is already modified in memory. Let's get the original values we stored.
+  // Wait, I need the original objects to compare. I'll use a snapshot.
   
-  // Final fallback: Ensure latestDate is at midnight
-  latestDate.setHours(0, 0, 0, 0);
+  // NOTE: I already have oldEmiSum and oldOverdueSum. 
+  // To be precise about "every transaction", we compare the arrays.
+  const changes = []; // Array of { date, mode, emiDelta, overdueDelta }
 
-  if (deltaEmi !== 0 || deltaOverdue !== 0) {
-    // CREATE ONE IMMUTABLE TRANSACTION RECORD FOR THIS ACTION
-    await Payment.create({
-      emiId: emi._id,
-      loanId: emi.loanId,
-      loanModel: emi.loanModel,
-      emiAmount: deltaEmi,
-      overdueAmount: deltaOverdue,
-      totalAmount: deltaEmi + deltaOverdue,
-      amount: deltaEmi + deltaOverdue, // Fallback for legacy fields
-      mode: latestMode,
-      paymentDate: latestDate,
-      paymentType:
-        emi.loanModel === "DailyLoan"
-          ? "Daily"
-          : emi.loanModel === "WeeklyLoan"
-            ? "Weekly"
-            : "Monthly",
-      status: "Success",
-      collectedBy: req.user._id,
-      remarks: remarks || "",
-    });
-  } else if (emi.paymentHistory.length > 0) {
-    // If no delta, but dates/modes might have been corrected, update ALL Payment records for this EMI
-    // to match the latest state. This prevents orphaned dates in the Collections tab.
-    await Payment.updateMany(
-      { emiId: emi._id },
-      { $set: { paymentDate: latestDate, mode: latestMode } }
-    );
+  // Strategy: Group everything by (date, mode) and calculate deltas for each bucket.
+  const buckets = {};
+  const addToBucket = (date, mode, type, amount, isNew) => {
+    const key = getGroupKey(date);
+    if (!buckets[key]) {
+      buckets[key] = {
+        date: normalizeToMidnight(new Date(date)),
+        modes: new Set(),
+        emiDelta: 0,
+        overdueDelta: 0,
+      };
+    }
+    const val = parseFloat(amount) || 0;
+    if (type === "EMI") buckets[key].emiDelta += isNew ? val : -val;
+    else buckets[key].overdueDelta += isNew ? val : -val;
+
+    if (isNew && val > 0 && mode) {
+      buckets[key].modes.add(mode.toUpperCase());
+    }
+  };
+
+  // Process Old state (subtract from buckets)
+  // We need the original lists. I'll fetch the original EMI data once more or use the emi object before save.
+  // Actually, I can just use the memory emi object since I modified it, but I need what it WAS.
+  
+  // Let's re-fetch the original to be 100% accurate for deltas
+  const originalEmi = await EMI.findById(id).lean();
+  (originalEmi.paymentHistory || []).forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, false));
+  (originalEmi.overdue || []).forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, false));
+
+  // Process New state (add to buckets)
+  (emi.paymentHistory || []).forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, true));
+  (emi.overdue || []).forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, true));
+
+  // Create Payment records for each bucket with a non-zero delta
+  for (const key in buckets) {
+    const { date, modes, emiDelta, overdueDelta } = buckets[key];
+    const totalDelta = emiDelta + overdueDelta;
+
+    if (totalDelta !== 0 || emiDelta !== 0 || overdueDelta !== 0) {
+      const combinedMode = modes.size > 0 ? Array.from(modes).join(", ") : "CASH";
+      await Payment.create({
+        emiId: emi._id,
+        loanId: emi.loanId,
+        loanModel: emi.loanModel,
+        emiAmount: emiDelta,
+        overdueAmount: overdueDelta,
+        totalAmount: totalDelta,
+        amount: totalDelta, // Legacy fallback
+        mode: combinedMode,
+        paymentDate: date,
+        paymentType:
+          emi.loanModel === "DailyLoan"
+            ? "Daily"
+            : emi.loanModel === "WeeklyLoan"
+              ? "Weekly"
+              : "Monthly",
+        status: "Success",
+        collectedBy: req.user._id,
+        remarks: remarks || "",
+      });
+    }
   }
 
   // Recalculate amountPaid and paymentMode from full history
@@ -323,7 +342,7 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     newStatus = hasOverdue ? "Overdue" : "Pending";
   }
 
-  // Update properties on the document directly
+  // Update properties on the document indirectly (final sync)
   emi.amountPaid = newAmountPaid;
   emi.paymentMode = modesFromHistory || emi.paymentMode || "CASH";
   emi.paymentDate =
@@ -331,9 +350,7 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     (emi.paymentHistory.length > 0
       ? emi.paymentHistory[emi.paymentHistory.length - 1].date
       : emi.paymentDate);
-  emi.overdue = overdue !== undefined ? overdue : emi.overdue;
   emi.status = newStatus;
-  emi.remarks = remarks || emi.remarks;
   emi.updatedBy = req.user._id;
 
   // Use save() instead of findByIdAndUpdate for reliability with Mongoose arrays

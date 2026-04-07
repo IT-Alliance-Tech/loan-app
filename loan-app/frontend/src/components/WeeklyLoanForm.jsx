@@ -72,12 +72,18 @@ const WeeklyLoanForm = ({
     ).nullable(),
   });
 
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? "" : format(date, "yyyy-MM-dd");
+  };
+
   const initialValues = {
     ...initialData,
-    mobileNumbers: Array.isArray(initialData?.mobileNumbers) 
-      ? initialData.mobileNumbers 
-      : initialData?.mobileNumber 
-        ? [initialData.mobileNumber] 
+    mobileNumbers: Array.isArray(initialData?.mobileNumbers)
+      ? initialData.mobileNumbers
+      : initialData?.mobileNumber
+        ? [initialData.mobileNumber]
         : [""],
     guarantorMobileNumbers: Array.isArray(initialData?.guarantorMobileNumbers)
       ? initialData.guarantorMobileNumbers
@@ -85,10 +91,13 @@ const WeeklyLoanForm = ({
         ? [initialData.guarantorMobileNumber]
         : [],
     clientResponse: initialData?.clientResponse || "",
-    nextFollowUpDate: initialData?.nextFollowUpDate || "",
+    nextFollowUpDate: formatDateForInput(initialData?.nextFollowUpDate),
     status: initialData?.status || "Active",
-    emiEndDate: initialData?.emiEndDate || "",
-    dateLoanDisbursed: initialData?.dateLoanDisbursed || initialData?.startDate || "",
+    emiEndDate: formatDateForInput(initialData?.emiEndDate),
+    emiStartDate: formatDateForInput(initialData?.emiStartDate),
+    dateLoanDisbursed: formatDateForInput(
+      initialData?.dateLoanDisbursed || initialData?.startDate,
+    ),
   };
 
   const formik = useFormik({

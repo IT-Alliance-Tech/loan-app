@@ -5,6 +5,7 @@ const DailyLoan = require("../models/DailyLoan");
 const Payment = require("../models/Payment");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
+const { parseDateInLocalFormat, normalizeToMidnight } = require('../utils/dateUtils');
 
 const getCollectionReport = asyncHandler(async (req, res, next) => {
   const { startDate, endDate, collectedBy } = req.query;
@@ -60,12 +61,10 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
   if (startDate || endDate) {
     match.paymentDate = {};
     if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      match.paymentDate.$gte = start;
+      match.paymentDate.$gte = normalizeToMidnight(parseDateInLocalFormat(startDate));
     }
     if (endDate) {
-      const end = new Date(endDate);
+      const end = normalizeToMidnight(parseDateInLocalFormat(endDate));
       end.setHours(23, 59, 59, 999);
       match.paymentDate.$lte = end;
     }
@@ -83,7 +82,7 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
   const transactions = await Payment.find(match)
     .populate({
       path: "emiId",
-      select: "loanNumber customerName overdue",
+      select: "loanNumber customerName overdue emiNumber",
     })
     .populate({
       path: "collectedBy",
