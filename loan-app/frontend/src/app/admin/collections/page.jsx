@@ -203,7 +203,9 @@ const CollectionsPage = () => {
                 {item.paymentMode || '-'}
               </td>
               <td className="px-6 py-4 text-xs font-bold text-slate-500 text-center whitespace-nowrap">
-                {item.date ? format(new Date(item.date), "dd-MM-yyyy") : '-'}
+                {item.date || item.createdAt ? 
+                  format(new Date(item.date || item.createdAt), "dd-MM-yyyy") : 
+                  '-'}
               </td>
               <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase text-center whitespace-nowrap">
                 {item.updatedBy || 'N/A'}
