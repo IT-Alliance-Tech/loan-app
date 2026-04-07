@@ -153,6 +153,7 @@ const CollectionsPage = () => {
       <thead>
         <tr className="bg-slate-50 border-b border-slate-200">
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Loan No</th>
+          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">EMI No</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer Name</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">EMI Paid</th>
           <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Overdue</th>
@@ -165,9 +166,9 @@ const CollectionsPage = () => {
       </thead>
       <tbody className="divide-y divide-slate-100">
         {loading ? (
-          <tr><td colSpan="9" className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase tracking-widest">Synchronizing records...</td></tr>
+          <tr><td colSpan="10" className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase tracking-widest">Synchronizing records...</td></tr>
         ) : collections.length === 0 ? (
-          <tr><td colSpan="9" className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase tracking-widest">No transactions found for this period</td></tr>
+          <tr><td colSpan="10" className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase tracking-widest">No transactions found for this period</td></tr>
         ) : (
           collections.map((item, idx) => (
             <tr key={idx} className="hover:bg-slate-50 transition-colors">
@@ -178,6 +179,9 @@ const CollectionsPage = () => {
                 >
                   {item.loanNumber}
                 </Link>
+              </td>
+              <td className="px-6 py-4 text-xs text-center font-black text-slate-500">
+                {item.emiNo || '-'}
               </td>
               <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase whitespace-nowrap truncate max-w-[150px]">{item.customerName}</td>
               <td className="px-6 py-4 text-xs text-right font-black text-emerald-600">
