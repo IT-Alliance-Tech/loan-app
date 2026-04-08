@@ -185,10 +185,10 @@ const CollectionsPage = () => {
               </td>
               <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase whitespace-nowrap truncate max-w-[150px]">{item.customerName}</td>
               <td className="px-6 py-4 text-xs text-right font-black text-emerald-600">
-                {item.emiAmount && item.emiAmount !== 0 ? `₹${Math.abs(item.emiAmount).toLocaleString()}${item.emiAmount < 0 ? ' (Rev)' : ''}` : '-'}
+                ₹{item.emiAmount?.toLocaleString() || '0'}
               </td>
               <td className="px-6 py-4 text-xs text-right font-black text-red-600">
-                {item.overdueAmount && item.overdueAmount !== 0 ? `₹${Math.abs(item.overdueAmount).toLocaleString()}${item.overdueAmount < 0 ? ' (Rev)' : ''}` : '-'}
+                ₹{item.overdueAmount?.toLocaleString() || '0'}
               </td>
               <td className="px-6 py-4 text-xs text-right font-black text-indigo-600 bg-slate-50/30">
                 ₹{item.totalAmount?.toLocaleString() || item.amount?.toLocaleString() || '0'}
