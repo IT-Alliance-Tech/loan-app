@@ -77,37 +77,78 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
   const limitNum = parseInt(limit, 10);
   const skip = (pageNum - 1) * limitNum;
 
-  const total = await Payment.countDocuments(match);
+  // 1. Group transactions to handle reversals/edits (same loan, same emi, same day)
+  const aggregation = [
+    { $match: match },
+    {
+      $group: {
+        _id: {
+          loanId: "$loanId",
+          emiId: "$emiId",
+          paymentDate: "$paymentDate",
+          paymentType: "$paymentType"
+        },
+        emiAmount: { $sum: "$emiAmount" },
+        overdueAmount: { $sum: "$overdueAmount" },
+        totalAmount: { $sum: { $ifNull: ["$totalAmount", "$amount"] } },
+        mode: { $first: "$mode" },
+        loanModel: { $first: "$loanModel" },
+        collectedBy: { $first: "$collectedBy" },
+        createdAt: { $max: "$createdAt" }
+      }
+    },
+    { $sort: { "_id.paymentDate": -1, createdAt: -1 } }
+  ];
 
-  const transactions = await Payment.find(match)
-    .populate({
-      path: "emiId",
-      select: "loanNumber customerName overdue emiNumber",
-    })
-    .populate({
-      path: "collectedBy",
-      select: "name",
-    })
-    .sort({ paymentDate: -1, createdAt: -1 })
-    .skip(skip)
-    .limit(limitNum);
+  // For total count after grouping, we need to run the aggregation once
+  const allGroups = await Payment.aggregate([...aggregation, { $count: "total" }]);
+  const total = allGroups[0]?.total || 0;
+
+  // Get paginated results
+  const transactions = await Payment.aggregate([
+    ...aggregation,
+    { $skip: skip },
+    { $limit: limitNum },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id.emiId",
+        foreignField: "_id",
+        as: "emiInfo"
+      }
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "collectedBy",
+        foreignField: "_id",
+        as: "collectorInfo"
+      }
+    },
+    {
+      $addFields: {
+        emiDetails: { $arrayElemAt: ["$emiInfo", 0] },
+        collector: { $arrayElemAt: ["$collectorInfo", 0] }
+      }
+    }
+  ]);
 
   // Format the output
   const formattedTransactions = transactions.map((txn) => ({
     _id: txn._id,
-    loanId: txn.loanId,
+    loanId: txn._id.loanId,
     loanModel: txn.loanModel,
-    loanNumber: txn.emiId ? txn.emiId.loanNumber : "Unknown",
-    emiNo: txn.emiId ? txn.emiId.emiNumber : "-",
-    customerName: txn.emiId ? txn.emiId.customerName : "Unknown",
-    emiAmount: txn.emiAmount || (txn.overdueAmount ? 0 : txn.amount) || 0,
+    loanNumber: txn.emiDetails ? txn.emiDetails.loanNumber : "Unknown",
+    emiNo: txn.emiDetails ? txn.emiDetails.emiNumber : "-",
+    customerName: txn.emiDetails ? txn.emiDetails.customerName : "Unknown",
+    emiAmount: txn.emiAmount || 0,
     overdueAmount: txn.overdueAmount || 0,
-    totalAmount: txn.totalAmount || txn.amount || txn.overdueAmount || 0,
-    amount: txn.totalAmount || txn.amount || txn.overdueAmount || 0, // Fallback for UI
+    totalAmount: txn.totalAmount || 0,
+    amount: txn.totalAmount || 0, // Fallback for UI
     paymentMode: txn.mode,
-    paymentType: txn.paymentType,
-    date: txn.paymentDate,
-    updatedBy: txn.collectedBy ? txn.collectedBy.name : "System",
+    paymentType: txn.paymentType || txn._id.paymentType,
+    date: txn._id.paymentDate,
+    updatedBy: txn.collector ? txn.collector.name : "System",
   }));
 
   sendResponse(
