@@ -538,11 +538,13 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
-  // Synchronize EMIs if date or principal changed
+  // Synchronize EMIs if date, principal, or identification details changed
   if (
     emiStartDate ||
     disbursementAmount !== undefined ||
-    totalEmis !== undefined
+    totalEmis !== undefined ||
+    customerName !== undefined ||
+    loanNumber !== undefined
   ) {
     const emis = await EMI.find({
       loanId: weeklyLoan._id,
@@ -557,6 +559,8 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
         return EMI.findByIdAndUpdate(emi._id, {
           dueDate: newDueDate,
           emiAmount: Math.ceil(weeklyLoan.emiAmount),
+          customerName: weeklyLoan.customerName,
+          loanNumber: weeklyLoan.loanNumber,
           // We don't change status/amountPaid here to preserve payment history
         });
       });

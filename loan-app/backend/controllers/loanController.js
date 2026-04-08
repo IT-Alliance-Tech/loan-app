@@ -932,9 +932,8 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       const updates = {};
 
       // Update denormalized info
-      if (customerDetails?.customerName)
-        updates.customerName = customerDetails.customerName;
-      if (loanTerms?.loanNumber) updates.loanNumber = loanTerms.loanNumber;
+      updates.customerName = loan.customerName;
+      updates.loanNumber = loan.loanNumber;
 
       // Update EMI amount for pending/partially paid EMIs
       if (emi.status !== "Paid") {
