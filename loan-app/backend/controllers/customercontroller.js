@@ -206,7 +206,8 @@ const updateEMI = asyncHandler(async (req, res, next) => {
 
   // CALCULATE DELTAS FOR IMMUTABLE TRANSACTION RECORDING
   const oldEmiSum = parseFloat(emi.amountPaid) || 0;
-  const oldOverdueSum = (emi.overdue || []).reduce((acc, ov) => acc + (parseFloat(ov.amount) || 0), 0);
+  const overdueArray = Array.isArray(emi.overdue) ? emi.overdue : [];
+  const oldOverdueSum = overdueArray.reduce((acc, ov) => acc + (parseFloat(ov.amount) || 0), 0);
 
   // Update properties on the document directly (before bucket logic)
   if (overdue !== undefined) emi.overdue = overdue;
@@ -239,7 +240,8 @@ const updateEMI = asyncHandler(async (req, res, next) => {
 
   // --- GRANULAR MULTI-TRANSACTION LOGIC ---
   const newEmiSum = emi.paymentHistory.reduce((acc, curr) => acc + curr.amount, 0);
-  const newOverdueSum = (overdue || []).reduce((acc, ov) => acc + (parseFloat(ov.amount) || 0), 0);
+  const currentOverdueArray = Array.isArray(overdue) ? overdue : [];
+  const newOverdueSum = currentOverdueArray.reduce((acc, ov) => acc + (parseFloat(ov.amount) || 0), 0);
 
   // 1. Group Old/New by Date Only (to merge different modes in one row per date)
   const getGroupKey = (date) => {
@@ -282,12 +284,23 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   
   // Let's re-fetch the original to be 100% accurate for deltas
   const originalEmi = await EMI.findById(id).lean();
-  (originalEmi.paymentHistory || []).forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, false));
-  (originalEmi.overdue || []).forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, false));
+  
+  if (Array.isArray(originalEmi.paymentHistory)) {
+    originalEmi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, false));
+  }
+  
+  if (Array.isArray(originalEmi.overdue)) {
+    originalEmi.overdue.forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, false));
+  }
 
   // Process New state (add to buckets)
-  (emi.paymentHistory || []).forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, true));
-  (emi.overdue || []).forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, true));
+  if (Array.isArray(emi.paymentHistory)) {
+    emi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, true));
+  }
+  
+  if (Array.isArray(emi.overdue)) {
+    emi.overdue.forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, true));
+  }
 
   // Create Payment records for each bucket with a non-zero delta
   for (const key in buckets) {

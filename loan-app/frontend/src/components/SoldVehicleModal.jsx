@@ -163,7 +163,7 @@ const SoldVehicleModal = ({ isOpen, onClose, onConfirm, loan }) => {
                   </span>
                 </div>
               </div>
-
+               
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep(1)}
