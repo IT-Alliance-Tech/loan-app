@@ -332,27 +332,29 @@ const DailyLoanPendingViewPage = ({ params: paramsPromise }) => {
                   </div>
 
                   {/* Status Update Section */}
-                  <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200 relative">
-                    {loan.updatedBy && (
-                      <div className="absolute top-4 right-4 flex flex-col items-end pointer-events-none">
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
-                          Last Updated By
-                        </span>
-                        <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
-                          <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
-                            {loan.updatedBy}
+                  <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                        Status Update (Client Response)
+                      </h3>
+                      {loan.updatedBy && (
+                        <div className="flex flex-col items-start md:items-end pointer-events-none">
+                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                            Last Updated By
                           </span>
-                          <span className="w-1 h-1 rounded-full bg-red-500/40" />
-                          <span className="text-[9px] font-bold text-slate-400 font-mono">
-                            {loan.updatedAt &&
-                              format(new Date(loan.updatedAt), "dd/MM/yy HH:mm")}
-                          </span>
+                          <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
+                            <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                              {loan.updatedBy}
+                            </span>
+                            <span className="w-1 h-1 rounded-full bg-red-500/40" />
+                            <span className="text-[9px] font-bold text-slate-400 font-mono">
+                              {loan.updatedAt &&
+                                format(new Date(loan.updatedAt), "dd/MM/yy HH:mm")}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">
-                      Status Update (Client Response)
-                    </h3>
+                      )}
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                       <div className="space-y-2">
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">
