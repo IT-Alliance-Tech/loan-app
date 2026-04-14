@@ -31,7 +31,7 @@ const ForeclosurePage = () => {
   });
 
   const [paymentData, setPaymentData] = useState({
-    paymentBreakdown: [{ mode: "CASH", amount: 0 }],
+    paymentBreakdown: [{ mode: "CASH", amount: 0, chequeNumber: "" }],
     paymentDate: new Date().toISOString().split("T")[0],
   });
 
@@ -95,9 +95,15 @@ const ForeclosurePage = () => {
   const handlePaymentChange = (index, field, value) => {
     setPaymentData((prev) => {
       const newBreakdown = [...prev.paymentBreakdown];
+      let finalValue = value;
+      if (field === "amount") {
+        finalValue = parseFloat(value) || 0;
+      } else if (field === "chequeNumber") {
+        finalValue = value.replace(/\D/g, "");
+      }
       newBreakdown[index] = {
         ...newBreakdown[index],
-        [field]: field === "amount" ? parseFloat(value) || 0 : value,
+        [field]: finalValue,
       };
       return { ...prev, paymentBreakdown: newBreakdown };
     });
@@ -106,7 +112,7 @@ const ForeclosurePage = () => {
   const addPaymentRow = () => {
     setPaymentData((prev) => ({
       ...prev,
-      paymentBreakdown: [...prev.paymentBreakdown, { mode: "CASH", amount: 0 }],
+      paymentBreakdown: [...prev.paymentBreakdown, { mode: "CASH", amount: 0, chequeNumber: "" }],
     }));
   };
 
@@ -133,7 +139,19 @@ const ForeclosurePage = () => {
     );
     if (totalReceived < totalAmount - 0.1) {
       showToast("Received amount is less than total amount", "error");
+      setLoading(false);
       return;
+    }
+
+    // Validation for Cheque Numbers
+    for (const p of paymentData.paymentBreakdown) {
+      if (p.mode === "CHEQUE") {
+        if (!p.chequeNumber || p.chequeNumber.length !== 6) {
+          showToast("Cheque number must be exactly 6 digits", "error");
+          setLoading(false);
+          return;
+        }
+      }
     }
 
     try {
@@ -593,8 +611,6 @@ const ForeclosurePage = () => {
                                 >
                                   <option value="CASH">CASH</option>
                                   <option value="BANK">BANK</option>
-                                  <option value="GPAY">GPAY</option>
-                                  <option value="PHONEPE">PHONEPE</option>
                                   <option value="PAYTM">PAYTM</option>
                                   <option value="CHEQUE">CHEQUE</option>
                                   <option value="OTHERS">OTHERS</option>
@@ -617,6 +633,25 @@ const ForeclosurePage = () => {
                                     placeholder="0.00"
                                   />
                                 </div>
+                                {row.mode === "CHEQUE" && (
+                                  <div className="flex-1">
+                                    <input
+                                      type="text"
+                                      maxLength="6"
+                                      value={row.chequeNumber || ""}
+                                      onChange={(e) =>
+                                        handlePaymentChange(
+                                          index,
+                                          "chequeNumber",
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="w-full px-3 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-black text-slate-700 focus:outline-none focus:border-primary/20 font-mono"
+                                      placeholder="Cheque No."
+                                      required
+                                    />
+                                  </div>
+                                )}
                                 {paymentData.paymentBreakdown.length > 1 && (
                                   <button
                                     onClick={() => removePaymentRow(index)}

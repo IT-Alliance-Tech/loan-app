@@ -99,7 +99,7 @@ const LoanPendingViewPage = () => {
       {
         id: Date.now(),
         date: new Date().toISOString().split("T")[0],
-        payments: [{ id: Date.now() + 1, mode: "", amount: "" }],
+        payments: [{ id: Date.now() + 1, mode: "CASH", amount: "", chequeNumber: "" }],
       },
     ]);
   };
@@ -112,7 +112,7 @@ const LoanPendingViewPage = () => {
             ...group,
             payments: [
               ...group.payments,
-              { id: Date.now(), mode: "", amount: "" },
+              { id: Date.now(), mode: "CASH", amount: "", chequeNumber: "" },
             ],
           };
         }
@@ -197,6 +197,19 @@ const LoanPendingViewPage = () => {
         ...editData,
         dateGroups: sanitizedDateGroups,
       };
+
+      // Validation for Cheque Numbers
+      for (const group of sanitizedDateGroups) {
+        for (const p of group.payments) {
+          if (p.mode === "Cheque") {
+            if (!p.chequeNumber || p.chequeNumber.length !== 6) {
+              showToast("Cheque number must be exactly 6 digits", "error");
+              setUpdating(false);
+              return;
+            }
+          }
+        }
+      }
 
       await updateEMI(selectedEmi._id, payload);
       showToast("EMI updated successfully", "success");
@@ -802,6 +815,54 @@ const LoanPendingViewPage = () => {
                                       }
                                     />
                                   </div>
+                                  {payment.mode === "Cheque" && (
+                                    <div className="md:col-span-2">
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                        Cheque Number (6 Digits)
+                                      </label>
+                                      <input
+                                        type="text"
+                                        maxLength="6"
+                                        value={payment.chequeNumber || ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value.replace(/\D/g, "");
+                                          handlePaymentChange(
+                                            group.id,
+                                            payment.id,
+                                            "chequeNumber",
+                                            val,
+                                          );
+                                        }}
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300 font-mono"
+                                        placeholder="123456"
+                                        required
+                                      />
+                                    </div>
+                                  )}
+                                  {payment.mode === "Cheque" && (
+                                    <div className="md:col-span-2">
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                        Cheque Number (6 Digits)
+                                      </label>
+                                      <input
+                                        type="text"
+                                        maxLength="6"
+                                        value={payment.chequeNumber || ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value.replace(/\D/g, "");
+                                          handlePaymentChange(
+                                            group.id,
+                                            payment.id,
+                                            "chequeNumber",
+                                            val,
+                                          );
+                                        }}
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300 font-mono"
+                                        placeholder="123456"
+                                        required
+                                      />
+                                    </div>
+                                  )}
                                   <div className="flex gap-2 items-end">
                                     <div className="flex-1">
                                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">

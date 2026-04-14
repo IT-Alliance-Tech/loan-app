@@ -31,7 +31,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
     setEditingEmi(emi);
     setEditData({
       overdue: (emi.overdue && emi.overdue.length > 0)
-        ? emi.overdue.map(ov => ({ ...ov, id: Math.random(), mode: ov.mode || "CASH" }))
+        ? emi.overdue.map(ov => ({ ...ov, id: Math.random(), mode: ov.mode || "CASH", chequeNumber: ov.chequeNumber || "" }))
         : [],
       status: emi.status || "Pending",
       remarks: emi.remarks || "",
@@ -53,6 +53,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
           id: Math.random(),
           mode: p.mode,
           amount: p.amount,
+          chequeNumber: p.chequeNumber || "",
         });
       });
       setDateGroups(Object.values(groups));
@@ -69,6 +70,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
               id: Date.now() + 1,
               mode: (emi.paymentMode || "").split(", ")[0] || "CASH",
               amount: emi.amountPaid,
+              chequeNumber: "",
             },
           ],
         },
@@ -78,7 +80,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
         {
           id: Date.now(),
           date: new Date().toISOString().split("T")[0],
-          payments: [{ id: Date.now() + 1, mode: "CASH", amount: "" }],
+          payments: [{ id: Date.now() + 1, mode: "CASH", amount: "", chequeNumber: "" }],
         },
       ]);
     }
@@ -91,7 +93,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
       {
         id: Date.now(),
         date: new Date().toISOString().split("T")[0],
-        payments: [{ id: Date.now() + 1, mode: "", amount: "" }],
+        payments: [{ id: Date.now() + 1, mode: "CASH", amount: "", chequeNumber: "" }],
       },
     ]);
   };
@@ -104,7 +106,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
             ...group,
             payments: [
               ...group.payments,
-              { id: Date.now(), mode: "", amount: "" },
+              { id: Date.now(), mode: "CASH", amount: "", chequeNumber: "" },
             ],
           };
         }
@@ -188,9 +190,32 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
         }))
         .filter((group) => group.payments.length > 0);
 
+      // Validation for Cheque Numbers
+      for (const group of sanitizedDateGroups) {
+        for (const p of group.payments) {
+          if (p.mode === "Cheque") {
+            if (!p.chequeNumber || p.chequeNumber.length !== 6) {
+              showToast("Cheque number must be exactly 6 digits", "error");
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      }
+
       const sanitizedOverdue = editData.overdue
         .filter(ov => ov.amount && parseFloat(ov.amount) > 0)
-        .map(({ date, amount, mode }) => ({ date, amount, mode }));
+        .map(({ date, amount, mode, chequeNumber }) => ({ date, amount, mode, chequeNumber }));
+
+      for (const ov of sanitizedOverdue) {
+        if (ov.mode === "Cheque") {
+          if (!ov.chequeNumber || ov.chequeNumber.length !== 6) {
+            showToast("Overdue Cheque number must be exactly 6 digits", "error");
+            setLoading(false);
+            return;
+          }
+        }
+      }
 
       await updateEMI(editingEmi._id, {
         ...editData,
@@ -222,7 +247,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
       ...prev,
       overdue: [
         ...prev.overdue,
-        { id: Date.now(), date: new Date().toISOString().split("T")[0], amount: "", mode: "CASH" },
+        { id: Date.now(), date: new Date().toISOString().split("T")[0], amount: "", mode: "CASH", chequeNumber: "" },
       ],
     }));
   };
@@ -529,6 +554,30 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                                 }
                               />
                             </div>
+                            {payment.mode === "Cheque" && (
+                              <div className="md:col-span-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                  Cheque Number (6 Digits)
+                                </label>
+                                <input
+                                  type="text"
+                                  maxLength="6"
+                                  value={payment.chequeNumber || ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "");
+                                    handlePaymentChange(
+                                      group.id,
+                                      payment.id,
+                                      "chequeNumber",
+                                      val,
+                                    );
+                                  }}
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300 font-mono"
+                                  placeholder="123456"
+                                  required
+                                />
+                              </div>
+                            )}
                             <div className="flex gap-2 items-end">
                               <div className="flex-1">
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
@@ -660,6 +709,25 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                               onChange={(val) => handleOverdueChange(ov.id, "mode", val)}
                             />
                           </div>
+                          {ov.mode === "Cheque" && (
+                            <div className="md:col-span-2">
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                Cheque Number (6 Digits)
+                              </label>
+                              <input
+                                type="text"
+                                maxLength="6"
+                                value={ov.chequeNumber || ""}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, "");
+                                  handleOverdueChange(ov.id, "chequeNumber", val);
+                                }}
+                                className="w-full px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm font-bold text-red-600 focus:outline-none focus:ring-4 focus:ring-red-500/10 transition-all font-mono"
+                                placeholder="123456"
+                                required
+                              />
+                            </div>
+                          )}
                           <div className="flex-1">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
                               Amount

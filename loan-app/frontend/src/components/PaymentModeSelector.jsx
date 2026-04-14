@@ -9,7 +9,7 @@ const PaymentModeSelector = ({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
-  const modes = ["Cash", "Online", "GPay", "PhonePe", "Cheque"];
+  const modes = ["Cash", "Online", "Cheque"];
 
   const selectedModes = value
     ? value

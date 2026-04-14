@@ -51,6 +51,7 @@ const emiSchema = new mongoose.Schema(
           date: { type: Date, required: true },
           amount: { type: Number, required: true },
           mode: { type: String, default: "CASH" },
+          chequeNumber: { type: String, default: "" },
         },
       ],
       default: [],
@@ -68,6 +69,7 @@ const emiSchema = new mongoose.Schema(
       {
         amount: { type: Number, required: true },
         mode: { type: String, required: true },
+        chequeNumber: { type: String, default: "" },
         date: { type: Date, required: true },
         addedAt: { type: Date, default: Date.now },
       },
