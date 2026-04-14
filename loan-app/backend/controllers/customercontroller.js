@@ -224,6 +224,7 @@ const updateEMI = asyncHandler(async (req, res, next) => {
             emi.paymentHistory.push({
               amount: amount,
               mode: p.mode || "CASH",
+              chequeNumber: p.chequeNumber || "",
               date: new Date(group.date),
             });
           }
@@ -259,12 +260,13 @@ const updateEMI = asyncHandler(async (req, res, next) => {
 
   // Strategy: Group everything by (date, mode) and calculate deltas for each bucket.
   const buckets = {};
-  const addToBucket = (date, mode, type, amount, isNew) => {
+  const addToBucket = (date, mode, chequeNumber, type, amount, isNew) => {
     const key = getGroupKey(date);
     if (!buckets[key]) {
       buckets[key] = {
         date: normalizeToMidnight(new Date(date)),
         modes: new Set(),
+        chequeNumbers: new Set(),
         emiDelta: 0,
         overdueDelta: 0,
       };
@@ -273,8 +275,9 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     if (type === "EMI") buckets[key].emiDelta += isNew ? val : -val;
     else buckets[key].overdueDelta += isNew ? val : -val;
 
-    if (isNew && val > 0 && mode) {
-      buckets[key].modes.add(mode.toUpperCase());
+    if (isNew && val > 0) {
+      if (mode) buckets[key].modes.add(mode.toUpperCase());
+      if (chequeNumber) buckets[key].chequeNumbers.add(chequeNumber);
     }
   };
 
@@ -286,20 +289,20 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   const originalEmi = await EMI.findById(id).lean();
   
   if (Array.isArray(originalEmi.paymentHistory)) {
-    originalEmi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, false));
+    originalEmi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, p.chequeNumber, 'EMI', p.amount, false));
   }
   
   if (Array.isArray(originalEmi.overdue)) {
-    originalEmi.overdue.forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, false));
+    originalEmi.overdue.forEach(p => addToBucket(p.date, p.mode, p.chequeNumber, 'Overdue', p.amount, false));
   }
 
   // Process New state (add to buckets)
   if (Array.isArray(emi.paymentHistory)) {
-    emi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, true));
+    emi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, p.chequeNumber, 'EMI', p.amount, true));
   }
   
   if (Array.isArray(emi.overdue)) {
-    emi.overdue.forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, true));
+    emi.overdue.forEach(p => addToBucket(p.date, p.mode, p.chequeNumber, 'Overdue', p.amount, true));
   }
 
   // Create Payment records for each bucket with a non-zero delta
@@ -308,7 +311,10 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     const totalDelta = emiDelta + overdueDelta;
 
     if (totalDelta !== 0 || emiDelta !== 0 || overdueDelta !== 0) {
+      const { date, modes, chequeNumbers } = buckets[key];
       const combinedMode = modes.size > 0 ? Array.from(modes).join(", ") : "CASH";
+      const combinedChequeNo = chequeNumbers.size > 0 ? Array.from(chequeNumbers).join(", ") : "";
+
       await Payment.create({
         emiId: emi._id,
         loanId: emi.loanId,
@@ -318,6 +324,7 @@ const updateEMI = asyncHandler(async (req, res, next) => {
         totalAmount: totalDelta,
         amount: totalDelta, // Legacy fallback
         mode: combinedMode,
+        chequeNumber: combinedChequeNo,
         paymentDate: date,
         paymentType:
           emi.loanModel === "DailyLoan"
