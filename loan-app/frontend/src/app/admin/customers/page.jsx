@@ -279,12 +279,7 @@ const CustomersPage = () => {
                         <th className="w-[120px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
                           CONTACTS
                         </th>
-                        <th className="px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
-                          GUARANTOR
-                        </th>
-                        <th className="w-[120px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider">
-                          GUAR. MOBILE
-                        </th>
+
                         <th className="w-[100px] px-4 py-4 text-[9px] font-black text-slate-400 tracking-wider text-right">
                           MONTHLY EMI
                         </th>
@@ -300,7 +295,7 @@ const CustomersPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="9"
+                            colSpan="7"
                             className="px-4 py-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest"
                           >
                             Synchronizing Registry...
@@ -309,7 +304,7 @@ const CustomersPage = () => {
                       ) : filteredCustomers.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="9"
+                            colSpan="7"
                             className="px-4 py-12 text-center text-slate-300 font-bold uppercase text-[10px] tracking-widest"
                           >
                             No records
@@ -354,36 +349,7 @@ const CustomersPage = () => {
                                 ))}
                               </div>
                             </td>
-                            <td className="px-4 py-5">
-                              <span className="font-black text-slate-900 uppercase text-xs block truncate">
-                                {cust.guarantorName || "—"}
-                              </span>
-                            </td>
-                            <td className="px-4 py-5 font-bold text-slate-500 text-[10px] whitespace-nowrap">
-                              <div className="flex flex-col gap-0.5">
-                                {(cust.guarantorMobileNumbers || []).map(
-                                  (num, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={(e) => {
-                                        const rect =
-                                          e.currentTarget.getBoundingClientRect();
-                                        setActiveContactMenu({
-                                          number: num,
-                                          name: cust.guarantorName,
-                                          type: "Guarantor",
-                                          x: rect.left,
-                                          y: rect.bottom,
-                                        });
-                                      }}
-                                      className="hover:text-primary transition-colors text-left"
-                                    >
-                                      {num}
-                                    </button>
-                                  ),
-                                )}
-                              </div>
-                            </td>
+
                             <td className="px-4 py-5 text-right font-black text-slate-900 text-[11px] whitespace-nowrap">
                               ₹{cust.monthlyEMI?.toLocaleString()}
                             </td>
@@ -489,9 +455,7 @@ const CustomersPage = () => {
                       <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         Contact
                       </th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        Guarantor
-                      </th>
+
                       <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
                         Monthly EMI
                       </th>
@@ -507,7 +471,7 @@ const CustomersPage = () => {
                     {loading ? (
                       <tr>
                         <td
-                          colSpan="6"
+                          colSpan="5"
                           className="px-6 py-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest"
                         >
                           Synchronizing Registry...
@@ -516,7 +480,7 @@ const CustomersPage = () => {
                     ) : filteredCustomers.length === 0 ? (
                       <tr>
                         <td
-                          colSpan="6"
+                          colSpan="5"
                           className="px-6 py-12 text-center text-slate-300 font-bold uppercase text-[10px] tracking-widest"
                         >
                           No matching records identified
@@ -559,34 +523,7 @@ const CustomersPage = () => {
                               ))}
                             </div>
                           </td>
-                          <td className="px-6 py-4 font-bold text-slate-500 text-xs">
-                            <span className="font-black text-slate-900 uppercase text-xs block mb-1">
-                              {cust.guarantorName || "—"}
-                            </span>
-                            <div className="flex flex-col gap-1 items-start">
-                              {(cust.guarantorMobileNumbers || []).map(
-                                (num, idx) => (
-                                  <button
-                                    key={idx}
-                                    onClick={(e) => {
-                                      const rect =
-                                        e.currentTarget.getBoundingClientRect();
-                                      setActiveContactMenu({
-                                        number: num,
-                                        name: cust.guarantorName,
-                                        type: "Guarantor",
-                                        x: rect.left,
-                                        y: rect.bottom,
-                                      });
-                                    }}
-                                    className="hover:text-primary transition-colors"
-                                  >
-                                    {num}
-                                  </button>
-                                ),
-                              )}
-                            </div>
-                          </td>
+
                           <td className="px-6 py-4 text-right">
                             <span className="font-black text-slate-900 text-xs">
                               ₹{cust.monthlyEMI?.toLocaleString()}
