@@ -35,9 +35,31 @@ const DailyFollowupList = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(25);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const { showToast } = useToast();
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  // Load saved filters on mount
+  useEffect(() => {
+    const savedFilters = localStorage.getItem("dailyFollowupFilters");
+    if (savedFilters) {
+      try {
+        const parsed = JSON.parse(savedFilters);
+        setFilters((prev) => ({ ...prev, ...parsed }));
+      } catch (e) {
+        console.error("Failed to parse saved filters", e);
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // Save filters on change
+  useEffect(() => {
+    if (isInitialized) {
+      localStorage.setItem("dailyFollowupFilters", JSON.stringify(filters));
+    }
+  }, [filters, isInitialized]);
 
   const fetchFollowups = async () => {
     try {
@@ -104,10 +126,10 @@ const DailyFollowupList = () => {
       startDate: today,
       endDate: today,
     });
+    localStorage.removeItem("dailyFollowupFilters");
     setSearchQuery("");
     setCurrentPage(1);
   };
-
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-start mb-8">
@@ -413,6 +435,7 @@ const DailyFollowupList = () => {
         contact={activeContactMenu}
         onClose={() => setActiveContactMenu(null)}
       />
+
     </div>
   );
 };
