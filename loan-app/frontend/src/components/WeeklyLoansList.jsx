@@ -10,7 +10,9 @@ import { useToast } from "../context/ToastContext";
 import { format } from "date-fns";
 import TableActionMenu from "./TableActionMenu";
 import Pagination from "./Pagination";
+import { Trash2 } from "lucide-react";
 import { exportLoansToExcel } from "../utils/excelExport";
+import ContactActionMenu from "./ContactActionMenu";
 import { getUserFromToken } from "../utils/auth";
 
 const WeeklyLoansList = ({ type, title }) => {
@@ -21,9 +23,10 @@ const WeeklyLoansList = ({ type, title }) => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [limit] = useState(10);
+  const [limit] = useState(25);
   const { showToast } = useToast();
   const [selectedRowId, setSelectedRowId] = useState(null);
+  const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
 
   const toggleHighlight = (e, id) => {
     // Don't toggle if clicking a link or button directly
@@ -292,7 +295,7 @@ const WeeklyLoansList = ({ type, title }) => {
                         }`}
                       >
                         <Link
-                          href={`/admin/weekly-loans/${loan._id}`}
+                          href={`/admin/weekly-loans/edit/${loan._id}`}
                           className="text-[10px] font-black text-primary uppercase tracking-tighter bg-blue-50 px-2 py-1 rounded-md"
                         >
                           {loan.loanNumber}
@@ -304,9 +307,26 @@ const WeeklyLoansList = ({ type, title }) => {
                         </span>
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
-                        <span className="text-slate-600 font-bold text-[10px]">
-                          {loan.mobileNumbers?.[0] || loan.mobileNumber}
-                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          {(loan.mobileNumbers || [loan.mobileNumber]).map((num, idx) => (
+                            <button
+                              key={idx}
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setActiveContactMenu({
+                                  number: num,
+                                  name: loan.customerName,
+                                  type: "Applicant",
+                                  x: rect.left,
+                                  y: rect.bottom,
+                                });
+                              }}
+                              className="text-[10px] font-bold text-primary hover:underline transition-colors text-left"
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
                         <span className="font-black text-slate-900 text-xs uppercase tracking-tighter">
@@ -314,9 +334,28 @@ const WeeklyLoansList = ({ type, title }) => {
                         </span>
                       </td>
                       <td className="px-4 py-5 whitespace-nowrap">
-                        <span className="text-slate-600 font-bold text-[10px]">
-                          {loan.guarantorMobileNumbers?.[0] || loan.guarantorMobile || "—"}
-                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          {(loan.guarantorMobileNumbers || [loan.guarantorMobile]).map((num, idx) => 
+                            num ? (
+                              <button
+                                key={idx}
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setActiveContactMenu({
+                                    number: num,
+                                    name: loan.guarantorName,
+                                    type: "Guarantor",
+                                    x: rect.left,
+                                    y: rect.bottom,
+                                  });
+                                }}
+                                className="text-[10px] font-bold text-primary hover:underline transition-colors text-left"
+                              >
+                                {num}
+                              </button>
+                            ) : idx === 0 ? "—" : null
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-5 text-center whitespace-nowrap">
                         <div className="flex flex-col items-center">
@@ -404,6 +443,15 @@ const WeeklyLoansList = ({ type, title }) => {
                                   d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                                 />
                               </svg>
+                            </button>
+                          )}
+                          {isSuperAdmin && (
+                            <button
+                              onClick={() => handleDelete(loan._id)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 border border-red-100"
+                              title="Delete Loan"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
@@ -494,7 +542,7 @@ const WeeklyLoansList = ({ type, title }) => {
                       }`}
                     >
                       <Link
-                        href={`/admin/weekly-loans/${loan._id}`}
+                        href={`/admin/weekly-loans/edit/${loan._id}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
                       >
                         {loan.loanNumber}
@@ -506,14 +554,50 @@ const WeeklyLoansList = ({ type, title }) => {
                       </span>
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
-                      <span className="text-slate-600 font-bold text-xs tracking-widest">
-                        {loan.mobileNumbers?.[0] || loan.mobileNumber}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        {(loan.mobileNumbers || [loan.mobileNumber]).map((num, idx) => (
+                          <button
+                            key={idx}
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActiveContactMenu({
+                                number: num,
+                                name: loan.customerName,
+                                type: "Applicant",
+                                x: rect.left,
+                                y: rect.bottom,
+                              });
+                            }}
+                            className="text-slate-600 font-bold text-xs tracking-widest hover:text-primary transition-colors text-left"
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <span className="font-extrabold text-slate-800 text-xs uppercase tracking-tight">
-                        {loan.guarantorName || "—"}
-                      </span>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-1 items-start">
+                        {(loan.guarantorMobileNumbers || [loan.guarantorMobile]).map((num, idx) => 
+                          num ? (
+                            <button
+                              key={idx}
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setActiveContactMenu({
+                                  number: num,
+                                  name: loan.guarantorName,
+                                  type: "Guarantor",
+                                  x: rect.left,
+                                  y: rect.bottom,
+                                });
+                              }}
+                              className="text-slate-600 font-bold text-xs tracking-widest hover:text-primary transition-colors text-left"
+                            >
+                              {num}
+                            </button>
+                          ) : idx === 0 ? "—" : null
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap font-black text-primary text-xs">
                       ₹{loan.emiAmount?.toLocaleString()}
@@ -603,6 +687,15 @@ const WeeklyLoansList = ({ type, title }) => {
                             </svg>
                           </Link>
                         )}
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => handleDelete(loan._id)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:text-red-600 border border-red-100 transition-all"
+                            title="Delete Loan"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -623,6 +716,11 @@ const WeeklyLoansList = ({ type, title }) => {
           limit={limit}
         />
       )}
+
+      <ContactActionMenu
+        contact={activeContactMenu}
+        onClose={() => setActiveContactMenu(null)}
+      />
     </div>
   );
 };

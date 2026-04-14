@@ -20,7 +20,6 @@ const emiSchema = new mongoose.Schema(
     },
     customerName: {
       type: String,
-      required: true,
       trim: true,
     },
     emiNumber: {
@@ -47,8 +46,14 @@ const emiSchema = new mongoose.Schema(
       type: Date,
     },
     overdue: {
-      type: Number,
-      default: 0,
+      type: [
+        {
+          date: { type: Date, required: true },
+          amount: { type: Number, required: true },
+          mode: { type: String, default: "CASH" },
+        },
+      ],
+      default: [],
     },
     status: {
       type: String,

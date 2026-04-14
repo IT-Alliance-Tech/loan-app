@@ -353,9 +353,20 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">
-                          Follow-up Date
-                        </label>
+                        <div className="flex justify-between items-center px-1">
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            Follow-up Date
+                          </label>
+                          {newFollowUpDate && (
+                            <button
+                              type="button"
+                              onClick={() => setNewFollowUpDate("")}
+                              className="text-[9px] font-black uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
                         <input
                           type="date"
                           value={newFollowUpDate}
@@ -595,9 +606,20 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
                           >
                             <div className="flex items-center justify-between gap-4">
                               <div className="flex-1">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                                  Payment Date
-                                </label>
+                                <div className="flex justify-between items-center px-1 mb-2">
+                                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Payment Date
+                                  </label>
+                                  {group.date && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleGroupDateChange(group.id, "")}
+                                      className="text-[9px] font-black uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors"
+                                    >
+                                      Clear
+                                    </button>
+                                  )}
+                                </div>
                                 <input
                                   type="date"
                                   value={group.date}

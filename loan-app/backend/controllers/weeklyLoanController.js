@@ -1,8 +1,12 @@
 const mongoose = require("mongoose");
 const WeeklyLoan = require("../models/WeeklyLoan");
+const Loan = require("../models/Loan");
+const DailyLoan = require("../models/DailyLoan");
 const EMI = require("../models/EMI");
 const ClosedLoan = require("../models/ClosedLoan");
 const Followup = require("../models/Followup");
+const Payment = require("../models/Payment");
+const SeizedVehicle = require("../models/SeizedVehicle");
 const ErrorHandler = require("../utils/ErrorHandler");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
@@ -16,6 +20,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     disbursementAmount,
     startDate,
+    dateLoanDisbursed,
     totalEmis,
     paidEmis,
     nextFollowUpDate,
@@ -28,51 +33,50 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     guarantorMobileNumbers,
   } = req.body;
 
-  if (
-    !loanNumber ||
-    !customerName ||
-    !mobileNumbers ||
-    !mobileNumbers.length ||
-    !disbursementAmount ||
-    !startDate ||
-    !totalEmis
-  ) {
-    return next(new ErrorHandler("Please provide all required fields", 400));
+  if (!loanNumber) {
+    return next(new ErrorHandler("Loan number is required", 400));
   }
 
-  const existingLoan = await WeeklyLoan.findOne({ loanNumber });
-  if (existingLoan) {
+  const existingLoan = await Promise.all([
+    Loan.findOne({ loanNumber }),
+    WeeklyLoan.findOne({ loanNumber }),
+    DailyLoan.findOne({ loanNumber }),
+  ]);
+
+  if (existingLoan.some((loan) => loan !== null)) {
     return next(new ErrorHandler("Loan number already exists", 400));
   }
 
   // Calculations
-  const amount = parseFloat(disbursementAmount);
-  const totalWeeks = parseInt(totalEmis);
+  const amount = parseFloat(disbursementAmount) || 0;
+  const totalWeeks = parseInt(totalEmis) || 0;
   const feeRate = parseFloat(processingFeeRate) || 10;
   const currentPaidEmis = parseInt(paidEmis) || 0;
 
   // Processing Fee
-  const processingFee = amount * (feeRate / 100);
+  const processingFee = Math.ceil(amount * (feeRate / 100));
 
   // Interest Calculation (Removed as requested)
-  const weeklyPrincipal = amount / totalWeeks;
+  const weeklyPrincipal = totalWeeks > 0 ? amount / totalWeeks : 0;
   const emiAmount = Math.ceil(weeklyPrincipal);
   const totalInterestAmount = 0;
 
   // Dates
-  const disburseDate = new Date(startDate);
+  const disburseDate = startDate ? new Date(startDate) : null;
   const eStartDate = emiStartDate
     ? new Date(emiStartDate)
-    : new Date(disburseDate);
-  const nextEmiDate = new Date(eStartDate);
+    : (disburseDate ? new Date(disburseDate) : null);
+  const nextEmiDate = eStartDate;
 
-  const eEndDate = new Date(eStartDate);
-  eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
+  const eEndDate = eStartDate ? new Date(eStartDate) : null;
+  if (eEndDate && totalWeeks > 0) {
+    eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
+  }
 
-  const totalAmount = emiAmount * currentPaidEmis;
-  const totalCollected = totalAmount + processingFee;
+  const totalAmount = Math.ceil(emiAmount * currentPaidEmis + (parseFloat(req.body.odAmount) || 0));
+  const totalCollected = Math.ceil(totalAmount + processingFee);
   const remainingEmis = totalWeeks - currentPaidEmis;
-  const remainingPrincipalAmount = amount - (emiAmount * currentPaidEmis); // Using rounded EMI
+  const remainingPrincipalAmount = Math.ceil(amount - (emiAmount * currentPaidEmis)); // Using rounded EMI
 
   const weeklyLoan = await WeeklyLoan.create({
     loanNumber,
@@ -80,6 +84,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     disbursementAmount: amount,
     startDate: disburseDate,
+    dateLoanDisbursed: dateLoanDisbursed ? new Date(dateLoanDisbursed) : disburseDate,
     emiStartDate: eStartDate,
     emiEndDate: eEndDate,
     totalEmis: totalWeeks,
@@ -106,9 +111,10 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
 
   // Generate EMIs
   const emis = [];
-  let currentEmiDateArr = new Date(eStartDate);
+  if (eStartDate) {
+    let currentEmiDateArr = new Date(eStartDate);
 
-  for (let i = 1; i <= parseInt(totalEmis); i++) {
+    for (let i = 1; i <= totalWeeks; i++) {
     const isPaid = i <= currentPaidEmis;
     emis.push({
       loanId: weeklyLoan._id,
@@ -122,11 +128,34 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
       amountPaid: isPaid ? emiAmount : 0,
       paymentDate: isPaid ? new Date(eStartDate) : null,
       paymentMode: isPaid ? "CASH" : "",
+      overdue: [],
     });
     currentEmiDateArr.setDate(currentEmiDateArr.getDate() + 7);
+    }
   }
 
-  await EMI.insertMany(emis);
+  if (emis.length > 0) {
+    await EMI.insertMany(emis);
+  }
+
+  // Create Payment record for processing fee if applicable
+  if (weeklyLoan.processingFee && parseFloat(weeklyLoan.processingFee) > 0) {
+    try {
+      await Payment.create({
+        loanId: weeklyLoan._id,
+        loanModel: "WeeklyLoan",
+        amount: parseFloat(weeklyLoan.processingFee),
+        mode: "CASH",
+        paymentDate: weeklyLoan.startDate || new Date(),
+        paymentType: "Processing Fee",
+        status: "Success",
+        remarks: "Loan Processing Fee",
+        collectedBy: req.user._id,
+      });
+    } catch (err) {
+      console.error("Error creating processing fee payment record:", err);
+    }
+  }
 
   sendResponse(
     res,
@@ -168,9 +197,9 @@ exports.getWeeklyLoanEMIs = asyncHandler(async (req, res, next) => {
         customerName: weeklyLoan.customerName,
         emiNumber: i,
         dueDate: new Date(currentEmiDateArr),
-        emiAmount: emiAmt.toFixed(2),
+        emiAmount: Math.ceil(emiAmt),
         status: isPaid ? "Paid" : "Pending",
-        amountPaid: isPaid ? emiAmt.toFixed(2) : 0,
+        amountPaid: isPaid ? Math.ceil(emiAmt) : 0,
         paymentDate: isPaid ? new Date(weeklyLoan.startDate) : null,
         paymentMode: isPaid ? "CASH" : "",
       });
@@ -185,7 +214,7 @@ exports.getWeeklyLoanEMIs = asyncHandler(async (req, res, next) => {
 
 // Get All Weekly Loans
 exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
-  const { status, followup, searchQuery, page = 1, limit = 10 } = req.query;
+  const { status, followup, searchQuery, page = 1, limit = 25 } = req.query;
   const query = {};
 
   if (status) {
@@ -207,11 +236,119 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
 
   const skip = (page - 1) * limit;
   const total = await WeeklyLoan.countDocuments(query);
-  const weeklyLoans = await WeeklyLoan.find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(Number(limit))
-    .populate("updatedBy", "name");
+  const weeklyLoans = await WeeklyLoan.aggregate([
+    { $match: query },
+    { $sort: { createdAt: -1 } },
+    { $skip: skip },
+    { $limit: Number(limit) },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "_id",
+        foreignField: "loanId",
+        as: "emis",
+      },
+    },
+    {
+      $addFields: {
+        repaymentStats: {
+          totalCollected: {
+            $add: [
+              { $sum: { $ifNull: ["$emis.amountPaid", [0]] } },
+              { 
+                $reduce: {
+                  input: "$emis",
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+                    ]
+                  }
+                }
+              },
+              { $ifNull: ["$processingFee", 0] },
+            ],
+          },
+          overdueAmount: {
+            $reduce: {
+              input: "$emis",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+                ]
+              }
+            }
+          },
+          arrearsAmount: {
+            $reduce: {
+              input: "$emis",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $cond: [
+                      {
+                        $and: [
+                          { $ne: ["$$this.status", "Paid"] },
+                          { $lt: ["$$this.dueDate", new Date()] },
+                          { $eq: ["$$this.loanModel", "WeeklyLoan"] },
+                        ],
+                      },
+                      {
+                        $subtract: [
+                          { $toDouble: "$$this.emiAmount" },
+                          { $ifNull: [{ $toDouble: "$$this.amountPaid" }, 0] },
+                        ],
+                      },
+                      0,
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          paidEmisCount: {
+            $size: {
+              $filter: {
+                input: "$emis",
+                as: "emi",
+                cond: { $eq: ["$$emi.status", "Paid"] },
+              },
+            },
+          },
+          remainingTenure: {
+            $size: {
+              $filter: {
+                input: "$emis",
+                as: "emi",
+                cond: { $ne: ["$$emi.status", "Paid"] },
+              },
+            },
+          },
+          nextEmiDate: {
+            $min: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: "$emis",
+                    as: "emi",
+                    cond: { $ne: ["$$emi.status", "Paid"] },
+                  },
+                },
+                as: "f",
+                in: "$$f.dueDate",
+              },
+            },
+          },
+        },
+      },
+    },
+    { $project: { emis: 0 } },
+  ]);
 
   sendResponse(res, 200, "success", "Weekly loans fetched successfully", null, {
     weeklyLoans,
@@ -230,6 +367,7 @@ exports.getWeeklyLoanById = asyncHandler(async (req, res, next) => {
   const weeklyLoan = await WeeklyLoan.findById(req.params.id)
     .populate("closureDetails")
     .populate("followupHistory")
+    .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
   if (!weeklyLoan) {
@@ -253,6 +391,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     disbursementAmount,
     startDate,
+    dateLoanDisbursed,
     totalEmis,
     paidEmis,
     nextFollowUpDate,
@@ -264,6 +403,23 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     guarantorName,
     guarantorMobileNumbers,
   } = req.body;
+
+  console.log("------- UPDATE WEEKLY LOAN CALLED -------");
+  console.log("Incoming req.body.status:", req.body.status);
+  console.log("Extracted status:", status);
+
+  // Global Loan Number Uniqueness Check
+  if (loanNumber && loanNumber !== weeklyLoan.loanNumber) {
+    const existingLoanWithNumber = await Promise.all([
+      Loan.findOne({ loanNumber }),
+      WeeklyLoan.findOne({ loanNumber }),
+      DailyLoan.findOne({ loanNumber }),
+    ]);
+
+    if (existingLoanWithNumber.some((l) => l !== null)) {
+      return next(new ErrorHandler("Loan number already exists", 400));
+    }
+  }
 
   // Update logic with recalculations
   const updateData = {
@@ -277,6 +433,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
         ? parseFloat(disbursementAmount)
         : weeklyLoan.disbursementAmount,
     startDate: startDate || weeklyLoan.startDate,
+    dateLoanDisbursed: dateLoanDisbursed || weeklyLoan.dateLoanDisbursed || startDate || weeklyLoan.startDate,
     emiStartDate:
       emiStartDate ||
       weeklyLoan.emiStartDate ||
@@ -309,7 +466,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   const feeRate = updateData.processingFeeRate;
 
   // Processing Fee
-  const processingFee = amount * (feeRate / 100);
+  const processingFee = Math.ceil(amount * (feeRate / 100));
 
   // Interest Calculation (Removed)
   const weeklyPrincipal = amount / totalWeeks;
@@ -322,10 +479,10 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
   updateData.emiEndDate = eEndDate;
 
-  const totalAmount = emiAmount * currentPaidEmis;
-  const totalCollected = totalAmount + processingFee;
+  const totalAmount = Math.ceil(emiAmount * currentPaidEmis + (weeklyLoan.odAmount || 0));
+  const totalCollected = Math.ceil(totalAmount + processingFee);
   const remainingEmis = totalWeeks - currentPaidEmis;
-  const remainingPrincipalAmount = amount - (emiAmount * currentPaidEmis);
+  const remainingPrincipalAmount = Math.ceil(amount - (emiAmount * currentPaidEmis));
 
   Object.assign(updateData, {
     emiAmount,
@@ -378,13 +535,16 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   weeklyLoan = await WeeklyLoan.findById(weeklyLoan._id)
     .populate("closureDetails")
     .populate("followupHistory")
+    .populate("createdBy", "name")
     .populate("updatedBy", "name");
 
-  // Synchronize EMIs if date or principal changed
+  // Synchronize EMIs if date, principal, or identification details changed
   if (
     emiStartDate ||
     disbursementAmount !== undefined ||
-    totalEmis !== undefined
+    totalEmis !== undefined ||
+    customerName !== undefined ||
+    loanNumber !== undefined
   ) {
     const emis = await EMI.find({
       loanId: weeklyLoan._id,
@@ -398,7 +558,9 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
 
         return EMI.findByIdAndUpdate(emi._id, {
           dueDate: newDueDate,
-          emiAmount: weeklyLoan.emiAmount.toFixed(2),
+          emiAmount: Math.ceil(weeklyLoan.emiAmount),
+          customerName: weeklyLoan.customerName,
+          loanNumber: weeklyLoan.loanNumber,
           // We don't change status/amountPaid here to preserve payment history
         });
       });
@@ -424,6 +586,18 @@ exports.deleteWeeklyLoan = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Weekly loan not found", 404));
   }
 
+  // Delete associated records
+  await Promise.all([
+    EMI.deleteMany({ loanId: weeklyLoan._id, loanModel: "WeeklyLoan" }),
+    Payment.deleteMany({ loanId: weeklyLoan._id, loanModel: "WeeklyLoan" }),
+    require("../models/SeizedVehicle").deleteMany({
+      loanId: weeklyLoan._id,
+      loanModel: "WeeklyLoan",
+    }),
+    ClosedLoan.deleteMany({ loanId: weeklyLoan._id, loanModel: "WeeklyLoan" }),
+    Followup.deleteMany({ loanId: weeklyLoan._id, loanModel: "WeeklyLoan" }),
+  ]);
+
   await weeklyLoan.deleteOne();
 
   sendResponse(res, 200, "success", "Weekly loan deleted successfully");
@@ -439,7 +613,7 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
     limitNum = 10,
   } = req.query;
   const page = parseInt(pageNum, 10) || 1;
-  const limit = parseInt(limitNum, 10) || 10;
+  const limit = parseInt(limitNum, 10) || 25;
   const skip = (page - 1) * limit;
 
   const query = {};
@@ -460,12 +634,6 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
       $match: {
         ...query,
         status: { $ne: "Closed" },
-        // Exclude loans with future/today follow-up scheduled
-        $or: [
-          { nextFollowUpDate: { $exists: false } },
-          { nextFollowUpDate: null },
-          { nextFollowUpDate: { $lt: todayStart } },
-        ],
       },
     },
     {
@@ -536,6 +704,18 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
             },
           },
         },
+        penalOverdue: {
+          $reduce: {
+            input: "$emis",
+            initialValue: 0,
+            in: {
+              $add: [
+                "$$value",
+                { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
+              ]
+            }
+          }
+        },
         earliestDueDate: { $min: "$pendingEmisList.dueDate" },
         earliestEmiId: {
           $let: {
@@ -592,11 +772,13 @@ exports.getWeeklyFollowupLoans = asyncHandler(async (req, res, next) => {
     loanNumber,
     mobileNumber,
     nextFollowUpDate,
+    startDate,
+    endDate,
     pageNum = 1,
     limitNum = 10,
   } = req.query;
   const page = parseInt(pageNum, 10) || 1;
-  const limit = parseInt(limitNum, 10) || 10;
+  const limit = parseInt(limitNum, 10) || 25;
   const skip = (page - 1) * limit;
 
   const query = {};
@@ -606,14 +788,21 @@ exports.getWeeklyFollowupLoans = asyncHandler(async (req, res, next) => {
   if (mobileNumber)
     query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
 
-  // Mandatory date filtering for follow-ups
-  const dateToFilter =
-    nextFollowUpDate || new Date().toISOString().split("T")[0];
-  const start = new Date(dateToFilter);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(dateToFilter);
-  end.setHours(23, 59, 59, 999);
-  query.nextFollowUpDate = { $gte: start, $lte: end };
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    query.nextFollowUpDate = { $gte: start, $lte: end };
+  } else {
+    const dateToFilter =
+      nextFollowUpDate || new Date().toISOString().split("T")[0];
+    const start = new Date(dateToFilter);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(dateToFilter);
+    end.setHours(23, 59, 59, 999);
+    query.nextFollowUpDate = { $gte: start, $lte: end };
+  }
 
   const result = await WeeklyLoan.aggregate([
     {

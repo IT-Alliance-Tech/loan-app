@@ -18,6 +18,7 @@ import Link from "next/link";
 import TableActionMenu from "../../../components/TableActionMenu";
 import ConfirmationModal from "../../../components/ConfirmationModal";
 import { hasPermission } from "../../../utils/auth";
+import { subMonths, subDays, differenceInCalendarDays, startOfDay } from "date-fns";
 
 const PendingPaymentsPage = () => {
   const router = useRouter();
@@ -42,7 +43,7 @@ const PendingPaymentsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [limit] = useState(10);
+  const [limit] = useState(25);
   const { showToast } = useToast();
   const [selectedRowId, setSelectedRowId] = useState(null);
 
@@ -242,6 +243,9 @@ const PendingPaymentsPage = () => {
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Remaining Amount
                         </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap text-red-500">
+                          Penalty
+                        </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Days
                         </th>
@@ -362,37 +366,55 @@ const PendingPaymentsPage = () => {
                                 </span>
                               </div>
                             </td>
+                            <td className="px-6 py-5 text-center whitespace-nowrap font-black text-rose-500 text-xs tracking-tight bg-red-50/30">
+                              {item.penalOverdue > 0 ? `₹${item.penalOverdue.toLocaleString()}` : "—"}
+                            </td>
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                                 {(() => {
-                                  const diffTime =
-                                    new Date().setHours(23, 59, 59, 999) -
-                                    new Date(item.earliestDueDate);
-                                  const days = Math.floor(
-                                    diffTime / (1000 * 60 * 60 * 24),
-                                  );
+                                  const today = startOfDay(new Date());
+                                  const due = startOfDay(new Date(item.earliestDueDate));
+                                  let startDate;
+
+                                  if (item.loanType === "Daily") {
+                                    // For Daily, pending days starts after due date passes
+                                    startDate = due;
+                                  } else if (item.loanType === "Weekly") {
+                                    // Weekly: starts from 7 days before due date
+                                    startDate = subDays(due, 7);
+                                  } else {
+                                    // Monthly: starts from 1 month before due date
+                                    startDate = subMonths(due, 1);
+                                  }
+
+                                  const days = differenceInCalendarDays(today, startDate);
 
                                   let colorClass = "bg-slate-500";
-                                  let label = "0 Days";
+                                  let label = "";
+                                  let glowClass = "";
 
-                                  if (days > 0) {
-                                    if (days >= 71) colorClass = "bg-red-600";
-                                    else if (days >= 36)
-                                      colorClass = "bg-orange-600";
-                                    else if (days >= 1)
-                                      colorClass = "bg-amber-500";
-                                    label = `${days} Days`;
-                                  } else if (days < 0) {
-                                    colorClass = "bg-emerald-500";
-                                    label = `In ${Math.abs(days)} Days`;
-                                  } else {
-                                    // Exactly today
+                                  if (days >= 1) {
+                                    if (days >= 70) {
+                                      colorClass = "bg-red-600";
+                                      glowClass = "shadow-[0_0_15px_rgba(220,38,38,0.5)]";
+                                    } else if (days >= 31) {
+                                      colorClass = "bg-orange-500";
+                                      glowClass = "shadow-[0_0_15px_rgba(249,115,22,0.5)]";
+                                    } else {
+                                      colorClass = "bg-yellow-400 text-black";
+                                      glowClass = "shadow-[0_0_15px_rgba(250,204,21,0.5)]";
+                                    }
+                                    label = `Day ${days}`;
+                                  } else if (days === 0 && item.loanType === "Daily") {
                                     colorClass = "bg-blue-500";
-                                    label = "Today";
+                                    label = "Due Today";
+                                  } else if (days <= 0) {
+                                    colorClass = "bg-emerald-500 font-bold";
+                                    label = days === 0 ? "Due Today" : `In ${Math.abs(days)} Days`;
                                   }
 
                                   return (
                                     <span
-                                      className={`text-[10px] font-black tracking-tight px-3 py-1.5 rounded-lg inline-block min-w-[80px] text-white shadow-sm ${colorClass}`}
+                                      className={`text-[10px] font-black tracking-tight px-3 py-1.5 rounded-lg inline-block min-w-[80px] shadow-sm transform transition-all duration-300 hover:scale-110 ${colorClass} ${glowClass}`}
                                     >
                                       {label}
                                     </span>

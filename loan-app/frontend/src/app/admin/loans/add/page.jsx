@@ -53,6 +53,8 @@ const AddLoanPage = () => {
     },
     status: {
       status: "Active",
+      clientResponse: "",
+      nextFollowUpDate: "",
     },
   };
 

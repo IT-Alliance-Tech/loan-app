@@ -5,79 +5,17 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useToast } from "../context/ToastContext";
 import { addMonths, format } from "date-fns";
+import { getUserFromToken } from "../utils/auth";
 import ClientResponseSection from "./ClientResponseSection";
 import {
   calculateEMI as fetchEMI,
   getRtoWorks,
   createRtoWork,
+  checkLoanNumberUniqueness,
 } from "../services/loan.service";
 import { getLoanExpensesTotal } from "../services/expenseService";
 
-const validationSchema = Yup.object().shape({
-  customerDetails: Yup.object({
-    customerName: Yup.string().required("Customer name is required"),
-    address: Yup.string().required("Address is required"),
-    ownRent: Yup.string().required("Please select ownership status"),
-    mobileNumbers: Yup.array()
-      .of(
-        Yup.string()
-          .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
-          .required("Mobile number is required"),
-      )
-      .min(1, "At least one customer mobile number is required"),
-    guarantorName: Yup.string().nullable(),
-    guarantorMobileNumbers: Yup.array()
-      .of(
-        Yup.string()
-          .matches(/^[6-9]\d{9}$/, "Invalid Mobile Number")
-          .required("Mobile number is required"),
-      )
-      .min(1, "At least one guarantor mobile number is required"),
-    panNumber: Yup.string()
-      .matches(
-        /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/,
-        "Invalid PAN format (e.g., ABCDE1234F)",
-      )
-      .nullable(),
-    aadharNumber: Yup.string()
-      .matches(/^\d{12}$/, "Invalid Aadhar. Must be 12 digits")
-      .nullable(),
-  }),
-  loanTerms: Yup.object({
-    loanNumber: Yup.string().required("Loan number is required"),
-    principalAmount: Yup.number()
-      .positive("Must be positive")
-      .required("Principal is required"),
-    processingFeeRate: Yup.number().min(0).nullable(),
-    processingFee: Yup.number().min(0).nullable(),
-    tenureMonths: Yup.number()
-      .positive("Must be positive")
-      .integer()
-      .required("Tenure is required"),
-    tenureType: Yup.string().required("Tenure type is required"),
-    annualInterestRate: Yup.number()
-      .min(0, "Interest cannot be negative")
-      .required("Interest rate is required"),
-  }),
-  vehicleInformation: Yup.object({
-    vehicleNumber: Yup.string()
-      .matches(/^[A-Z]{2}-\d{2}-[A-Z]{1,2}-\d{4}$/, "Format: KA-01-AB-1234")
-      .nullable(),
-    chassisNumber: Yup.string().nullable(),
-    engineNumber: Yup.string().nullable(),
-    modelYear: Yup.string().matches(/^\d*$/, "Must be numeric").nullable(),
-    typeOfVehicle: Yup.string().nullable(),
-    ywBoard: Yup.string().nullable(),
-    dealerName: Yup.string().nullable(),
-    dealerNumber: Yup.string().nullable(),
-    fcDate: Yup.string().nullable(),
-    insuranceDate: Yup.string().nullable(),
-    hpEntry: Yup.string().oneOf(["Not done", "Applied", "Finished"]).nullable(),
-  }),
-  status: Yup.object({
-    // status is now automatic
-  }),
-});
+const _monthlyLoanUniquenessCache = new Map();
 
 const LoanForm = ({
   initialData,
@@ -89,6 +27,87 @@ const LoanForm = ({
   emis = [],
 }) => {
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  const validationSchema = Yup.object().shape({
+    customerDetails: Yup.object({
+      customerName: Yup.string().nullable(),
+      address: Yup.string().nullable(),
+      ownRent: Yup.string().nullable(),
+      mobileNumbers: Yup.array()
+        .of(Yup.string().matches(/^(?:[6-9]\d{9})?$/, "Invalid Mobile Number"))
+        .nullable(),
+      guarantorName: Yup.string().nullable(),
+      guarantorMobileNumbers: Yup.array()
+        .of(Yup.string().matches(/^(?:[6-9]\d{9})?$/, "Invalid Mobile Number"))
+        .nullable(),
+      panNumber: Yup.string()
+        .matches(
+          /^(?:[A-Z]{5}[0-9]{4}[A-Z]{1})?$/,
+          "Invalid PAN format (e.g., ABCDE1234F)",
+        )
+        .nullable(),
+      aadharNumber: Yup.string()
+        .matches(/^(?:\d{12})?$/, "Invalid Aadhar. Must be 12 digits")
+        .nullable(),
+    }),
+    loanTerms: Yup.object({
+      loanNumber: Yup.string()
+        .required("Loan number is required")
+        .test(
+          "unique-loan-number",
+          "Loan number already exists",
+          async (value) => {
+            if (!value || isViewOnly) return true;
+            // If editing and same as initial, skip
+            if (initialData?.loanTerms?.loanNumber === value) return true;
+
+            if (_monthlyLoanUniquenessCache.has(value)) {
+              return _monthlyLoanUniquenessCache.get(value);
+            }
+
+            try {
+              const res = await checkLoanNumberUniqueness(value);
+              _monthlyLoanUniquenessCache.set(value, true);
+              return true;
+            } catch (err) {
+              _monthlyLoanUniquenessCache.set(value, false);
+              return false;
+            }
+          },
+        ),
+      principalAmount: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+      processingFeeRate: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+      processingFee: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+      tenureMonths: Yup.number()
+        .transform((value, originalValue) => originalValue === "" ? null : value)
+        .integer()
+        .nullable(),
+      tenureType: Yup.string().nullable(),
+      annualInterestRate: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+    }),
+    vehicleInformation: Yup.object({
+      vehicleNumber: Yup.string()
+        .matches(/^(?:[A-Z]{2}-\d{2}-[A-Z]{1,2}-\d{4})?$/, "Format: KA-01-AB-1234")
+        .nullable(),
+      chassisNumber: Yup.string().nullable(),
+      engineNumber: Yup.string().nullable(),
+      modelYear: Yup.string().matches(/^\d*$/, "Must be numeric").nullable(),
+      typeOfVehicle: Yup.string().nullable(),
+      ywBoard: Yup.string().nullable(),
+      dealerName: Yup.string().nullable(),
+      dealerNumber: Yup.string().nullable(),
+      fcDate: Yup.string().nullable(),
+      insuranceDate: Yup.string().nullable(),
+      hpEntry: Yup.string()
+        .oneOf(["Not done", "Applied", "Finished"])
+        .nullable(),
+    }),
+    status: Yup.object({
+      // status is now automatic
+    }),
+  });
 
   const [rtoOptions, setRtoOptions] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -154,12 +173,12 @@ const LoanForm = ({
       },
       loanTerms: {
         loanNumber: initialData?.loanTerms?.loanNumber || "",
-        principalAmount: initialData?.loanTerms?.principalAmount || 0,
-        processingFeeRate: initialData?.loanTerms?.processingFeeRate || 0,
-        processingFee: initialData?.loanTerms?.processingFee || 0,
-        tenureMonths: initialData?.loanTerms?.tenureMonths || 0,
+        principalAmount: initialData?.loanTerms?.principalAmount ?? "",
+        processingFeeRate: initialData?.loanTerms?.processingFeeRate ?? "",
+        processingFee: initialData?.loanTerms?.processingFee ?? "",
+        tenureMonths: initialData?.loanTerms?.tenureMonths ?? "",
         tenureType: initialData?.loanTerms?.tenureType || "Monthly",
-        annualInterestRate: initialData?.loanTerms?.annualInterestRate || 0,
+        annualInterestRate: initialData?.loanTerms?.annualInterestRate ?? "",
         dateLoanDisbursed: initialData?.loanTerms?.dateLoanDisbursed || "",
         emiStartDate: initialData?.loanTerms?.emiStartDate || "",
         emiEndDate: initialData?.loanTerms?.emiEndDate || "",
@@ -185,11 +204,15 @@ const LoanForm = ({
         hpEntry: initialData?.vehicleInformation?.hpEntry || "Not done",
       },
       status: {
-        status: initialData?.status?.status || "",
+        status: initialData?.status?.status || "Active",
         paymentStatus: initialData?.status?.paymentStatus || "Pending",
         isSeized: initialData?.status?.isSeized || false,
         docChecklist: initialData?.status?.docChecklist || "",
         remarks: initialData?.status?.remarks || "",
+        createdBy: initialData?.status?.createdBy || null,
+        updatedBy: initialData?.status?.updatedBy || null,
+        createdAt: initialData?.status?.createdAt || null,
+        updatedAt: initialData?.status?.updatedAt || null,
         clientResponse: initialData?.status?.clientResponse || "",
         nextFollowUpDate: initialData?.status?.nextFollowUpDate || "",
         seizedStatus: initialData?.status?.seizedStatus || "",
@@ -203,11 +226,11 @@ const LoanForm = ({
           foreclosureAmount:
             initialData?.status?.foreclosureDetails?.foreclosureAmount || 0,
         },
-        updatedBy: initialData?.status?.updatedBy || null,
-        updatedAt: initialData?.status?.updatedAt || null,
       },
     },
     validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
     enableReinitialize: true,
     onSubmit: async (values) => {
       // Clean up rtoWorkPending: ensure it's an array and filter out empty strings
@@ -304,7 +327,7 @@ const LoanForm = ({
     formik.setFieldValue("loanTerms.processingFeeRate", rate);
     const principal = parseFloat(formik.values.loanTerms.principalAmount) || 0;
     if (principal && !isNaN(rate)) {
-      const fee = ((principal * parseFloat(rate)) / 100).toFixed(2);
+      const fee = Math.ceil((principal * parseFloat(rate)) / 100);
       formik.setFieldValue("loanTerms.processingFee", fee);
     }
   };
@@ -337,7 +360,7 @@ const LoanForm = ({
             const totalInt = principal * (rate / 100) * tenure;
             formik.setFieldValue(
               "loanTerms.totalInterestAmount",
-              totalInt.toFixed(2),
+              Math.ceil(totalInt),
             );
           }
         } catch (err) {
@@ -415,8 +438,8 @@ const LoanForm = ({
         remainingTenureCount = tenure;
       }
 
-      const remainingPrincipal = principalPerMonth * remainingTenureCount;
-      setRemainingPrincipalAmount(remainingPrincipal.toFixed(2));
+      const remainingPrincipal = Math.ceil(principalPerMonth * remainingTenureCount);
+      setRemainingPrincipalAmount(remainingPrincipal);
     } else {
       setRemainingPrincipalAmount(0);
     }
@@ -430,13 +453,15 @@ const LoanForm = ({
   useEffect(() => {
     let total = 0;
     if (emis && emis.length > 0) {
-      total = emis.reduce(
-        (sum, emi) =>
-          sum +
-          (parseFloat(emi.amountPaid) || 0) +
-          (parseFloat(emi.overdue) || 0),
-        0,
-      );
+      total = emis.reduce((sum, emi) => {
+        const overdueSum = Array.isArray(emi.overdue)
+          ? emi.overdue.reduce(
+              (oSum, ov) => oSum + (parseFloat(ov.amount) || 0),
+              0,
+            )
+          : parseFloat(emi.overdue) || 0;
+        return sum + (parseFloat(emi.amountPaid) || 0) + overdueSum;
+      }, 0);
     }
 
     // Add foreclosure amount if loan is closed
@@ -454,10 +479,13 @@ const LoanForm = ({
       total += parseFloat(formik.values.status.soldDetails.totalAmount);
     }
 
+    // Add Processing Fee
+    total += parseFloat(formik.values.loanTerms.processingFee || 0);
+
     setTotalCollectedAmount(
       total.toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
       }),
     );
   }, [
@@ -466,6 +494,7 @@ const LoanForm = ({
     formik.values.status?.foreclosureDetails?.foreclosureAmount,
     formik.values.status?.seizedStatus,
     formik.values.status?.soldDetails?.totalAmount,
+    formik.values.loanTerms.processingFee,
   ]);
 
   const ErrorMsg = ({ name }) => {
@@ -494,32 +523,79 @@ const LoanForm = ({
         <form onSubmit={formik.handleSubmit} className="space-y-8">
           {/* Basic Info */}
           <div className="space-y-4 relative">
-            <div className="flex items-center justify-between gap-3 border-b border-primary/10 pb-2">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-primary/10 pb-4 md:pb-2">
               <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">
                 Basic Information
               </h3>
-              {formik.values.status?.updatedBy && (
-                <div className="flex flex-col items-end pointer-events-none">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
-                    Last Updated By
-                  </span>
-                  <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
-                      {typeof formik.values.status.updatedBy === "string"
-                        ? formik.values.status.updatedBy
-                        : formik.values.status.updatedBy.name}
+
+              <div className="flex items-center gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Status
+                </label>
+                <select
+                  name="status.status"
+                  value={formik.values.status?.status || "Active"}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  disabled={isViewOnly || !isSuperAdmin}
+                  className={`text-[11px] font-bold uppercase tracking-widest py-1 px-3 border rounded-lg focus:outline-none ${isViewOnly || !isSuperAdmin ? "opacity-70 bg-slate-100 cursor-not-allowed text-slate-500" : "bg-white border-primary/30 text-primary shadow-sm focus:ring-2 focus:ring-primary/20"}`}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Closed">Closed</option>
+                  <option value="Seized">Seized</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
+
+              <div className="w-full md:w-auto min-w-[150px] flex flex-wrap justify-start md:justify-end gap-x-4 gap-y-2">
+                {/* Created By Section */}
+                {initialData?._id && formik.values.status?.createdBy && (
+                  <div className="flex flex-col items-start md:items-end pointer-events-none">
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                      Created By
                     </span>
-                    <span className="w-1 h-1 rounded-full bg-red-500/40" />
-                    <span className="text-[9px] font-bold text-slate-400 font-mono">
-                      {formik.values.status.updatedAt &&
-                        format(
-                          new Date(formik.values.status.updatedAt),
-                          "dd/MM/yy HH:mm",
-                        )}
-                    </span>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                      <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tight">
+                        {typeof formik.values.status.createdBy === "string"
+                          ? formik.values.status.createdBy
+                          : formik.values.status.createdBy.name}
+                      </span>
+                      <span className="w-1 h-1 rounded-full bg-emerald-500/40" />
+                      <span className="text-[9px] font-bold text-slate-400 font-mono">
+                        {formik.values.status.createdAt &&
+                          format(
+                            new Date(formik.values.status.createdAt),
+                            "dd/MM/yy HH:mm",
+                          )}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Last Updated By Section */}
+                {initialData?._id && formik.values.status?.updatedBy && (
+                  <div className="flex flex-col items-start md:items-end pointer-events-none">
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                      Last Updated By
+                    </span>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                      <span className="text-[10px] font-black text-amber-500 uppercase tracking-tight">
+                        {typeof formik.values.status.updatedBy === "string"
+                          ? formik.values.status.updatedBy
+                          : formik.values.status.updatedBy.name}
+                      </span>
+                      <span className="w-1 h-1 rounded-full bg-amber-500/40" />
+                      <span className="text-[9px] font-bold text-slate-400 font-mono">
+                        {formik.values.status.updatedAt &&
+                          format(
+                            new Date(formik.values.status.updatedAt),
+                            "dd/MM/yy HH:mm",
+                          )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
@@ -544,10 +620,15 @@ const LoanForm = ({
                   placeholder="LN-001"
                 />
                 <ErrorMsg name="loanTerms.loanNumber" />
+                {formik.touched.loanTerms?.loanNumber && !formik.errors.loanTerms?.loanNumber && formik.values.loanTerms.loanNumber && !isViewOnly && (
+                  <p className="text-[9px] font-bold text-emerald-500 mt-1 uppercase tracking-wider">
+                    Loan number is available
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Name <span className="text-red-500">*</span>
+                  Name
                 </label>
                 <input
                   type="text"
@@ -572,7 +653,7 @@ const LoanForm = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1 md:col-span-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Current Address <span className="text-red-500">*</span>
+                  Current Address
                 </label>
                 <textarea
                   name="customerDetails.address"
@@ -589,7 +670,7 @@ const LoanForm = ({
               <div className="space-y-6">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Own/Rent <span className="text-red-500">*</span>
+                    Own/Rent
                   </label>
                   <select
                     name="customerDetails.ownRent"
@@ -636,7 +717,7 @@ const LoanForm = ({
                 <div className="space-y-1">
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
-                      Mobile Numbers <span className="text-red-500">*</span>
+                      Mobile Numbers
                     </label>
                     <div className="space-y-2">
                       {formik.values.customerDetails.mobileNumbers.map(
@@ -828,8 +909,7 @@ const LoanForm = ({
                   {/* Guarantor Mobile Numbers */}
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
-                      Guarantor Mobile Numbers{" "}
-                      <span className="text-red-500">*</span>
+                      Guarantor Mobile Numbers
                     </label>
                     <div className="space-y-2">
                       {formik.values.customerDetails.guarantorMobileNumbers.map(
@@ -983,7 +1063,7 @@ const LoanForm = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Amount <span className="text-red-500">*</span>
+                  Amount
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
@@ -1038,7 +1118,7 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Tenure (Months) <span className="text-red-500">*</span>
+                  Tenure (Months)
                 </label>
                 <input
                   type="number"
@@ -1053,7 +1133,7 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Interest Rate (%) <span className="text-red-500">*</span>
+                  Interest Rate (%)
                 </label>
                 <input
                   type="number"
@@ -1865,58 +1945,59 @@ const LoanForm = ({
                         </div>
                       </div>
                     )}
-
-                  <ClientResponseSection
-                    clientResponse={formik.values.status.clientResponse}
-                    nextFollowUpDate={formik.values.status.nextFollowUpDate}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    nameResponse="status.clientResponse"
-                    nameDate="status.nextFollowUpDate"
-                    isViewOnly={isViewOnly}
-                    updatedBy={formik.values.status.updatedBy}
-                    updatedAt={formik.values.status.updatedAt}
-                  />
                 </div>
               )}
-              {renderExtraActions && (
-                <div className="mt-4">{renderExtraActions()}</div>
-              )}
+
+              <ClientResponseSection
+                clientResponse={formik.values.status.clientResponse}
+                nextFollowUpDate={formik.values.status.nextFollowUpDate}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                nameResponse="status.clientResponse"
+                nameDate="status.nextFollowUpDate"
+                isViewOnly={isViewOnly}
+                updatedBy={formik.values.status.updatedBy}
+                updatedAt={formik.values.status.updatedAt}
+              />
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              {isViewOnly ? (
+
+            {renderExtraActions && (
+              <div className="mt-4">{renderExtraActions()}</div>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            {isViewOnly ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all"
+              >
+                Back to List
+              </button>
+            ) : (
+              <>
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:bg-slate-200 transition-colors order-2 sm:order-1"
                 >
-                  Back to List
+                  Cancel
                 </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={onCancel}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:bg-slate-200 transition-colors order-2 sm:order-1"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={
-                      submitting || (formik.submitCount > 0 && !formik.isValid)
-                    }
-                    className="w-full sm:w-auto bg-primary text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all order-1 sm:order-2"
-                  >
-                    {submitting
-                      ? "Processing..."
-                      : initialData._id
-                        ? "Commit Changes"
-                        : "Create Profile"}
-                  </button>
-                </>
-              )}
-            </div>
+                <button
+                  type="submit"
+                  disabled={
+                    submitting || (formik.submitCount > 0 && !formik.isValid)
+                  }
+                  className="w-full sm:w-auto bg-primary text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all order-1 sm:order-2"
+                >
+                  {submitting
+                    ? "Processing..."
+                    : initialData._id
+                      ? "Commit Changes"
+                      : "Create Profile"}
+                </button>
+              </>
+            )}
           </div>
         </form>
       </div>

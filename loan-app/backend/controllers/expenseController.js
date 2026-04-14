@@ -1,12 +1,11 @@
 const Expense = require("../models/Expense");
 const Loan = require("../models/Loan");
+const DailyLoan = require("../models/DailyLoan");
+const WeeklyLoan = require("../models/WeeklyLoan");
 const ErrorHandler = require("../utils/ErrorHandler");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 
-// @desc    Create new expense
-// @route   POST /api/expenses
-// @access  Private/Admin
 const createExpense = asyncHandler(async (req, res, next) => {
   const {
     loanNumber,
@@ -26,10 +25,19 @@ const createExpense = asyncHandler(async (req, res, next) => {
     );
   }
 
-  // Find loanId if it exists
+  // Find loanId from any of the three models
   let loan = null;
   if (!isOfficeExpense && loanNumber) {
+    // Try Monthly Loan first
     loan = await Loan.findOne({ loanNumber });
+    if (!loan) {
+      // Try Daily Loan
+      loan = await DailyLoan.findOne({ loanNumber });
+    }
+    if (!loan) {
+      // Try Weekly Loan
+      loan = await WeeklyLoan.findOne({ loanNumber });
+    }
   }
 
   const expense = await Expense.create({
@@ -59,16 +67,44 @@ const createExpense = asyncHandler(async (req, res, next) => {
 // @route   GET /api/expenses
 // @access  Private
 const getAllExpenses = asyncHandler(async (req, res, next) => {
-  const expenses = await Expense.find().sort({ date: -1, createdAt: -1 });
+  const { startDate, endDate } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 25;
+  const skip = (page - 1) * limit;
 
-  sendResponse(
-    res,
-    200,
-    "success",
-    "Expenses fetched successfully",
-    null,
+  const match = {};
+
+  if (startDate || endDate) {
+    match.date = {};
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      match.date.$gte = start;
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      match.date.$lte = end;
+    }
+  }
+
+  const [expenses, total] = await Promise.all([
+    Expense.find(match)
+      .sort({ date: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Expense.countDocuments(match),
+  ]);
+
+  sendResponse(res, 200, "success", "Expenses fetched successfully", null, {
     expenses,
-  );
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
 });
 
 // @desc    Search loan/vehicle info
@@ -81,18 +117,32 @@ const searchLoanInfo = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Search query is required", 400));
   }
 
-  const loan = await Loan.findOne({
-    $or: [
-      { loanNumber: { $regex: q, $options: "i" } },
-      { vehicleNumber: { $regex: q, $options: "i" } },
-    ],
-  }).select("loanNumber vehicleNumber customerName");
+  const [monthlyLoan, dailyLoan, weeklyLoan] = await Promise.all([
+    Loan.findOne({
+      $or: [
+        { loanNumber: { $regex: q, $options: "i" } },
+        { vehicleNumber: { $regex: q, $options: "i" } },
+      ],
+    }).select("loanNumber vehicleNumber customerName"),
+    DailyLoan.findOne({ loanNumber: { $regex: q, $options: "i" } }).select(
+      "loanNumber customerName",
+    ),
+    WeeklyLoan.findOne({ loanNumber: { $regex: q, $options: "i" } }).select(
+      "loanNumber customerName",
+    ),
+  ]);
+
+  const loan = monthlyLoan || dailyLoan || weeklyLoan;
 
   if (!loan) {
     return next(new ErrorHandler("No matching loan or vehicle found", 404));
   }
 
-  sendResponse(res, 200, "success", "Loan info found", null, loan);
+  sendResponse(res, 200, "success", "Loan info found", null, {
+    loanNumber: loan.loanNumber,
+    vehicleNumber: loan.vehicleNumber || "",
+    customerName: loan.customerName,
+  });
 });
 
 // @desc    Get total expenses for a loan

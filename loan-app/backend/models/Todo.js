@@ -9,6 +9,9 @@ const todoSchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    comment: {
+      type: String,
+    },
     status: {
       type: String,
       enum: ["Todo", "In Progress", "Done"],
@@ -21,10 +24,6 @@ const todoSchema = new mongoose.Schema(
     },
     dueDate: {
       type: Date,
-    },
-    assignedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

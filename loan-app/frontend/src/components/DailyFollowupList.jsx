@@ -8,6 +8,7 @@ import Pagination from "./Pagination";
 import { useToast } from "../context/ToastContext";
 import TableActionMenu from "./TableActionMenu";
 import ContactActionMenu from "./ContactActionMenu";
+import { getUserFromToken } from "../utils/auth";
 
 const DailyFollowupList = () => {
   const router = useRouter();
@@ -36,6 +37,8 @@ const DailyFollowupList = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   // Load saved filters on mount
   useEffect(() => {
@@ -87,6 +90,18 @@ const DailyFollowupList = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this daily loan?")) {
+      try {
+        await deleteDailyLoan(id);
+        showToast("Daily loan deleted", "success");
+        fetchFollowups();
+      } catch (err) {
+        showToast(err.message || "Failed to delete", "error");
+      }
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchFollowups();
@@ -134,7 +149,7 @@ const DailyFollowupList = () => {
             <div className="text-slate-300 text-lg">🔍</div>
             <input
               type="text"
-              placeholder="SEARCH BY LOAN NUMBER, CUSTOMER OR MOBILE..."
+              placeholder="SEARCH BY LOAN NUMBER..."
               className="w-full px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none placeholder:text-slate-300 placeholder:font-black uppercase bg-transparent"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -212,7 +227,7 @@ const DailyFollowupList = () => {
                     colSpan="7"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
-                    No follow-ups found
+                  No follow-ups found for this date
                   </td>
                 </tr>
               ) : (
@@ -233,22 +248,26 @@ const DailyFollowupList = () => {
                       {loan.customerName}
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
-                      <button
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const num = loan.mobileNumbers?.[0] || loan.mobileNumber;
-                          setActiveContactMenu({
-                            number: num,
-                            name: loan.customerName,
-                            type: "Applicant",
-                            x: rect.left,
-                            y: rect.bottom,
-                          });
-                        }}
-                        className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
-                      >
-                        {loan.mobileNumbers?.[0] || loan.mobileNumber}
-                      </button>
+                      <div className="flex flex-col gap-0.5">
+                        {(loan.mobileNumbers || [loan.mobileNumber]).map((num, idx) => (
+                          <button
+                            key={idx}
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActiveContactMenu({
+                                number: num,
+                                name: loan.customerName,
+                                type: "Applicant",
+                                x: rect.left,
+                                y: rect.bottom,
+                              });
+                            }}
+                            className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span className="text-[11px] font-black text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
@@ -298,7 +317,7 @@ const DailyFollowupList = () => {
                             onClick: () => {
                                  router.push(`/admin/daily-loans/edit/${loan.loanId}?action=seize`);
                             }
-                          }
+                          },
                         ]}
                       />
                     </td>
@@ -316,11 +335,6 @@ const DailyFollowupList = () => {
         onPageChange={handlePageChange}
         totalRecords={totalRecords}
         limit={limit}
-      />
-
-      <ContactActionMenu
-        contact={activeContactMenu}
-        onClose={() => setActiveContactMenu(null)}
       />
 
       {/* Filter Drawer */}
@@ -416,6 +430,12 @@ const DailyFollowupList = () => {
           </div>
         </div>
       )}
+
+      <ContactActionMenu
+        contact={activeContactMenu}
+        onClose={() => setActiveContactMenu(null)}
+      />
+
     </div>
   );
 };

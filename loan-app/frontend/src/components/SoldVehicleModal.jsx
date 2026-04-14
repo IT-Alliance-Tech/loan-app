@@ -12,8 +12,8 @@ const SoldVehicleModal = ({ isOpen, onClose, onConfirm, loan }) => {
   const { sellAmount, miscellaneousAmount } = formData;
 
   useEffect(() => {
-    const sell = parseFloat(sellAmount) || 0;
-    const misc = parseFloat(miscellaneousAmount) || 0;
+    const sell = Math.ceil(parseFloat(sellAmount) || 0);
+    const misc = Math.ceil(parseFloat(miscellaneousAmount) || 0);
     setFormData((prev) => ({ ...prev, totalAmount: sell + misc }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sellAmount, miscellaneousAmount, setFormData]);
@@ -123,7 +123,7 @@ const SoldVehicleModal = ({ isOpen, onClose, onConfirm, loan }) => {
                 <p className="text-2xl font-black text-emerald-600 text-center tracking-tight">
                   ₹
                   {formData.totalAmount.toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
+                    minimumFractionDigits: 0,
                   })}
                 </p>
               </div>
@@ -163,7 +163,7 @@ const SoldVehicleModal = ({ isOpen, onClose, onConfirm, loan }) => {
                   </span>
                 </div>
               </div>
-
+               
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep(1)}

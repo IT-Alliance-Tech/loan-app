@@ -16,11 +16,11 @@ const {
   forecloseLoan,
   getSeizedVehicles,
   updateSeizedStatus,
-  getAnalyticsStats,
   updateFollowup,
   getFollowupHistory,
   getTodoList,
-  getCollectionReport,
+  deleteLoan,
+  checkLoanNumberUniqueness,
 } = require("../controllers/loanController");
 const {
   getRtoWorks,
@@ -34,11 +34,11 @@ const {
 } = require("../middlewares/auth");
 
 router.get("/health", (req, res) =>
-  res.json({ status: "ok", version: "v4-deployment-test" }),
+  res.json({ status: "ok", version: "v5-cors-debugging" }),
 );
-router.get("/analytics/stats", getAnalyticsStats);
+router.get("/check-uniqueness/:loanNumber", checkLoanNumberUniqueness);
+router.get("/test-uniqueness", (req, res) => res.json({ message: "Uniqueness route group is accessible" }));
 router.get("/todo-list", getTodoList);
-router.get("/collection-report", getCollectionReport);
 router.get("/expired-docs", getExpiredDocLoans);
 
 router.use(isAuthenticated);
@@ -49,7 +49,7 @@ router.post("/rto-works", createRtoWork);
 router
   .route("/")
   .get(getAllLoans)
-  .post(authorizeRoles("SUPER_ADMIN", "ADMIN"), createLoan);
+  .post(authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("loans.create"), createLoan);
 
 router.post("/calculate-emi", calculateEMIApi);
 router.get(
@@ -95,7 +95,8 @@ router.get(
 router.get("/search/:loanNumber", getLoanByLoanNumber);
 router.post(
   "/:id/foreclose",
-  authorizeRoles("SUPER_ADMIN", "ADMIN"),
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  authorizePermissions("loans.create"),
   forecloseLoan,
 );
 
@@ -106,7 +107,8 @@ router
     authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
     authorizePermissions("loans.edit"),
     updateLoan,
-  );
+  )
+  .delete(authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"), authorizePermissions("loans.delete"), deleteLoan);
 
 router.patch(
   "/:id/seized",

@@ -156,7 +156,7 @@ export const getFollowupHistory = async (id) => {
 };
 
 export const getAnalyticsStats = async () => {
-  return await apiHandler("/api/loans/analytics/stats", {
+  return await apiHandler("/api/analytics/stats", {
     method: "GET",
   });
 };
@@ -167,12 +167,14 @@ export const getTodoList = async () => {
   });
 };
 
-export const getCollectionReport = async (params = {}) => {
-  const queryString = new URLSearchParams(params).toString();
-  return await apiHandler(
-    `/api/loans/collection-report${queryString ? `?${queryString}` : ""}`,
-    {
-      method: "GET",
-    },
-  );
+export const deleteLoan = async (id) => {
+  return await apiHandler(`/api/loans/${id}`, {
+    method: "DELETE",
+  });
+};
+
+export const checkLoanNumberUniqueness = async (loanNumber) => {
+  return await apiHandler(`/api/loans/check-uniqueness/${loanNumber}`, {
+    method: "GET",
+  });
 };

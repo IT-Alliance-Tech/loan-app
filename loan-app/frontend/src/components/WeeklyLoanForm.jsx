@@ -1,34 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { getUserFromToken } from "../utils/auth";
 import ClientResponseSection from "./ClientResponseSection";
-
-const validationSchema = Yup.object().shape({
-  loanNumber: Yup.string().required("Loan number is required"),
-  customerName: Yup.string().required("Customer name is required"),
-  mobileNumbers: Yup.array()
-    .of(
-      Yup.string()
-        .matches(/^[6-9]\d{9}$/, "Invalid mobile number")
-        .required("Mobile number is required"),
-    )
-    .min(1, "At least one mobile number is required")
-    .required("Mobile numbers are required"),
-  disbursementAmount: Yup.number()
-    .positive("Amount must be positive")
-    .required("Amount is required"),
-  totalEmis: Yup.number()
-    .positive("Tenure must be positive")
-    .integer("Tenure must be an integer")
-    .required("Tenure is required"),
-  startDate: Yup.string().required("Disbursement date is required"),
-  emiStartDate: Yup.string().required("EMI start date is required"),
-  guarantorName: Yup.string(),
-  guarantorMobileNumbers: Yup.array().of(
-    Yup.string().matches(/^[6-9]\d{9}$/, "Invalid mobile number"),
-  ),
-});
+import { checkLoanNumberUniqueness } from "../services/loan.service";
 
 const ErrorMsg = ({ name, touched, errors }) => {
   const [section, field] = name.includes(".") ? name.split(".") : [null, name];
@@ -42,6 +18,8 @@ const ErrorMsg = ({ name, touched, errors }) => {
   ) : null;
 };
 
+const _loanUniquenessCache = new Map();
+
 const WeeklyLoanForm = ({
   initialData,
   onSubmit,
@@ -49,12 +27,63 @@ const WeeklyLoanForm = ({
   submitting,
   isViewOnly = false,
 }) => {
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  const validationSchema = Yup.object().shape({
+    loanNumber: Yup.string()
+      .required("Loan number is required")
+      .test("unique-loan-number", "Loan number already exists", async (value) => {
+        if (!value || isViewOnly) return true;
+        // If editing and same as initial, skip
+        if (initialData?.loanNumber === value) return true;
+
+        if (_loanUniquenessCache.has(value)) {
+          return _loanUniquenessCache.get(value);
+        }
+
+        try {
+          const res = await checkLoanNumberUniqueness(value);
+          _loanUniquenessCache.set(value, true);
+          return true;
+        } catch (err) {
+          _loanUniquenessCache.set(value, false);
+          return false; 
+        }
+      }),
+    customerName: Yup.string().nullable(),
+    mobileNumbers: Yup.array()
+      .of(
+        Yup.string()
+          .matches(/^(?:[6-9]\d{9})?$/, "Invalid mobile number")
+      )
+      .nullable(),
+    disbursementAmount: Yup.number().transform((value, originalValue) => originalValue === "" ? null : value).nullable(),
+    totalEmis: Yup.number()
+      .transform((value, originalValue) => originalValue === "" ? null : value)
+      .integer("Tenure must be an integer")
+      .nullable(),
+    startDate: Yup.string().nullable(),
+    dateLoanDisbursed: Yup.string().nullable(),
+    emiStartDate: Yup.string().nullable(),
+    guarantorName: Yup.string().nullable(),
+    guarantorMobileNumbers: Yup.array().of(
+      Yup.string().matches(/^(?:[6-9]\d{9})?$/, "Invalid mobile number"),
+    ).nullable(),
+  });
+
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? "" : format(date, "yyyy-MM-dd");
+  };
+
   const initialValues = {
     ...initialData,
-    mobileNumbers: Array.isArray(initialData?.mobileNumbers) 
-      ? initialData.mobileNumbers 
-      : initialData?.mobileNumber 
-        ? [initialData.mobileNumber] 
+    mobileNumbers: Array.isArray(initialData?.mobileNumbers)
+      ? initialData.mobileNumbers
+      : initialData?.mobileNumber
+        ? [initialData.mobileNumber]
         : [""],
     guarantorMobileNumbers: Array.isArray(initialData?.guarantorMobileNumbers)
       ? initialData.guarantorMobileNumbers
@@ -62,12 +91,20 @@ const WeeklyLoanForm = ({
         ? [initialData.guarantorMobileNumber]
         : [],
     clientResponse: initialData?.clientResponse || "",
-    nextFollowUpDate: initialData?.nextFollowUpDate || "",
+    nextFollowUpDate: formatDateForInput(initialData?.nextFollowUpDate),
+    status: initialData?.status || "Active",
+    emiEndDate: formatDateForInput(initialData?.emiEndDate),
+    emiStartDate: formatDateForInput(initialData?.emiStartDate),
+    dateLoanDisbursed: formatDateForInput(
+      initialData?.dateLoanDisbursed || initialData?.startDate,
+    ),
   };
 
   const formik = useFormik({
     initialValues,
     validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
     enableReinitialize: true,
     onSubmit: (values) => {
       onSubmit({
@@ -78,7 +115,7 @@ const WeeklyLoanForm = ({
         totalAmount,
         totalCollected,
         nextEmiDate,
-        emiEndDate,
+        emiEndDate: values.emiEndDate,
         remainingPrincipalAmount,
       });
     },
@@ -86,18 +123,40 @@ const WeeklyLoanForm = ({
 
   const { values, setFieldValue, errors, touched, handleBlur } = formik;
 
-  // Auto-set EMI Start Date to 7 days after Disbursement Date
+  const lastDisbursementDate = useRef(values.startDate);
+
+  // Auto-set EMI Start Date only when Disbursement Date explicitly changes
   useEffect(() => {
-    if (values.startDate) {
-      const disbursementDate = new Date(values.startDate);
+    if (values.dateLoanDisbursed && values.dateLoanDisbursed !== lastDisbursementDate.current) {
+      const disbursementDate = new Date(values.dateLoanDisbursed);
       if (!isNaN(disbursementDate.getTime())) {
         const autoEmiStart = format(addDays(disbursementDate, 7), "yyyy-MM-dd");
         if (values.emiStartDate !== autoEmiStart) {
           setFieldValue("emiStartDate", autoEmiStart);
         }
+        // Also sync startDate for backend compatibility
+        setFieldValue("startDate", values.dateLoanDisbursed);
+        lastDisbursementDate.current = values.dateLoanDisbursed;
       }
     }
-  }, [values.startDate, setFieldValue, values.emiStartDate]);
+  }, [values.dateLoanDisbursed, setFieldValue, values.emiStartDate]);
+
+  // Auto-calculate EMI End Date from Start Date & Tenure
+  useEffect(() => {
+    const totalWeeks = parseInt(values.totalEmis);
+    if (values.emiStartDate && totalWeeks > 0) {
+      const d = new Date(values.emiStartDate);
+      if (!isNaN(d.getTime())) {
+        const endDate = addDays(d, (totalWeeks - 1) * 7);
+        const formattedEnd = format(endDate, "yyyy-MM-dd");
+        if (values.emiEndDate !== formattedEnd) {
+          setFieldValue("emiEndDate", formattedEnd);
+        }
+      }
+    } else if (values.emiEndDate !== "") {
+      setFieldValue("emiEndDate", "");
+    }
+  }, [values.emiStartDate, values.totalEmis, setFieldValue, values.emiEndDate]);
 
   // Auto-calculations (Derived State)
   const amount = parseFloat(values.disbursementAmount) || 0;
@@ -107,28 +166,15 @@ const WeeklyLoanForm = ({
   const eStartDate = values.emiStartDate ? new Date(values.emiStartDate) : null;
 
   // Processing Fee
-  const processingFee = (amount * (feeRate / 100)).toFixed(2);
+  const processingFee = Math.ceil(amount * (feeRate / 100));
 
   // Weekly Principal Calculation (No Interest) - Round Up
   const emiAmount = totalWeeks > 0 ? Math.ceil(amount / totalWeeks) : 0;
 
-  // Dates
-  let emiEndDate = "";
-  if (eStartDate && totalWeeks > 0) {
-    const end = new Date(eStartDate);
-    end.setDate(end.getDate() + (totalWeeks - 1) * 7);
-    emiEndDate = isNaN(end.getTime()) ? "" : format(end, "yyyy-MM-dd");
-  }
-
-  const totalAmount = (emiAmount * paidWeeks).toFixed(2);
-  const totalCollected = (
-    parseFloat(totalAmount) + parseFloat(processingFee)
-  ).toFixed(2);
+  const totalAmount = Math.ceil(emiAmount * paidWeeks + (parseFloat(values.odAmount) || 0));
+  const totalCollected = Math.ceil(totalAmount + processingFee);
   const remainingEmis = totalWeeks - paidWeeks;
-  const remainingPrincipalAmount = (
-    amount -
-    emiAmount * paidWeeks
-  ).toFixed(2);
+  const remainingPrincipalAmount = Math.ceil(amount - emiAmount * paidWeeks);
 
   const nextEmiDate =
     eStartDate && !isNaN(eStartDate.getTime())
@@ -166,32 +212,77 @@ const WeeklyLoanForm = ({
     >
       {/* Customer Info */}
       <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative">
-        <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-3 uppercase tracking-tight">
-          <span className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center text-lg">
-            👤
-          </span>
-          Customer & Basic Info
-        </h2>
-
-        {values.updatedBy && (
-          <div className="absolute top-4 right-4 flex flex-col items-end pointer-events-none">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
-              Last Updated By
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-4 md:pb-2 border-b border-primary/10">
+          <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2 md:gap-3 uppercase tracking-tight">
+            <span className="w-8 h-8 md:w-10 md:h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center text-base md:text-lg">
+              👤
             </span>
-            <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
-                {typeof values.updatedBy === "string"
-                  ? values.updatedBy
-                  : values.updatedBy.name}
-              </span>
-              <span className="w-1 h-1 rounded-full bg-red-500/40" />
-              <span className="text-[9px] font-bold text-slate-400 font-mono">
-                {values.updatedAt &&
-                  format(new Date(values.updatedAt), "dd/MM/yy HH:mm")}
-              </span>
-            </div>
+            Customer & Basic Info
+          </h2>
+
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Status
+            </label>
+            <select
+              name="status"
+              value={values.status || "Active"}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
+              disabled={isViewOnly || !isSuperAdmin}
+              className={`text-[11px] font-bold uppercase tracking-widest py-1 px-3 border rounded-lg focus:outline-none ${isViewOnly || !isSuperAdmin ? "opacity-70 bg-slate-100 cursor-not-allowed text-slate-500" : "bg-white border-primary/30 text-primary shadow-sm focus:ring-2 focus:ring-primary/20"}`}
+            >
+              <option value="Active">Active</option>
+              <option value="Closed">Closed</option>
+              <option value="Seized">Seized</option>
+              <option value="Pending">Pending</option>
+            </select>
           </div>
-        )}
+
+          <div className="w-full md:w-auto min-w-[150px] flex flex-wrap justify-start md:justify-end gap-x-4 gap-y-2">
+            {/* Created By Section */}
+            {isEditMode && values.createdBy && (
+              <div className="flex flex-col items-start md:items-end pointer-events-none">
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                  Created By
+                </span>
+                <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tight">
+                    {typeof values.createdBy === "string"
+                      ? values.createdBy
+                      : values.createdBy.name}
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-emerald-500/40" />
+                  <span className="text-[9px] font-bold text-slate-400 font-mono">
+                    {values.createdAt &&
+                      format(new Date(values.createdAt), "dd/MM/yy HH:mm")}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Last Updated By Section */}
+            {isEditMode && values.updatedBy && (
+              <div className="flex flex-col items-start md:items-end pointer-events-none">
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                  Last Updated By
+                </span>
+                <div className="flex items-center gap-2 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  <span className="text-[10px] font-black text-amber-500 uppercase tracking-tight">
+                    {typeof values.updatedBy === "string"
+                      ? values.updatedBy
+                      : values.updatedBy.name}
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-amber-500/40" />
+                  <span className="text-[9px] font-bold text-slate-400 font-mono">
+                    {values.updatedAt &&
+                      format(new Date(values.updatedAt), "dd/MM/yy HH:mm")}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
@@ -209,10 +300,15 @@ const WeeklyLoanForm = ({
               placeholder="Enter Loan Number"
             />
             <ErrorMsg touched={touched} errors={errors} name="loanNumber" />
+            {touched.loanNumber && !errors.loanNumber && values.loanNumber && !isViewOnly && (
+              <p className="text-[9px] font-bold text-emerald-500 mt-1 uppercase tracking-wider ml-1">
+                Loan number is available
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Customer Name <span className="text-red-500">*</span>
+              Customer Name
             </label>
             <input
               type="text"
@@ -229,7 +325,7 @@ const WeeklyLoanForm = ({
           <div className="space-y-4">
             <div className="flex justify-between items-center px-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                MOBILE NUMBERS <span className="text-red-500">*</span>
+                MOBILE NUMBERS
               </label>
             </div>
             <div className="flex flex-col gap-4">
@@ -305,7 +401,7 @@ const WeeklyLoanForm = ({
           <div className="space-y-4">
             <div className="flex justify-between items-center px-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                GUARANTOR MOBILE NUMBERS <span className="text-red-500">*</span>
+                GUARANTOR MOBILE NUMBERS
               </label>
             </div>
             <div className="flex flex-col gap-4 max-w-2xl">
@@ -371,7 +467,7 @@ const WeeklyLoanForm = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Amount <span className="text-red-500">*</span>
+              Amount
             </label>
             <input
               type="number"
@@ -421,7 +517,7 @@ const WeeklyLoanForm = ({
 
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Tenure (Weeks) <span className="text-red-500">*</span>
+              Tenure (Weeks)
             </label>
             <input
               type="number"
@@ -466,14 +562,14 @@ const WeeklyLoanForm = ({
             </label>
             <input
               type="date"
-              name="startDate"
-              value={values.startDate || ""}
+              name="dateLoanDisbursed"
+              value={values.dateLoanDisbursed || ""}
               onChange={formik.handleChange}
               onBlur={handleBlur}
               disabled={isViewOnly}
-              className={getFieldClass("startDate")}
+              className={getFieldClass("dateLoanDisbursed")}
             />
-            <ErrorMsg touched={touched} errors={errors} name="startDate" />
+            <ErrorMsg touched={touched} errors={errors} name="dateLoanDisbursed" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -500,7 +596,7 @@ const WeeklyLoanForm = ({
             <input
               type="date"
               name="emiEndDate"
-              value={emiEndDate}
+              value={values.emiEndDate || ""}
               readOnly
               disabled
               className="w-full bg-slate-100/50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-500 italic"

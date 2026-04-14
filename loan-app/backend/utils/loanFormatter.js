@@ -51,8 +51,7 @@ const formatLoanResponse = (loanDoc) => {
             paymentStatus: loan.paymentStatus,
             remarks: loan.remarks,
             foreclosureDetails: {
-              foreclosedBy:
-                loan.foreclosedBy?.name || loan.foreclosedBy || null,
+              foreclosedBy: loan.foreclosedBy || null,
               foreclosureDate: loan.foreclosureDate || null,
               foreclosureAmount:
                 loan.foreclosureAmount !== undefined &&
@@ -65,22 +64,20 @@ const formatLoanResponse = (loanDoc) => {
               miscellaneousFee: loan.miscellaneousFee || 0,
               odAmount: loan.odAmount || 0,
               remainingPrincipal: loan.remainingPrincipal || 0,
-              createdBy: loan.createdBy,
+              createdBy: loan.createdBy || null,
             },
             seizedStatus: loan.seizedStatus,
             seizedDate: loan.seizedDate,
             soldDetails: loan.soldDetails
               ? {
                   ...loan.soldDetails,
-                  soldBy:
-                    loan.soldDetails.soldBy?.name ||
-                    loan.soldDetails.soldBy ||
-                    null,
+                  soldBy: loan.soldDetails.soldBy || null,
                 }
               : null,
             createdAt: loan.createdAt,
             updatedAt: loan.updatedAt,
-            updatedBy: loan.updatedBy,
+            createdBy: loan.createdBy || null,
+            updatedBy: loan.updatedBy || null,
             clientResponse: loan.clientResponse,
           }
         : {
@@ -96,14 +93,11 @@ const formatLoanResponse = (loanDoc) => {
             soldDetails: loan.soldDetails
               ? {
                   ...loan.soldDetails,
-                  soldBy:
-                    loan.soldDetails.soldBy?.name ||
-                    loan.soldDetails.soldBy ||
-                    null,
+                  soldBy: loan.soldDetails.soldBy || null,
                 }
               : null,
-            createdBy: loan.createdBy,
-            updatedBy: loan.updatedBy,
+            createdBy: loan.createdBy || null,
+            updatedBy: loan.updatedBy || null,
             createdAt: loan.createdAt,
             updatedAt: loan.updatedAt,
           },

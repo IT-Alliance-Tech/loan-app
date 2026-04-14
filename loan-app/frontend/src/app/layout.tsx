@@ -1,11 +1,34 @@
 import type { Metadata } from "next";
-import "../styles/globals.css";
-import { UIProvider } from "../context/UIContext";
+import { Inter, Montserrat } from "next/font/google";
+import "./globals.css";
 import { ToastProvider } from "../context/ToastContext";
 
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const montserrat = Montserrat({ 
+  subsets: ["latin"],
+  variable: "--font-montserrat",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "Square Finance - Internal Management",
-  description: "Enterprise Loan & EMI Management System",
+  title: "Square Finance | Fast & Reliable Vehicle Loans in Bengaluru",
+  description: "Specializing in Car and Auto-Rickshaw commercial vehicle loans in Bengaluru with quick approvals and minimal paperwork.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/logo.jpg",
+    apple: "/logo.jpg",
+  },
+};
+
+export const viewport = {
+  themeColor: "#2563EB",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -14,14 +37,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased text-gray-900 bg-gray-50 flex min-h-screen">
+    <html lang="en" className={`${inter.variable} ${montserrat.variable}`} suppressHydrationWarning>
+      <body className="antialiased min-h-screen font-inter bg-slate-50 text-slate-900" suppressHydrationWarning>
         <ToastProvider>
-          <UIProvider>
-            <div className="flex-1 animate-fade-in w-full max-w-[800px] mx-auto sm:max-w-none px-4 sm:px-0">
-              {children}
-            </div>
-          </UIProvider>
+          {children}
         </ToastProvider>
       </body>
     </html>

@@ -3,11 +3,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { getWeeklyFollowupLoans } from "../services/weeklyLoan.service";
+import {
+  getWeeklyFollowupLoans,
+  deleteWeeklyLoan,
+} from "../services/weeklyLoan.service";
 import Pagination from "./Pagination";
 import { useToast } from "../context/ToastContext";
 import TableActionMenu from "./TableActionMenu";
 import ContactActionMenu from "./ContactActionMenu";
+import { getUserFromToken } from "../utils/auth";
 
 const WeeklyFollowupList = () => {
   const router = useRouter();
@@ -26,15 +30,18 @@ const WeeklyFollowupList = () => {
     loanNumber: "",
     customerName: "",
     mobileNumber: "",
-    nextFollowUpDate: today,
+    startDate: today,
+    endDate: today,
   });
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [limit] = useState(10);
+  const [limit] = useState(25);
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   // Load saved filters on mount
   useEffect(() => {
@@ -86,6 +93,18 @@ const WeeklyFollowupList = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this weekly loan?")) {
+      try {
+        await deleteWeeklyLoan(id);
+        showToast("Weekly loan deleted", "success");
+        fetchFollowups();
+      } catch (err) {
+        showToast(err.message || "Failed to delete", "error");
+      }
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchFollowups();
@@ -107,7 +126,8 @@ const WeeklyFollowupList = () => {
       loanNumber: "",
       customerName: "",
       mobileNumber: "",
-      nextFollowUpDate: today,
+      startDate: today,
+      endDate: today,
     });
     localStorage.removeItem("weeklyFollowupFilters");
     setSearchQuery("");
@@ -238,22 +258,26 @@ const WeeklyFollowupList = () => {
                       {item.customerName}
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
-                      <button
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const num = item.mobileNumbers?.[0] || item.mobileNumber;
-                          setActiveContactMenu({
-                            number: num,
-                            name: item.customerName,
-                            type: "Applicant",
-                            x: rect.left,
-                            y: rect.bottom,
-                          });
-                        }}
-                        className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
-                      >
-                        {item.mobileNumbers?.[0] || item.mobileNumber}
-                      </button>
+                      <div className="flex flex-col gap-0.5">
+                        {(item.mobileNumbers || [item.mobileNumber]).map((num, idx) => (
+                          <button
+                            key={idx}
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActiveContactMenu({
+                                number: num,
+                                name: item.customerName,
+                                type: "Applicant",
+                                x: rect.left,
+                                y: rect.bottom,
+                              });
+                            }}
+                            className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-md">
@@ -291,7 +315,7 @@ const WeeklyFollowupList = () => {
                                 // Assuming toggleSeized handles it if we import it, otherwise keeping it simple
                                 router.push(`/admin/weekly-loans/edit/${item.loanId}?action=seize`);
                             }
-                          }
+                          },
                         ]}
                       />
                     </td>
@@ -358,17 +382,31 @@ const WeeklyFollowupList = () => {
                     className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
-                    Follow-up Date
-                  </label>
-                  <input
-                    type="date"
-                    name="nextFollowUpDate"
-                    value={filters.nextFollowUpDate}
-                    onChange={handleFilterChange}
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                      From Date
+                    </label>
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={filters.startDate}
+                      onChange={handleFilterChange}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                      To Date
+                    </label>
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={filters.endDate}
+                      onChange={handleFilterChange}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

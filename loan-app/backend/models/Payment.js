@@ -5,7 +5,7 @@ const paymentSchema = new mongoose.Schema(
     emiId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "EMI",
-      required: true,
+      required: false,
     },
     loanId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -19,7 +19,19 @@ const paymentSchema = new mongoose.Schema(
     },
     amount: {
       type: Number,
-      required: true,
+      default: 0,
+    },
+    emiAmount: {
+      type: Number,
+      default: 0,
+    },
+    overdueAmount: {
+      type: Number,
+      default: 0,
+    },
+    totalAmount: {
+      type: Number,
+      default: 0,
     },
     mode: {
       type: String,
@@ -32,7 +44,7 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentType: {
       type: String,
-      enum: ["Monthly", "Daily", "Weekly"],
+      enum: ["Monthly", "Daily", "Weekly", "Processing Fee", "Overdue"],
       required: true,
     },
     status: {

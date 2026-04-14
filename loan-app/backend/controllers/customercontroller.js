@@ -5,6 +5,7 @@ const Payment = require("../models/Payment");
 const ErrorHandler = require("../utils/ErrorHandler");
 const { formatLoanResponse } = require("../utils/loanFormatter");
 const asyncHandler = require("../utils/asyncHandler");
+const { parseDateInLocalFormat, normalizeToMidnight } = require('../utils/dateUtils');
 const sendResponse = require("../utils/response");
 
 const calculateEMI = (principal, roi, tenureMonths) => {
@@ -109,6 +110,7 @@ const createCustomerLoan = asyncHandler(async (req, res, next) => {
       dueDate: new Date(currentEmiDate),
       emiAmount: monthlyEMI,
       status: "Pending",
+      overdue: [],
     });
     currentEmiDate.setMonth(currentEmiDate.getMonth() + 1);
   }
@@ -202,9 +204,18 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("EMI record not found", 404));
   }
 
-  // Process payments from dateGroups if provided (replaces existing history)
+  // CALCULATE DELTAS FOR IMMUTABLE TRANSACTION RECORDING
+  const oldEmiSum = parseFloat(emi.amountPaid) || 0;
+  const overdueArray = Array.isArray(emi.overdue) ? emi.overdue : [];
+  const oldOverdueSum = overdueArray.reduce((acc, ov) => acc + (parseFloat(ov.amount) || 0), 0);
+
+  // Update properties on the document directly (before bucket logic)
+  if (overdue !== undefined) emi.overdue = overdue;
+  if (remarks !== undefined) emi.remarks = remarks;
+
+  // Process payments from dateGroups if provided
   if (dateGroups && Array.isArray(dateGroups)) {
-    emi.paymentHistory = []; // Clear current history to replace with updated state from modal
+    emi.paymentHistory = [];
     dateGroups.forEach((group) => {
       if (group.date && group.payments) {
         group.payments.forEach((p) => {
@@ -220,80 +231,94 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       }
     });
   } else if (addedAmount && parseFloat(addedAmount) > 0) {
-    // Fallback/Legacy support: Add a single payment if dateGroups is missing but addedAmount is present
     emi.paymentHistory.push({
       amount: parseFloat(addedAmount),
       mode: paymentMode || "CASH",
-      date: paymentDate ? new Date(paymentDate) : new Date(),
+      date: normalizeToMidnight(parseDateInLocalFormat(paymentDate || new Date())),
     });
   }
 
-  // CREATE PAYMENT RECORDS FOR NEW PAYMENTS
-  if (dateGroups && Array.isArray(dateGroups)) {
-    // Delete existing payment records for this EMI to sync with the new history
-    await Payment.deleteMany({ emiId: emi._id });
+  // --- GRANULAR MULTI-TRANSACTION LOGIC ---
+  const newEmiSum = emi.paymentHistory.reduce((acc, curr) => acc + curr.amount, 0);
+  const currentOverdueArray = Array.isArray(overdue) ? overdue : [];
+  const newOverdueSum = currentOverdueArray.reduce((acc, ov) => acc + (parseFloat(ov.amount) || 0), 0);
 
-    const paymentRecords = [];
-    dateGroups.forEach((group) => {
-      if (group.date && group.payments) {
-        group.payments.forEach((p) => {
-          const amount = parseFloat(p.amount);
-          if (amount > 0) {
-            paymentRecords.push({
-              emiId: emi._id,
-              loanId: emi.loanId,
-              loanModel: emi.loanModel,
-              amount: amount,
-              mode: p.mode || "CASH",
-              paymentDate: new Date(group.date),
-              paymentType:
-                emi.loanModel === "DailyLoan"
-                  ? "Daily"
-                  : emi.loanModel === "WeeklyLoan"
-                    ? "Weekly"
-                    : "Monthly",
-              status: "Success",
-              collectedBy: req.user._id,
-            });
-          }
-        });
-      }
-    });
+  // 1. Group Old/New by Date Only (to merge different modes in one row per date)
+  const getGroupKey = (date) => {
+    const d = normalizeToMidnight(new Date(date));
+    return d.toISOString();
+  };
 
-    // Add overdue/penalty as a payment record if it exists
-    if (overdue && parseFloat(overdue) > 0) {
-      paymentRecords.push({
-        emiId: emi._id,
-        loanId: emi.loanId,
-        loanModel: emi.loanModel,
-        amount: parseFloat(overdue),
-        mode: paymentMode || "CASH",
-        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-        paymentType:
-          emi.loanModel === "DailyLoan"
-            ? "Daily"
-            : emi.loanModel === "WeeklyLoan"
-              ? "Weekly"
-              : "Monthly",
-        status: "Success",
-        remarks: "Overdue/Penalty Payment",
-        collectedBy: req.user._id,
-      });
+  // We need the original EMI to get OLD payments/overdue
+  // BUT emi is already modified in memory. Let's get the original values we stored.
+  // Wait, I need the original objects to compare. I'll use a snapshot.
+  
+  // NOTE: I already have oldEmiSum and oldOverdueSum. 
+  // To be precise about "every transaction", we compare the arrays.
+  const changes = []; // Array of { date, mode, emiDelta, overdueDelta }
+
+  // Strategy: Group everything by (date, mode) and calculate deltas for each bucket.
+  const buckets = {};
+  const addToBucket = (date, mode, type, amount, isNew) => {
+    const key = getGroupKey(date);
+    if (!buckets[key]) {
+      buckets[key] = {
+        date: normalizeToMidnight(new Date(date)),
+        modes: new Set(),
+        emiDelta: 0,
+        overdueDelta: 0,
+      };
     }
+    const val = parseFloat(amount) || 0;
+    if (type === "EMI") buckets[key].emiDelta += isNew ? val : -val;
+    else buckets[key].overdueDelta += isNew ? val : -val;
 
-    if (paymentRecords.length > 0) {
-      await Payment.insertMany(paymentRecords);
+    if (isNew && val > 0 && mode) {
+      buckets[key].modes.add(mode.toUpperCase());
     }
-  } else {
-    // Handle single payment updates (standard adding logic)
-    if (addedAmount && parseFloat(addedAmount) > 0) {
+  };
+
+  // Process Old state (subtract from buckets)
+  // We need the original lists. I'll fetch the original EMI data once more or use the emi object before save.
+  // Actually, I can just use the memory emi object since I modified it, but I need what it WAS.
+  
+  // Let's re-fetch the original to be 100% accurate for deltas
+  const originalEmi = await EMI.findById(id).lean();
+  
+  if (Array.isArray(originalEmi.paymentHistory)) {
+    originalEmi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, false));
+  }
+  
+  if (Array.isArray(originalEmi.overdue)) {
+    originalEmi.overdue.forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, false));
+  }
+
+  // Process New state (add to buckets)
+  if (Array.isArray(emi.paymentHistory)) {
+    emi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, true));
+  }
+  
+  if (Array.isArray(emi.overdue)) {
+    emi.overdue.forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, true));
+  }
+
+  // Create Payment records for each bucket with a non-zero delta
+  for (const key in buckets) {
+    const { date, modes, emiDelta, overdueDelta } = buckets[key];
+    const totalDelta = emiDelta + overdueDelta;
+
+    if (totalDelta !== 0 || emiDelta !== 0 || overdueDelta !== 0) {
+      const combinedMode = modes.size > 0 ? Array.from(modes).join(", ") : "CASH";
       await Payment.create({
         emiId: emi._id,
         loanId: emi.loanId,
         loanModel: emi.loanModel,
-        amount: parseFloat(addedAmount),
-        mode: paymentMode || "CASH",
-        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+        emiAmount: emiDelta,
+        overdueAmount: overdueDelta,
+        totalAmount: totalDelta,
+        amount: totalDelta, // Legacy fallback
+        mode: combinedMode,
+        paymentDate: date,
         paymentType:
           emi.loanModel === "DailyLoan"
             ? "Daily"
@@ -302,29 +327,7 @@ const updateEMI = asyncHandler(async (req, res, next) => {
               : "Monthly",
         status: "Success",
         collectedBy: req.user._id,
-      });
-    }
-
-    // Add overdue/penalty as a separate record if it exists and wasn't part of dateGroups
-    if (overdue && parseFloat(overdue) > 0) {
-      // Check if a penalty payment already exists to avoid duplication if not using dateGroups
-      // For simplicity, we create it here if it's a direct overdue update
-      await Payment.create({
-        emiId: emi._id,
-        loanId: emi.loanId,
-        loanModel: emi.loanModel,
-        amount: parseFloat(overdue),
-        mode: paymentMode || "CASH",
-        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-        paymentType:
-          emi.loanModel === "DailyLoan"
-            ? "Daily"
-            : emi.loanModel === "WeeklyLoan"
-              ? "Weekly"
-              : "Monthly",
-        status: "Success",
-        remarks: "Overdue/Penalty Payment",
-        collectedBy: req.user._id,
+        remarks: remarks || "",
       });
     }
   }
@@ -347,11 +350,12 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   } else if (newAmountPaid > 0) {
     newStatus = "Partially Paid";
   } else {
-    // Only set to Pending if it's currently NOT Overdue or if we want to reset it
-    newStatus = overdue > 0 ? "Overdue" : "Pending";
+    // Check if there are any overdue entries
+    const hasOverdue = overdue && Array.isArray(overdue) && overdue.some(ov => parseFloat(ov.amount) > 0);
+    newStatus = hasOverdue ? "Overdue" : "Pending";
   }
 
-  // Update properties on the document directly
+  // Update properties on the document indirectly (final sync)
   emi.amountPaid = newAmountPaid;
   emi.paymentMode = modesFromHistory || emi.paymentMode || "CASH";
   emi.paymentDate =
@@ -359,9 +363,7 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     (emi.paymentHistory.length > 0
       ? emi.paymentHistory[emi.paymentHistory.length - 1].date
       : emi.paymentDate);
-  emi.overdue = overdue !== undefined ? overdue : emi.overdue;
   emi.status = newStatus;
-  emi.remarks = remarks || emi.remarks;
   emi.updatedBy = req.user._id;
 
   // Use save() instead of findByIdAndUpdate for reliability with Mongoose arrays
@@ -377,10 +379,26 @@ const updateEMI = asyncHandler(async (req, res, next) => {
         loanModel: "WeeklyLoan",
       });
       const paidEmisCount = allEmis.filter((e) => e.status === "Paid").length;
+      const isAllPaid = allEmis.length > 0 && allEmis.every((e) => e.status === "Paid");
 
       const weeklyLoan = await WeeklyLoan.findById(emi.loanId);
       if (weeklyLoan) {
         weeklyLoan.paidEmis = paidEmisCount;
+        
+        // Update odAmount
+        const totalOdAmount = allEmis.reduce((acc, currentEmi) => {
+          if (Array.isArray(currentEmi.overdue)) {
+            return acc + currentEmi.overdue.reduce((oAcc, ov) => oAcc + (parseFloat(ov.amount) || 0), 0);
+          }
+          return acc + (parseFloat(currentEmi.overdue) || 0);
+        }, 0);
+        weeklyLoan.odAmount = totalOdAmount;
+
+        if (isAllPaid) {
+          weeklyLoan.status = "Closed";
+        } else if (weeklyLoan.status === "Closed") {
+          weeklyLoan.status = "Active";
+        }
         await weeklyLoan.save();
       }
     } catch (err) {
@@ -397,10 +415,26 @@ const updateEMI = asyncHandler(async (req, res, next) => {
         loanModel: "DailyLoan",
       });
       const paidEmisCount = allEmis.filter((e) => e.status === "Paid").length;
+      const isAllPaid = allEmis.length > 0 && allEmis.every((e) => e.status === "Paid");
 
       const dailyLoan = await DailyLoan.findById(emi.loanId);
       if (dailyLoan) {
         dailyLoan.paidEmis = paidEmisCount;
+
+        // Update odAmount
+        const totalOdAmount = allEmis.reduce((acc, currentEmi) => {
+          if (Array.isArray(currentEmi.overdue)) {
+            return acc + currentEmi.overdue.reduce((oAcc, ov) => oAcc + (parseFloat(ov.amount) || 0), 0);
+          }
+          return acc + (parseFloat(currentEmi.overdue) || 0);
+        }, 0);
+        dailyLoan.odAmount = totalOdAmount;
+
+        if (isAllPaid) {
+          dailyLoan.status = "Closed";
+        } else if (dailyLoan.status === "Closed") {
+          dailyLoan.status = "Active";
+        }
         await dailyLoan.save();
       }
     } catch (err) {
@@ -417,7 +451,7 @@ const updateEMI = asyncHandler(async (req, res, next) => {
         loanModel: "Loan",
       });
 
-      const isAllPaid = allEmis.every((e) => e.status === "Paid");
+      const isAllPaid = allEmis.length > 0 && allEmis.every((e) => e.status === "Paid");
       const isAnyPaid = allEmis.some(
         (e) => e.status === "Paid" || e.status === "Partially Paid",
       );
@@ -426,11 +460,27 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       if (loan) {
         if (isAllPaid) {
           loan.paymentStatus = "Paid";
+          loan.status = "Closed";
         } else if (isAnyPaid) {
           loan.paymentStatus = "Partially Paid";
+          if (loan.status === "Closed") {
+            loan.status = "Active";
+          }
         } else {
           loan.paymentStatus = "Pending";
+          if (loan.status === "Closed") {
+            loan.status = "Active";
+          }
         }
+        // Update odAmount
+        const totalOdAmount = allEmis.reduce((acc, currentEmi) => {
+          if (Array.isArray(currentEmi.overdue)) {
+            return acc + currentEmi.overdue.reduce((oAcc, ov) => oAcc + (parseFloat(ov.amount) || 0), 0);
+          }
+          return acc + (parseFloat(currentEmi.overdue) || 0);
+        }, 0);
+        loan.odAmount = totalOdAmount;
+
         await loan.save();
       }
     } catch (err) {

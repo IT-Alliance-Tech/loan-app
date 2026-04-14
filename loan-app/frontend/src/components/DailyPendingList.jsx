@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, differenceInDays } from "date-fns";
-import { getDailyPendingPayments } from "../services/dailyLoan.service";
+import { getDailyPendingPayments, deleteDailyLoan } from "../services/dailyLoan.service";
 import Pagination from "./Pagination";
 import { useToast } from "../context/ToastContext";
 import TableActionMenu from "./TableActionMenu";
 import ContactActionMenu from "./ContactActionMenu";
 import { updateFollowup } from "../services/loan.service";
 import ClientResponseSection from "./ClientResponseSection";
+import { getUserFromToken } from "../utils/auth";
 
 const DailyPendingList = () => {
   const router = useRouter();
@@ -17,14 +18,16 @@ const DailyPendingList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeContactMenu, setActiveContactMenu] = useState(null);
+  const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [limit] = useState(10);
+  const [limit] = useState(25);
   const { showToast } = useToast();
+  const user = getUserFromToken();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [responseDetails, setResponseDetails] = useState({
@@ -57,6 +60,18 @@ const DailyPendingList = () => {
       showToast(err.message, "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this daily loan?")) {
+      try {
+        await deleteDailyLoan(id);
+        showToast("Daily loan deleted", "success");
+        fetchPending();
+      } catch (err) {
+        showToast(err.message || "Failed to delete", "error");
+      }
     }
   };
 
@@ -166,6 +181,9 @@ const DailyPendingList = () => {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Total Due
                 </th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap text-red-500">
+                  Penalty
+                </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Overdue Days
                 </th>
@@ -204,7 +222,7 @@ const DailyPendingList = () => {
                   >
                     <td className="px-6 py-5 whitespace-nowrap">
                       <Link
-                        href={`/admin/daily-loans/pending/view/${item.earliestEmiId}?from=pending`}
+                        href={`/admin/daily-loans/edit/${item.loanId}`}
                         className="text-[11px] font-black text-primary uppercase tracking-wider hover:underline"
                       >
                         {item.loanNumber}
@@ -214,22 +232,26 @@ const DailyPendingList = () => {
                       {item.customerName}
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
-                      <button
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const num = item.mobileNumbers?.[0] || item.mobileNumber;
-                          setActiveContactMenu({
-                            number: num,
-                            name: item.customerName,
-                            type: "Applicant",
-                            x: rect.left,
-                            y: rect.bottom,
-                          });
-                        }}
-                        className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
-                      >
-                        {item.mobileNumbers?.[0] || item.mobileNumber}
-                      </button>
+                      <div className="flex flex-col gap-0.5">
+                        {(item.mobileNumbers || [item.mobileNumber]).map((num, idx) => (
+                          <button
+                            key={idx}
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setActiveContactMenu({
+                                number: num,
+                                name: item.customerName,
+                                type: "Applicant",
+                                x: rect.left,
+                                y: rect.bottom,
+                              });
+                            }}
+                            className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-md">
@@ -240,22 +262,26 @@ const DailyPendingList = () => {
                     <td className="px-6 py-5 text-center whitespace-nowrap font-black text-red-600 text-sm tracking-tight">
                       ₹{item.totalDueAmount.toLocaleString()}
                     </td>
+                    <td className="px-6 py-5 text-center whitespace-nowrap font-black text-rose-500 text-xs tracking-tight bg-red-50/30">
+                      {item.penalOverdue > 0 ? `₹${item.penalOverdue.toLocaleString()}` : "—"}
+                    </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       {(() => {
                         const days = differenceInDays(
                           new Date(),
                           new Date(item.earliestDueDate),
                         );
+                        const displayDays = days + 1;
                         let bgColor = "bg-slate-500";
-                        if (days >= 7) bgColor = "bg-red-600";
-                        else if (days >= 3) bgColor = "bg-orange-600";
-                        else if (days >= 1) bgColor = "bg-yellow-600";
+                        if (displayDays >= 8) bgColor = "bg-red-600";
+                        else if (displayDays >= 4) bgColor = "bg-orange-600";
+                        else if (displayDays >= 2) bgColor = "bg-yellow-600";
 
                         return (
                           <span
                             className={`text-[10px] font-black tracking-tight px-3 py-1.5 rounded-lg inline-block min-w-[80px] text-white ${bgColor}`}
                           >
-                            {days > 0 ? `${days} Days` : "0 Days"}
+                            {displayDays} {displayDays === 1 ? "Day" : "Days"}
                           </span>
                         );
                       })()}
@@ -286,10 +312,6 @@ const DailyPendingList = () => {
                               router.push(
                                 `/admin/daily-loans/edit/${item.loanId}`,
                               ),
-                          },
-                          {
-                            label: "Update Response",
-                            onClick: () => handleResponseClick(item),
                           },
                         ]}
                       />
@@ -368,6 +390,11 @@ const DailyPendingList = () => {
           </div>
         </div>
       )}
+
+      <ContactActionMenu
+        contact={activeContactMenu}
+        onClose={() => setActiveContactMenu(null)}
+      />
     </div>
   );
 };
