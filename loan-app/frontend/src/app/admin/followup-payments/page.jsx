@@ -24,6 +24,7 @@ const FollowupPaymentsPage = () => {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Get today's date in YYYY-MM-DD format for default filter
   const today = new Date().toISOString().split("T")[0];
@@ -62,6 +63,27 @@ const FollowupPaymentsPage = () => {
       return;
     setSelectedRowId((prev) => (prev === id ? null : id));
   };
+
+  // Load saved filters on mount
+  useEffect(() => {
+    const savedFilters = localStorage.getItem("monthlyFollowupFilters");
+    if (savedFilters) {
+      try {
+        const parsed = JSON.parse(savedFilters);
+        setFilters((prev) => ({ ...prev, ...parsed }));
+      } catch (e) {
+        console.error("Failed to parse saved filters", e);
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // Save filters on change
+  useEffect(() => {
+    if (isInitialized) {
+      localStorage.setItem("monthlyFollowupFilters", JSON.stringify(filters));
+    }
+  }, [filters, isInitialized]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -130,6 +152,7 @@ const FollowupPaymentsPage = () => {
       nextFollowUpDate: today, // Reset to today instead of empty
     };
     setFilters(resetValues);
+    localStorage.removeItem("monthlyFollowupFilters");
     setSearchQuery("");
     setCurrentPage(1);
     fetchFollowups({ ...resetValues, page: 1 });

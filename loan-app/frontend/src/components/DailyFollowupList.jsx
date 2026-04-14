@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { getDailyFollowupLoans } from "../services/dailyLoan.service";
+import { getDailyFollowupLoans, deleteDailyLoan } from "../services/dailyLoan.service";
 import Pagination from "./Pagination";
 import { useToast } from "../context/ToastContext";
 import TableActionMenu from "./TableActionMenu";
@@ -17,22 +17,60 @@ const DailyFollowupList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeContactMenu, setActiveContactMenu] = useState(null);
 
+  // Get today's date in YYYY-MM-DD format for default filter
+  const today = new Date().toISOString().split("T")[0];
+
+  const [filters, setFilters] = useState({
+    loanNumber: "",
+    customerName: "",
+    mobileNumber: "",
+    startDate: today,
+    endDate: today,
+  });
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [limit] = useState(10);
+  const [limit] = useState(25);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const { showToast } = useToast();
+
+  // Load saved filters on mount
+  useEffect(() => {
+    const savedFilters = localStorage.getItem("dailyFollowupFilters");
+    if (savedFilters) {
+      try {
+        const parsed = JSON.parse(savedFilters);
+        setFilters((prev) => ({ ...prev, ...parsed }));
+      } catch (e) {
+        console.error("Failed to parse saved filters", e);
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // Save filters on change
+  useEffect(() => {
+    if (isInitialized) {
+      localStorage.setItem("dailyFollowupFilters", JSON.stringify(filters));
+    }
+  }, [filters, isInitialized]);
 
   const fetchFollowups = async () => {
     try {
       setLoading(true);
       const params = {
-        page: currentPage,
-        limit,
+        ...filters,
+        pageNum: currentPage,
+        limitNum: limit,
         followup: "true",
-        searchQuery: searchQuery,
       };
+
+      if (searchQuery.trim()) {
+        params.loanNumber = searchQuery;
+      }
 
       const res = await getDailyFollowupLoans(params);
       if (res.data) {
@@ -54,12 +92,29 @@ const DailyFollowupList = () => {
       fetchFollowups();
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery, currentPage]);
+  }, [searchQuery, currentPage, filters]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
 
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      loanNumber: "",
+      customerName: "",
+      mobileNumber: "",
+      startDate: today,
+      endDate: today,
+    });
+    localStorage.removeItem("dailyFollowupFilters");
+    setSearchQuery("");
+    setCurrentPage(1);
+  };
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-start mb-8">
@@ -87,10 +142,29 @@ const DailyFollowupList = () => {
           </div>
         </div>
         <button
-          onClick={() => setSearchQuery("")}
-          className="flex-none px-6 h-[46px] bg-red-50 border border-red-100 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2 shadow-sm"
+          onClick={() => setIsFilterOpen(true)}
+          className="flex-none w-[46px] h-[46px] bg-white border border-slate-200 text-slate-400 rounded-xl flex items-center justify-center hover:bg-slate-50 transition-all shadow-sm"
+          title="Change Date / Filters"
         >
-          Clear
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+        </button>
+        <button
+          onClick={resetFilters}
+          className="flex-none px-6 h-[46px] bg-blue-50 border border-blue-100 text-primary rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center justify-center gap-2 shadow-sm"
+        >
+          Reset To Today
         </button>
       </div>
 
@@ -248,6 +322,100 @@ const DailyFollowupList = () => {
         contact={activeContactMenu}
         onClose={() => setActiveContactMenu(null)}
       />
+
+      {/* Filter Drawer */}
+      {isFilterOpen && (
+        <div className="fixed inset-0 z-[100] flex justify-end">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+            onClick={() => setIsFilterOpen(false)}
+          ></div>
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl animate-slide-in-right border-l border-slate-100 flex flex-col">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                  Filters
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsFilterOpen(false)}
+                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-slate-600 border border-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-8">
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                    Loan Number
+                  </label>
+                  <input
+                    type="text"
+                    name="loanNumber"
+                    value={filters.loanNumber}
+                    onChange={handleFilterChange}
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                    Applicant Name
+                  </label>
+                  <input
+                    type="text"
+                    name="customerName"
+                    value={filters.customerName}
+                    onChange={handleFilterChange}
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary uppercase"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                      From Date
+                    </label>
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={filters.startDate}
+                      onChange={handleFilterChange}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                      To Date
+                    </label>
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={filters.endDate}
+                      onChange={handleFilterChange}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
+              <button
+                onClick={() => setIsFilterOpen(false)}
+                className="w-full bg-primary text-white py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+              >
+                🔍 APPLY FILTERS
+              </button>
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="w-full bg-white border border-slate-200 text-slate-400 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest hover:text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                RESET FILTERS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
