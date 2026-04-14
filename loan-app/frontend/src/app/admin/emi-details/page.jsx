@@ -357,12 +357,7 @@ const EMIDetailsPage = () => {
                             <th className="w-[120px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400">
                               MOBILE
                             </th>
-                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400">
-                              GUARANTOR
-                            </th>
-                            <th className="w-[120px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400">
-                              GUAR. MOBILE
-                            </th>
+
                             <th className="w-[100px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400 text-center">
                               MILESTONE
                             </th>
@@ -427,37 +422,7 @@ const EMIDetailsPage = () => {
                                   ))}
                                 </div>
                               </td>
-                              <td className="px-4 py-5">
-                                <p className="text-[11px] font-black text-slate-900 uppercase tracking-tighter truncate">
-                                  {group.guarantorName || "—"}
-                                </p>
-                              </td>
-                              <td className="px-4 py-5 font-bold text-slate-500 text-[10px] whitespace-nowrap">
-                                <div className="flex flex-col gap-0.5">
-                                  {(group.guarantorMobileNumbers || []).map(
-                                    (num, idx) => (
-                                      <button
-                                        key={idx}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const rect =
-                                            e.currentTarget.getBoundingClientRect();
-                                          setActiveContactMenu({
-                                            number: num,
-                                            name: group.guarantorName,
-                                            type: "Guarantor",
-                                            x: rect.left,
-                                            y: rect.bottom,
-                                          });
-                                        }}
-                                        className="text-[9px] font-bold text-slate-400 hover:text-primary transition-colors text-left"
-                                      >
-                                        {num}
-                                      </button>
-                                    ),
-                                  )}
-                                </div>
-                              </td>
+
                               <td className="px-4 py-5 text-center">
                                 <span className="text-[10px] font-black text-slate-900">
                                   {group.paidEMIs}/{group.totalEMIs}

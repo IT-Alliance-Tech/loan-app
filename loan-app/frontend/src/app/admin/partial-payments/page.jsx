@@ -269,12 +269,7 @@ const PartialPaymentsPage = () => {
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                           Applicant Mobile
                         </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                          Guarantor Name
-                        </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                          Guarantor Mobile
-                        </th>
+
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                           Customer Response
                         </th>
@@ -296,7 +291,7 @@ const PartialPaymentsPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="10"
+                            colSpan="8"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             Loading records...
@@ -305,7 +300,7 @@ const PartialPaymentsPage = () => {
                       ) : data.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="10"
+                            colSpan="8"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             No records found
@@ -358,36 +353,7 @@ const PartialPaymentsPage = () => {
                                 ))}
                               </div>
                             </td>
-                            <td className="px-6 py-5 whitespace-nowrap">
-                              <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
-                                {item.guarantorName || "—"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5 whitespace-nowrap">
-                              <div className="flex flex-col gap-0.5 mt-1">
-                                {(item.guarantorMobileNumbers || []).map(
-                                  (num, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={(e) => {
-                                        const rect =
-                                          e.currentTarget.getBoundingClientRect();
-                                        setActiveContactMenu({
-                                          number: num,
-                                          name: item.guarantorName,
-                                          type: "Guarantor",
-                                          x: rect.left,
-                                          y: rect.bottom,
-                                        });
-                                      }}
-                                      className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
-                                    >
-                                      {num}
-                                    </button>
-                                  ),
-                                )}
-                              </div>
-                            </td>
+
                             <td className="px-6 py-5">
                               <div className="flex items-center">
                                 <span

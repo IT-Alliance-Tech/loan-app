@@ -228,12 +228,7 @@ const DailyLoansList = ({ type, title }) => {
                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                     MOBILE
                   </th>
-                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    GUARANTOR
-                  </th>
-                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    GUAR. MOBILE
-                  </th>
+
                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                     EMI
                   </th>
@@ -255,7 +250,7 @@ const DailyLoansList = ({ type, title }) => {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan="10"
+                      colSpan="8"
                       className="px-4 py-12 text-center text-slate-400 font-bold text-[10px] uppercase tracking-widest"
                     >
                       Loading...
@@ -264,7 +259,7 @@ const DailyLoansList = ({ type, title }) => {
                 ) : loans.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="10"
+                      colSpan="8"
                       className="px-4 py-12 text-center text-slate-400 font-bold text-[10px] uppercase tracking-widest"
                     >
                       No records
@@ -322,35 +317,7 @@ const DailyLoansList = ({ type, title }) => {
                           ))}
                         </div>
                       </td>
-                      <td className="px-4 py-5 whitespace-nowrap">
-                        <span className="font-black text-slate-900 text-xs uppercase tracking-tighter">
-                          {loan.guarantorName || "—"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-5 whitespace-nowrap">
-                        <div className="flex flex-col gap-0.5">
-                          {(loan.guarantorMobileNumbers || [loan.guarantorMobile]).map((num, idx) => 
-                            num ? (
-                              <button
-                                key={idx}
-                                onClick={(e) => {
-                                  const rect = e.currentTarget.getBoundingClientRect();
-                                  setActiveContactMenu({
-                                    number: num,
-                                    name: loan.guarantorName,
-                                    type: "Guarantor",
-                                    x: rect.left,
-                                    y: rect.bottom,
-                                  });
-                                }}
-                                className="text-[10px] font-bold text-primary hover:underline transition-colors text-left"
-                              >
-                                {num}
-                              </button>
-                            ) : idx === 0 ? "—" : null
-                          )}
-                        </div>
-                      </td>
+
                       <td className="px-4 py-5 text-center whitespace-nowrap">
                         <div className="flex flex-col items-center">
                           <span className="font-black text-primary text-[11px]">
@@ -475,9 +442,7 @@ const DailyLoansList = ({ type, title }) => {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                   Mobile
                 </th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                  Guarantor
-                </th>
+
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   EMI
                 </th>
@@ -499,7 +464,7 @@ const DailyLoansList = ({ type, title }) => {
               {loading ? (
                 <tr>
                   <td
-                    colSpan="9"
+                    colSpan="8"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
                     Loading records...
@@ -508,7 +473,7 @@ const DailyLoansList = ({ type, title }) => {
               ) : loans.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="9"
+                    colSpan="8"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
                     No records found
@@ -566,35 +531,7 @@ const DailyLoansList = ({ type, title }) => {
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <span className="font-extrabold text-slate-800 text-xs uppercase tracking-tight">
-                        {loan.guarantorName || "—"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <div className="flex flex-col gap-1 items-start">
-                        {(loan.guarantorMobileNumbers || [loan.guarantorMobile]).map((num, idx) =>
-                          num ? (
-                            <button
-                              key={idx}
-                              onClick={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setActiveContactMenu({
-                                  number: num,
-                                  name: loan.guarantorName,
-                                  type: "Guarantor",
-                                  x: rect.left,
-                                  y: rect.bottom,
-                                });
-                              }}
-                              className="text-slate-600 font-bold text-xs tracking-widest hover:text-primary transition-colors text-left"
-                            >
-                              {num}
-                            </button>
-                          ) : idx === 0 ? "—" : null
-                        )}
-                      </div>
-                    </td>
+
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <div className="flex flex-col items-center">
                         <span className="font-black text-primary text-xs">
