@@ -56,6 +56,15 @@ const dailyLoanSchema = new mongoose.Schema(
     totalCollected: {
       type: Number,
     },
+    paymentMode: {
+      type: String,
+      enum: ["Cash", "Online", "Cheque"],
+      default: "Cash",
+    },
+    chequeNumber: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: String,
       enum: ["Active", "Closed", "Pending", "Seized"],

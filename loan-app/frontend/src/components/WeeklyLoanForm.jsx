@@ -98,6 +98,8 @@ const WeeklyLoanForm = ({
     dateLoanDisbursed: formatDateForInput(
       initialData?.dateLoanDisbursed || initialData?.startDate,
     ),
+    paymentMode: initialData?.paymentMode || "Cash",
+    chequeNumber: initialData?.chequeNumber || "",
   };
 
   const formik = useFormik({
@@ -545,6 +547,51 @@ const WeeklyLoanForm = ({
                 className={getFieldClass("paidEmis")}
               />
               <ErrorMsg touched={touched} errors={errors} name="paidEmis" />
+            </div>
+          )}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+              Payment Mode
+            </label>
+            <select
+              name="paymentMode"
+              value={values.paymentMode || "Cash"}
+              onChange={formik.handleChange}
+              onBlur={handleBlur}
+              disabled={isViewOnly}
+              className={getFieldClass("paymentMode")}
+            >
+              <option value="Cash">Cash</option>
+              <option value="Online">Online</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+          </div>
+          {values.paymentMode === "Cheque" && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Cheque Number
+              </label>
+              <input
+                type="text"
+                name="chequeNumber"
+                value={values.chequeNumber || ""}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  setFieldValue("chequeNumber", val);
+                }}
+                onBlur={handleBlur}
+                disabled={isViewOnly}
+                maxLength={6}
+                className={getFieldClass("chequeNumber")}
+                placeholder="6-digit cheque number"
+              />
+              {touched.chequeNumber &&
+                values.chequeNumber &&
+                values.chequeNumber.length !== 6 && (
+                  <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider ml-1">
+                    Cheque number must be 6 digits
+                  </p>
+                )}
             </div>
           )}
         </div>

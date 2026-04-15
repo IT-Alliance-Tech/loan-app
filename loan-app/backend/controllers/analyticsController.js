@@ -173,6 +173,7 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     // 4. EMI Collections & Expenses
     Promise.all([
       EMI.aggregate([
+        { $match: { loanModel: "Loan" } },
         {
           $group: {
             _id: null,
@@ -226,18 +227,20 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
   const partialCount = partialMetrics[0]?.count || 0;
 
   // Calculate Totals
-  const totalLoanAmount =
+  const totalLoanAmount = Math.ceil(
     (lMain.disbursement[0]?.total || 0) +
-    (lDaily.disbursement[0]?.total || 0) +
-    (lWeekly.disbursement[0]?.total || 0);
+      (lDaily.disbursement[0]?.total || 0) +
+      (lWeekly.disbursement[0]?.total || 0),
+  );
 
-  const totalCollectedAmount =
+  const totalCollectedAmount = Math.ceil(
     (emiResults[0]?.total || 0) +
-    (lDaily.disbursement[0]?.collected || 0) +
-    (lWeekly.disbursement[0]?.collected || 0) +
-    (lMain.foreclosure[0]?.total || 0) +
-    (lMain.sold[0]?.total || 0) +
-    (lMain.processingFees[0]?.total || 0);
+      (lDaily.disbursement[0]?.collected || 0) +
+      (lWeekly.disbursement[0]?.collected || 0) +
+      (lMain.foreclosure[0]?.total || 0) +
+      (lMain.sold[0]?.total || 0) +
+      (lMain.processingFees[0]?.total || 0),
+  );
 
   const activeLoansCount =
     (lMain.counts[0]?.active || 0) +
@@ -249,7 +252,7 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     (lDaily.counts[0]?.closed || 0) +
     (lWeekly.counts[0]?.closed || 0);
 
-  const totalExpenses = expenseResults[0]?.total || 0;
+  const totalExpenses = Math.ceil(expenseResults[0]?.total || 0);
 
   // Format Vehicle Data
   const vehicleData = { "For Seizing": 0, Seized: 0, Sold: 0 };

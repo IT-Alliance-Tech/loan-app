@@ -80,6 +80,15 @@ const loanSchema = new mongoose.Schema(
     totalInterestAmount: {
       type: Number,
     },
+    paymentMode: {
+      type: String,
+      enum: ["Cash", "Online", "Cheque"],
+      default: "Cash",
+    },
+    chequeNumber: {
+      type: String,
+      trim: true,
+    },
     vehicleNumber: {
       type: String,
       trim: true,
