@@ -109,6 +109,8 @@ const createLoan = asyncHandler(async (req, res, next) => {
     emiEndDate: loanTerms.emiEndDate,
     monthlyEMI,
     totalInterestAmount: calculatedTotalInterest,
+    paymentMode: loanTerms.paymentMode || "Cash",
+    chequeNumber: loanTerms.chequeNumber,
 
     // vehicleInformation
     vehicleNumber: vehicleInformation?.vehicleNumber,
@@ -794,6 +796,8 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       dateLoanDisbursed: loanTerms.dateLoanDisbursed,
       emiStartDate: loanTerms.emiStartDate,
       emiEndDate: loanTerms.emiEndDate,
+      paymentMode: loanTerms.paymentMode,
+      chequeNumber: loanTerms.chequeNumber,
     }),
     // Flatten vehicleInformation
     ...(vehicleInformation && {
@@ -1843,6 +1847,8 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
     paymentBreakdown, // Array of { mode, amount }
     paymentDate,
     remarks,
+    paymentMode,
+    chequeNumber,
   } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -1888,6 +1894,8 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
       foreclosureDate: pDate,
       foreclosureAmount: totalAmount,
       remainingPrincipal,
+      paymentMode: paymentMode || "Cash",
+      chequeNumber: paymentMode === "Cheque" ? chequeNumber : undefined,
     },
     { new: true },
   )

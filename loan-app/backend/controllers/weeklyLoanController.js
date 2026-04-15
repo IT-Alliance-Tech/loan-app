@@ -31,6 +31,8 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     status,
     guarantorName,
     guarantorMobileNumbers,
+    paymentMode,
+    chequeNumber,
   } = req.body;
 
   if (!loanNumber) {
@@ -105,6 +107,8 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     clientResponse,
     guarantorName,
     guarantorMobileNumbers,
+    paymentMode: paymentMode || "Cash",
+    chequeNumber,
     status: status || "Active",
     createdBy: req.user._id,
   });
@@ -402,6 +406,8 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     emiStartDate,
     guarantorName,
     guarantorMobileNumbers,
+    paymentMode,
+    chequeNumber,
   } = req.body;
 
   console.log("------- UPDATE WEEKLY LOAN CALLED -------");
@@ -456,6 +462,8 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     status: status || weeklyLoan.status,
     interestRate: 0,
     expenses: 0,
+    paymentMode: paymentMode || weeklyLoan.paymentMode,
+    chequeNumber: chequeNumber !== undefined ? chequeNumber : weeklyLoan.chequeNumber,
     updatedBy: req.user._id,
   };
 

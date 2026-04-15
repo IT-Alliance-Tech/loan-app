@@ -30,6 +30,8 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     status,
     guarantorName,
     guarantorMobileNumbers,
+    paymentMode,
+    chequeNumber,
   } = req.body;
 
   if (!loanNumber) {
@@ -99,6 +101,8 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     clientResponse,
     guarantorName,
     guarantorMobileNumbers,
+    paymentMode: paymentMode || "Cash",
+    chequeNumber,
     status: status || "Active",
     createdBy: req.user._id,
   });
@@ -396,6 +400,8 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     emiStartDate,
     guarantorName,
     guarantorMobileNumbers,
+    paymentMode,
+    chequeNumber,
   } = req.body;
 
   // Global Loan Number Uniqueness Check
@@ -443,6 +449,8 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     clientResponse:
       clientResponse !== undefined ? clientResponse : dailyLoan.clientResponse,
     status: status || dailyLoan.status,
+    paymentMode: paymentMode || dailyLoan.paymentMode,
+    chequeNumber: chequeNumber !== undefined ? chequeNumber : dailyLoan.chequeNumber,
     updatedBy: req.user._id,
   };
 

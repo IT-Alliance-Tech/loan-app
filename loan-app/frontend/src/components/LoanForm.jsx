@@ -184,6 +184,8 @@ const LoanForm = ({
         emiEndDate: initialData?.loanTerms?.emiEndDate || "",
         monthlyEMI: initialData?.loanTerms?.monthlyEMI || 0,
         totalInterestAmount: initialData?.loanTerms?.totalInterestAmount || 0,
+        paymentMode: initialData?.loanTerms?.paymentMode || "Cash",
+        chequeNumber: initialData?.loanTerms?.chequeNumber || "",
       },
       vehicleInformation: {
         vehicleNumber: initialData?.vehicleInformation?.vehicleNumber || "",
@@ -1147,6 +1149,51 @@ const LoanForm = ({
                 />
                 <ErrorMsg name="loanTerms.annualInterestRate" />
               </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Payment Mode
+                </label>
+                <select
+                  name="loanTerms.paymentMode"
+                  value={formik.values.loanTerms.paymentMode || "Cash"}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  disabled={isViewOnly}
+                  className={getFieldClass("loanTerms.paymentMode")}
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Online">Online</option>
+                  <option value="Cheque">Cheque</option>
+                </select>
+              </div>
+              {formik.values.loanTerms.paymentMode === "Cheque" && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Cheque Number
+                  </label>
+                  <input
+                    type="text"
+                    name="loanTerms.chequeNumber"
+                    value={formik.values.loanTerms.chequeNumber || ""}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                      formik.setFieldValue("loanTerms.chequeNumber", val);
+                    }}
+                    onBlur={formik.handleBlur}
+                    readOnly={isViewOnly}
+                    maxLength={6}
+                    className={getFieldClass("loanTerms.chequeNumber")}
+                    placeholder="6-digit cheque number"
+                  />
+                  {formik.touched.loanTerms?.chequeNumber &&
+                    formik.values.loanTerms.chequeNumber &&
+                    formik.values.loanTerms.chequeNumber.length !== 6 && (
+                      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
+                        Cheque number must be 6 digits
+                      </p>
+                    )}
+                </div>
+              )}
             </div>
           </div>
 
