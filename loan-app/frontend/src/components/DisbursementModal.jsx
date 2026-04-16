@@ -10,7 +10,6 @@ const DisbursementModal = ({ isOpen, onClose, onApply, initialData = [] }) => {
   useEffect(() => {
     if (isOpen) {
       if (initialData && initialData.length > 0) {
-        // Group initial data by date
         const grouped = initialData.reduce((acc, curr) => {
           const dateStr = curr.date ? format(new Date(curr.date), "yyyy-MM-dd") : "";
           let group = acc.find((g) => g.date === dateStr);
@@ -27,10 +26,15 @@ const DisbursementModal = ({ isOpen, onClose, onApply, initialData = [] }) => {
           });
           return acc;
         }, []);
-        setGroups(grouped);
+        
+        // Use a microtask to avoid synchronous setState within useEffect error
+        queueMicrotask(() => setGroups(grouped));
       } else {
         // Start with one empty group
-        setGroups([{ date: format(new Date(), "yyyy-MM-dd"), items: [{ mode: "Cash", amount: "", chequeNumber: "" }] }]);
+        queueMicrotask(() => setGroups([{ 
+          date: format(new Date(), "yyyy-MM-dd"), 
+          items: [{ mode: "Cash", amount: "", chequeNumber: "" }] 
+        }]));
       }
     }
   }, [isOpen, initialData]);

@@ -15,6 +15,7 @@ const formatLoanResponse = (loanDoc) => {
       guarantorName: loan.guarantorName,
       guarantorMobileNumbers: loan.guarantorMobileNumbers || [],
     },
+    // loanTerms
     loanTerms: {
       loanNumber: loan.loanNumber,
       principalAmount: loan.principalAmount,
