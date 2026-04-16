@@ -50,7 +50,9 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
   }
 
   // Calculations
-  const amount = parseFloat(disbursementAmount) || 0;
+  const disbursementArray = req.body.disbursement || [];
+  const disbursementSum = disbursementArray.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+  const amount = disbursementSum > 0 ? disbursementSum : (parseFloat(disbursementAmount) || 0);
   const totalWeeks = parseInt(totalEmis) || 0;
   const feeRate = parseFloat(processingFeeRate) || 10;
   const currentPaidEmis = parseInt(paidEmis) || 0;
@@ -109,6 +111,7 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     guarantorMobileNumbers,
     paymentMode: paymentMode || "Cash",
     chequeNumber,
+    disbursement: req.body.disbursement || [],
     status: status || "Active",
     createdBy: req.user._id,
   });
@@ -434,10 +437,9 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers: mobileNumbers || weeklyLoan.mobileNumbers,
     guarantorName: guarantorName !== undefined ? guarantorName : weeklyLoan.guarantorName,
     guarantorMobileNumbers: guarantorMobileNumbers || weeklyLoan.guarantorMobileNumbers,
-    disbursementAmount:
-      disbursementAmount !== undefined
-        ? parseFloat(disbursementAmount)
-        : weeklyLoan.disbursementAmount,
+    disbursementAmount: req.body.disbursement?.length > 0
+        ? req.body.disbursement.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+        : (disbursementAmount !== undefined ? parseFloat(disbursementAmount) : weeklyLoan.disbursementAmount),
     startDate: startDate || weeklyLoan.startDate,
     dateLoanDisbursed: dateLoanDisbursed || weeklyLoan.dateLoanDisbursed || startDate || weeklyLoan.startDate,
     emiStartDate:
@@ -464,6 +466,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     expenses: 0,
     paymentMode: paymentMode || weeklyLoan.paymentMode,
     chequeNumber: chequeNumber !== undefined ? chequeNumber : weeklyLoan.chequeNumber,
+    disbursement: req.body.disbursement !== undefined ? req.body.disbursement : weeklyLoan.disbursement,
     updatedBy: req.user._id,
   };
 

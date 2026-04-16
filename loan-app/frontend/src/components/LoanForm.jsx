@@ -7,6 +7,8 @@ import { useToast } from "../context/ToastContext";
 import { addMonths, format } from "date-fns";
 import { getUserFromToken } from "../utils/auth";
 import ClientResponseSection from "./ClientResponseSection";
+import DisbursementModal from "./DisbursementModal";
+import DisbursementList from "./DisbursementList";
 import {
   calculateEMI as fetchEMI,
   getRtoWorks,
@@ -113,6 +115,7 @@ const LoanForm = ({
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [isRtoDropdownOpen, setIsRtoDropdownOpen] = useState(false);
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [isDisbursementModalOpen, setIsDisbursementModalOpen] = useState(false);
 
   const [remainingPrincipalAmount, setRemainingPrincipalAmount] = useState(0);
   const [totalCollectedAmount, setTotalCollectedAmount] = useState(0);
@@ -186,6 +189,9 @@ const LoanForm = ({
         totalInterestAmount: initialData?.loanTerms?.totalInterestAmount || 0,
         paymentMode: initialData?.loanTerms?.paymentMode || "Cash",
         chequeNumber: initialData?.loanTerms?.chequeNumber || "",
+        disbursement: Array.isArray(initialData?.loanTerms?.disbursement)
+          ? initialData.loanTerms.disbursement
+          : [],
       },
       vehicleInformation: {
         vehicleNumber: initialData?.vehicleInformation?.vehicleNumber || "",
@@ -262,6 +268,12 @@ const LoanForm = ({
       });
     },
   });
+
+  const handleDisbursementApply = (disbursements) => {
+    formik.setFieldValue("loanTerms.disbursement", disbursements);
+    const total = disbursements.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+    formik.setFieldValue("loanTerms.principalAmount", total);
+  };
 
   const handleRtoCheckboxChange = (option) => {
     const current = Array.isArray(
@@ -1059,32 +1071,37 @@ const LoanForm = ({
 
           {/* Loan Terms */}
           <div className="space-y-4">
-            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
-              Loan Terms (monthly)
-            </h3>
+            <div className="flex justify-between items-center border-b border-primary/10 pb-2 mb-4">
+              <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">
+                Loan Terms (monthly)
+              </h3>
+              {!isViewOnly && (
+                <button
+                  type="button"
+                  onClick={() => setIsDisbursementModalOpen(true)}
+                  className="px-4 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
+                >
+                  Update Payment
+                </button>
+              )}
+            </div>
+
+            <DisbursementList disbursements={formik.values.loanTerms.disbursement} />
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Total Principal Summary */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Amount
+                  Total Principal Amount
                 </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                    ₹
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-black text-slate-700 flex justify-between items-center group shadow-sm">
+                  <span>₹{(parseFloat(formik.values.loanTerms.principalAmount) || 0).toLocaleString("en-IN")}</span>
+                  <span className="text-[9px] font-black text-primary/40 uppercase tracking-widest px-2 py-0.5 bg-primary/5 rounded-md group-hover:bg-primary/10 transition-colors">
+                    Calculated
                   </span>
-                  <input
-                    type="number"
-                    name="loanTerms.principalAmount"
-                    value={formik.values.loanTerms.principalAmount || ""}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    readOnly={isViewOnly}
-                    className={
-                      getFieldClass("loanTerms.principalAmount") + " pl-8 pr-4"
-                    }
-                  />
                 </div>
-                <ErrorMsg name="loanTerms.principalAmount" />
               </div>
+
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Processing Fee Rate (%)
@@ -1149,51 +1166,7 @@ const LoanForm = ({
                 />
                 <ErrorMsg name="loanTerms.annualInterestRate" />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Payment Mode
-                </label>
-                <select
-                  name="loanTerms.paymentMode"
-                  value={formik.values.loanTerms.paymentMode || "Cash"}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  disabled={isViewOnly}
-                  className={getFieldClass("loanTerms.paymentMode")}
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="Online">Online</option>
-                  <option value="Cheque">Cheque</option>
-                </select>
-              </div>
-              {formik.values.loanTerms.paymentMode === "Cheque" && (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Cheque Number
-                  </label>
-                  <input
-                    type="text"
-                    name="loanTerms.chequeNumber"
-                    value={formik.values.loanTerms.chequeNumber || ""}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "").slice(0, 6);
-                      formik.setFieldValue("loanTerms.chequeNumber", val);
-                    }}
-                    onBlur={formik.handleBlur}
-                    readOnly={isViewOnly}
-                    maxLength={6}
-                    className={getFieldClass("loanTerms.chequeNumber")}
-                    placeholder="6-digit cheque number"
-                  />
-                  {formik.touched.loanTerms?.chequeNumber &&
-                    formik.values.loanTerms.chequeNumber &&
-                    formik.values.loanTerms.chequeNumber.length !== 6 && (
-                      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
-                        Cheque number must be 6 digits
-                      </p>
-                    )}
-                </div>
-              )}
+
             </div>
           </div>
 
@@ -2150,6 +2123,13 @@ const LoanForm = ({
           </div>
         </div>
       )}
+
+      <DisbursementModal
+        isOpen={isDisbursementModalOpen}
+        onClose={() => setIsDisbursementModalOpen(false)}
+        initialData={formik.values.loanTerms.disbursement}
+        onApply={handleDisbursementApply}
+      />
     </div>
   );
 };
