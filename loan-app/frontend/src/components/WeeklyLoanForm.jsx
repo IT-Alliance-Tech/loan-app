@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -31,7 +31,7 @@ const WeeklyLoanForm = ({
 }) => {
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  const [isDisbursementModalOpen, setIsDisbursementModalOpen] = React.useState(false);
+  const [isDisbursementModalOpen, setIsDisbursementModalOpen] = useState(false);
 
   const validationSchema = Yup.object().shape({
     loanNumber: Yup.string()
