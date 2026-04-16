@@ -803,7 +803,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       emiEndDate: loanTerms.emiEndDate,
       paymentMode: loanTerms.paymentMode,
       chequeNumber: loanTerms.chequeNumber,
-      disbursement: loanTerms.disbursement,
+      disbursement: loanTerms.disbursement || loan.disbursement,
     }),
     // Flatten vehicleInformation
     ...(vehicleInformation && {

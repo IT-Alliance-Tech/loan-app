@@ -466,7 +466,7 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     expenses: 0,
     paymentMode: paymentMode || weeklyLoan.paymentMode,
     chequeNumber: chequeNumber !== undefined ? chequeNumber : weeklyLoan.chequeNumber,
-    disbursement: req.body.disbursement !== undefined ? req.body.disbursement : weeklyLoan.disbursement,
+    disbursement: req.body.disbursement || weeklyLoan.disbursement,
     updatedBy: req.user._id,
   };
 
