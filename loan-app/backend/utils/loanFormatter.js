@@ -28,6 +28,7 @@ const formatLoanResponse = (loanDoc) => {
       totalInterestAmount: loan.totalInterestAmount,
       processingFee: loan.processingFee,
       processingFeeRate: loan.processingFeeRate,
+      disbursement: loan.disbursement || [],
     },
     vehicleInformation: {
       vehicleNumber: loan.vehicleNumber,

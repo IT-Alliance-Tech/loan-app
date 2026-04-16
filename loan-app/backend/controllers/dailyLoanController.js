@@ -453,7 +453,7 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     status: status || dailyLoan.status,
     paymentMode: paymentMode || dailyLoan.paymentMode,
     chequeNumber: chequeNumber !== undefined ? chequeNumber : dailyLoan.chequeNumber,
-    disbursement: req.body.disbursement !== undefined ? req.body.disbursement : dailyLoan.disbursement,
+    disbursement: req.body.disbursement || dailyLoan.disbursement,
     updatedBy: req.user._id,
   };
 
