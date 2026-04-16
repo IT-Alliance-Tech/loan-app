@@ -99,7 +99,9 @@ const createLoan = asyncHandler(async (req, res, next) => {
 
     // loanTerms
     loanNumber: loanTerms.loanNumber,
-    principalAmount: parseFloat(loanTerms?.principalAmount) || 0,
+    principalAmount: loanTerms.disbursement?.length > 0
+      ? loanTerms.disbursement.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+      : parseFloat(loanTerms?.principalAmount) || 0,
     processingFeeRate: parseFloat(loanTerms?.processingFeeRate) || 0,
     processingFee: Math.ceil(parseFloat(loanTerms?.processingFee)) || 0,
     tenureMonths: parseInt(loanTerms?.tenureMonths) || 0,
@@ -111,6 +113,7 @@ const createLoan = asyncHandler(async (req, res, next) => {
     totalInterestAmount: calculatedTotalInterest,
     paymentMode: loanTerms.paymentMode || "Cash",
     chequeNumber: loanTerms.chequeNumber,
+    disbursement: loanTerms.disbursement || [],
 
     // vehicleInformation
     vehicleNumber: vehicleInformation?.vehicleNumber,
@@ -788,7 +791,9 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     // Flatten loanTerms
     ...(loanTerms && {
       loanNumber: loanTerms.loanNumber,
-      principalAmount: loanTerms.principalAmount,
+      principalAmount: loanTerms.disbursement?.length > 0 
+        ? loanTerms.disbursement.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+        : loanTerms.principalAmount,
       processingFeeRate: loanTerms.processingFeeRate,
       processingFee: loanTerms.processingFee,
       tenureMonths: loanTerms.tenureMonths,
@@ -798,6 +803,7 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       emiEndDate: loanTerms.emiEndDate,
       paymentMode: loanTerms.paymentMode,
       chequeNumber: loanTerms.chequeNumber,
+      disbursement: loanTerms.disbursement,
     }),
     // Flatten vehicleInformation
     ...(vehicleInformation && {
@@ -934,23 +940,46 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     const updatePromises = emis.map((emi, index) => {
       const emiNum = index + 1;
       const updates = {};
+      let hasChanges = false;
 
-      // Update denormalized info
-      updates.customerName = loan.customerName;
-      updates.loanNumber = loan.loanNumber;
+      // Update denormalized info only if different
+      if (emi.customerName !== loan.customerName) {
+        updates.customerName = loan.customerName;
+        hasChanges = true;
+      }
+      if (emi.loanNumber !== loan.loanNumber) {
+        updates.loanNumber = loan.loanNumber;
+        hasChanges = true;
+      }
 
       // Update EMI amount for pending/partially paid EMIs
       if (emi.status !== "Paid") {
-        updates.emiAmount = monthlyEMI;
+        if (emi.emiAmount !== monthlyEMI) {
+          updates.emiAmount = monthlyEMI;
+          hasChanges = true;
+        }
       }
 
       // Update due dates based on new emiStartDate
-      updates.dueDate = addMonths(new Date(newEmiStartDate), emiNum - 1);
+      const newDueDate = addMonths(new Date(newEmiStartDate), emiNum - 1);
+      if (
+        !emi.dueDate ||
+        new Date(emi.dueDate).getTime() !== new Date(newDueDate).getTime()
+      ) {
+        updates.dueDate = newDueDate;
+        hasChanges = true;
+      }
 
-      return EMI.findByIdAndUpdate(emi._id, updates);
+      if (hasChanges) {
+        // Maintain audit trail
+        updates.updatedBy = req.user._id;
+        return EMI.findByIdAndUpdate(emi._id, updates);
+      }
+
+      return null;
     });
 
-    await Promise.all(updatePromises);
+    await Promise.all(updatePromises.filter((p) => p !== null));
 
     // 2. Handle Tenure Increase
     if (newTenure > oldTenure) {

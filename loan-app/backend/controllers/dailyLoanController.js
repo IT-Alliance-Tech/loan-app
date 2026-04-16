@@ -49,7 +49,9 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
   }
 
   // Calculations
-  const amount = parseFloat(disbursementAmount) || 0;
+  const disbursementArray = req.body.disbursement || [];
+  const disbursementSum = disbursementArray.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+  const amount = disbursementSum > 0 ? disbursementSum : (parseFloat(disbursementAmount) || 0);
   const totalDays = parseInt(totalEmis) || 0;
   const feeRate = parseFloat(processingFeeRate) || 10;
   const currentPaidEmis = parseInt(paidEmis) || 0;
@@ -103,6 +105,7 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     guarantorMobileNumbers,
     paymentMode: paymentMode || "Cash",
     chequeNumber,
+    disbursement: req.body.disbursement || [],
     status: status || "Active",
     createdBy: req.user._id,
   });
@@ -423,10 +426,9 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers: mobileNumbers || dailyLoan.mobileNumbers,
     guarantorName: guarantorName !== undefined ? guarantorName : dailyLoan.guarantorName,
     guarantorMobileNumbers: guarantorMobileNumbers || dailyLoan.guarantorMobileNumbers,
-    disbursementAmount:
-      disbursementAmount !== undefined
-        ? parseFloat(disbursementAmount)
-        : dailyLoan.disbursementAmount,
+    disbursementAmount: req.body.disbursement?.length > 0
+        ? req.body.disbursement.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+        : (disbursementAmount !== undefined ? parseFloat(disbursementAmount) : dailyLoan.disbursementAmount),
     startDate: startDate || dailyLoan.startDate,
     dateLoanDisbursed: dateLoanDisbursed || dailyLoan.dateLoanDisbursed || startDate || dailyLoan.startDate,
     emiStartDate:
@@ -451,6 +453,7 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     status: status || dailyLoan.status,
     paymentMode: paymentMode || dailyLoan.paymentMode,
     chequeNumber: chequeNumber !== undefined ? chequeNumber : dailyLoan.chequeNumber,
+    disbursement: req.body.disbursement !== undefined ? req.body.disbursement : dailyLoan.disbursement,
     updatedBy: req.user._id,
   };
 

@@ -89,6 +89,19 @@ const loanSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    disbursement: [
+      {
+        amount: { type: Number, required: true },
+        mode: {
+          type: String,
+          enum: ["Cash", "Online", "Cheque"],
+          default: "Cash",
+        },
+        chequeNumber: { type: String, trim: true },
+        date: { type: Date, required: true },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
     vehicleNumber: {
       type: String,
       trim: true,
