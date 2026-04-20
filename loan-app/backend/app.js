@@ -16,6 +16,7 @@ const todoRoutes = require("./routes/todoRoutes");
 const collectionRoutes = require("./routes/collectionRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const interestLoanRoutes = require("./routes/interestLoanRoutes");
 const { checkLoanNumberUniqueness } = require("./controllers/loanController");
 const compression = require("compression");
 
@@ -56,22 +57,12 @@ const allowedOrigins = rawAllowedOrigins
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-
-      // Normalize incoming origin for robust comparison
       const normalizedOrigin = origin.replace(/\/$/, "");
-
-      // Log origin for debugging on the server
-      console.log(
-        `[CORS] Request from Origin: ${origin} (normalized as: ${normalizedOrigin})`,
-      );
-
       if (allowedOrigins.includes(normalizedOrigin)) {
         return callback(null, true);
       } else {
         console.warn(`[CORS] Rejected Origin: ${origin}`);
-        // Return false instead of an Error to avoid 500 response
         return callback(null, false);
       }
     },
@@ -89,7 +80,6 @@ app.use(
 );
 
 const User = require("./models/User");
-// Secured seeding route for establishing the first Admin remotely
 app.get("/api/seed-admin", async (req, res) => {
   try {
     const { key } = req.query;
@@ -148,6 +138,7 @@ app.get("/api/seed-admin", async (req, res) => {
     res.status(500).send(error.message);
   }
 });
+
 app.use(cookieParser());
 app.use(express.json());
 
@@ -166,6 +157,7 @@ app.use("/api/todos", todoRoutes);
 app.use("/api/collections", collectionRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/interest-loans", interestLoanRoutes);
 
 // Error Middleware
 app.use(errorMiddleware);

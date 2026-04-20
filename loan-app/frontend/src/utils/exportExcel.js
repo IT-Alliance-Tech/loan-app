@@ -102,6 +102,61 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
         c.status || "",
       ]);
     });
+  } else if (typeOrFileName === "INTEREST") {
+    title = "INTEREST LOANS REPORT";
+    fileName = `Interest_Loans_Report_${new Date().toLocaleDateString("en-IN").replace(/\//g, "-")}.xlsx`;
+    headers = [
+      "Loan No.",
+      "Status",
+      "Customer Name",
+      "Address",
+      "Own/Rent",
+      "Mobile Numbers",
+      "PAN Number",
+      "Aadhar Number",
+      "Initial Principal",
+      "Remaining Principal",
+      "Interest Rate (%)",
+      "Processing Fee",
+      "Start Date",
+      "EMI Start Date",
+      "Vehicle No",
+      "Chassis No",
+      "Engine No",
+      "Type of Vehicle",
+      "Model Year",
+      "YW Board",
+      "Remarks",
+    ];
+
+    data.forEach((loan) => {
+      const vInfo = loan.vehicleInformation || {};
+      columns.push([
+        loan.loanNumber || "-",
+        loan.status || "Active",
+        loan.customerName || "-",
+        loan.address || "-",
+        loan.ownRent || "-",
+        Array.isArray(loan.mobileNumbers)
+          ? loan.mobileNumbers.join(", ")
+          : loan.mobileNumbers || "-",
+        loan.panNumber || "-",
+        loan.aadharNumber || "-",
+        loan.initialPrincipalAmount || 0,
+        loan.remainingPrincipalAmount || 0,
+        loan.interestRate || 0,
+        loan.processingFee || 0,
+        loan.startDate ? new Date(loan.startDate).toLocaleDateString("en-IN") : "-",
+        loan.emiStartDate ? new Date(loan.emiStartDate).toLocaleDateString("en-IN") : "-",
+        vInfo.vehicleNumber || "-",
+        vInfo.chassisNumber || "-",
+        vInfo.engineNumber || "-",
+        vInfo.typeOfVehicle || "-",
+        vInfo.modelYear || "-",
+        vInfo.ywBoard || "-",
+        loan.remarks || "-",
+      ]);
+    });
   } else {
     // Default / Monthly Loans
     title = "MONTHLY LOANS REPORT";

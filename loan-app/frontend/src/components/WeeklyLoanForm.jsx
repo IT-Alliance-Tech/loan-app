@@ -101,6 +101,7 @@ const WeeklyLoanForm = ({
     dateLoanDisbursed: formatDateForInput(
       initialData?.dateLoanDisbursed || initialData?.startDate,
     ),
+    processingFeeRate: initialData?.processingFeeRate ?? 10,
     paymentMode: initialData?.paymentMode || "Cash",
     chequeNumber: initialData?.chequeNumber || "",
     disbursement: Array.isArray(initialData?.disbursement) ? initialData.disbursement : [],
@@ -511,7 +512,7 @@ const WeeklyLoanForm = ({
             <input
               type="number"
               name="processingFeeRate"
-              value={values.processingFeeRate ?? 10}
+              value={values.processingFeeRate ?? ""}
               onChange={formik.handleChange}
               onBlur={handleBlur}
               disabled={isViewOnly}

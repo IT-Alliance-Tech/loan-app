@@ -33,6 +33,15 @@ const navItems = [
     ],
   },
   {
+    name: "Interest Loans",
+    href: "/admin/interest-loan",
+    icon: "📈",
+    subItems: [
+      { name: "Pending", href: "/admin/interest-loan/pending" },
+      { name: "Followups", href: "/admin/interest-loan/followups" },
+    ],
+  },
+  {
     name: "Employees",
     href: "/admin/employees",
     icon: "👥",

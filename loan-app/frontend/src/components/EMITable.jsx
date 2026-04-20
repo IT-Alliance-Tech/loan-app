@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { updateEMI } from "../services/customer";
+import interestLoanService from "../services/interestLoanService";
 import { useToast } from "../context/ToastContext";
 import PaymentModeSelector from "./PaymentModeSelector";
 
-const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
+const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "standard" }) => {
   const [editingEmi, setEditingEmi] = useState(null);
   const [editData, setEditData] = useState({});
   const [loading, setLoading] = useState(false);
@@ -217,11 +218,19 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
         }
       }
 
-      await updateEMI(editingEmi._id, {
-        ...editData,
-        overdue: sanitizedOverdue,
-        dateGroups: sanitizedDateGroups, // Send the full date groups to backend
-      });
+      if (loanType === "interest") {
+        await interestLoanService.payInterestEMI(editingEmi._id, {
+          ...editData,
+          overdue: sanitizedOverdue,
+          dateGroups: sanitizedDateGroups,
+        });
+      } else {
+        await updateEMI(editingEmi._id, {
+          ...editData,
+          overdue: sanitizedOverdue,
+          dateGroups: sanitizedDateGroups,
+        });
+      }
       setShowModal(false);
       setEditingEmi(null);
       showToast("EMI updated successfully", "success");
@@ -291,46 +300,56 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
         <table className="w-full text-left border-collapse">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap min-w-[60px]">
                 No.
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap min-w-[120px]">
                 Due Date
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
                 EMI Amount
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
                 Amount Paid
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
                 Payment Date
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[100px]">
                 Mode
               </th>
-
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[100px]">
                 Overdue
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
                 Payment
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[150px]">
                 Remarks
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[150px]">
                 Last Updated
               </th>
               {isEditMode && (
-                <th className="sticky right-0 bg-slate-50 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                <th className="sticky right-0 bg-slate-50 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] min-w-[100px]">
                   Actions
                 </th>
               )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {emis.map((emi, index) => (
+            {emis.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={isEditMode ? 11 : 10}
+                  className="px-6 py-12 text-center text-sm font-bold text-slate-400 italic"
+                >
+                  No payment records found. The schedule will be initialized
+                  automatically.
+                </td>
+              </tr>
+            ) : (
+              emis.map((emi, index) => (
               <tr
                 key={emi._id}
                 onClick={(e) => toggleHighlight(e, emi._id)}
@@ -445,8 +464,9 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                     </div>
                   </td>
                 )}
-              </tr>
-            ))}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

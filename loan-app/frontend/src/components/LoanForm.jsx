@@ -340,18 +340,24 @@ const LoanForm = ({
   const handleProcessingFeeRateChange = (rate) => {
     formik.setFieldValue("loanTerms.processingFeeRate", rate);
     const principal = parseFloat(formik.values.loanTerms.principalAmount) || 0;
-    if (principal && !isNaN(rate)) {
-      const fee = Math.ceil((principal * parseFloat(rate)) / 100);
+    const rateVal = parseFloat(rate);
+    if (principal && !isNaN(rateVal)) {
+      const fee = Math.ceil((principal * rateVal) / 100);
       formik.setFieldValue("loanTerms.processingFee", fee);
+    } else if (principal) {
+      formik.setFieldValue("loanTerms.processingFee", 0);
     }
   };
 
   const handleProcessingFeeChange = (fee) => {
     formik.setFieldValue("loanTerms.processingFee", fee);
     const principal = parseFloat(formik.values.loanTerms.principalAmount) || 0;
-    if (principal && !isNaN(fee)) {
-      const rate = ((parseFloat(fee) / principal) * 100).toFixed(2);
+    const feeVal = parseFloat(fee);
+    if (principal && !isNaN(feeVal)) {
+      const rate = ((feeVal / principal) * 100).toFixed(2);
       formik.setFieldValue("loanTerms.processingFeeRate", rate);
+    } else if (principal) {
+      formik.setFieldValue("loanTerms.processingFeeRate", 0);
     }
   };
 
