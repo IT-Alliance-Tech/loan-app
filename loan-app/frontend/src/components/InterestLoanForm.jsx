@@ -14,6 +14,17 @@ import { getLoanExpensesTotal } from "@/services/expenseService";
 
 const _loanUniquenessCache = new Map();
 
+const ErrorMsg = ({ name, touched, errors }) => {
+  const [section, field] = name.includes(".") ? name.split(".") : [null, name];
+  const isTouched = section ? touched[section]?.[field] : touched[field];
+  const error = section ? errors[section]?.[field] : errors[field];
+  return isTouched && error ? (
+    <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
+      {error}
+    </p>
+  ) : null;
+};
+
 const InterestLoanForm = ({
   initialData,
   onSubmit,
@@ -223,18 +234,6 @@ const InterestLoanForm = ({
     );
   };
 
-  const ErrorMsg = ({ name }) => {
-    const [section, field] = name.includes(".")
-      ? name.split(".")
-      : [null, name];
-    const isTouched = section ? touched[section]?.[field] : touched[field];
-    const error = section ? errors[section]?.[field] : errors[field];
-    return isTouched && error ? (
-      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
-        {error}
-      </p>
-    ) : null;
-  };
 
   return (
     <div className="bg-white w-full max-w-4xl mx-auto rounded-3xl shadow-sm overflow-hidden border border-slate-200 flex flex-col">
@@ -323,7 +322,7 @@ const InterestLoanForm = ({
                   className={getFieldClass("loanNumber") + " uppercase"}
                   placeholder="LN-INT-001"
                 />
-                <ErrorMsg name="loanNumber" />
+                <ErrorMsg name="loanNumber" touched={touched} errors={errors} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -339,7 +338,7 @@ const InterestLoanForm = ({
                   className={getFieldClass("customerName")}
                   placeholder="Full Name"
                 />
-                <ErrorMsg name="customerName" />
+                <ErrorMsg name="customerName" touched={touched} errors={errors} />
               </div>
             </div>
           </div>
@@ -399,7 +398,7 @@ const InterestLoanForm = ({
                     className={getFieldClass("panNumber") + " uppercase"}
                     placeholder="ABCDE1234F"
                   />
-                  <ErrorMsg name="panNumber" />
+                  <ErrorMsg name="panNumber" touched={touched} errors={errors} />
                 </div>
               </div>
 
@@ -494,7 +493,7 @@ const InterestLoanForm = ({
                     className={getFieldClass("aadharNumber")}
                     placeholder="12-digit Number"
                   />
-                  <ErrorMsg name="aadharNumber" />
+                  <ErrorMsg name="aadharNumber" touched={touched} errors={errors} />
                 </div>
               </div>
             </div>
@@ -584,7 +583,7 @@ const InterestLoanForm = ({
                   className={getFieldClass("interestRate")}
                   placeholder="e.g. 2"
                 />
-                <ErrorMsg name="interestRate" />
+                <ErrorMsg name="interestRate" touched={touched} errors={errors} />
               </div>
 
               <div className="space-y-1">
@@ -645,7 +644,7 @@ const InterestLoanForm = ({
                   readOnly={isViewOnly}
                   className={getFieldClass("startDate")}
                 />
-                <ErrorMsg name="startDate" />
+                <ErrorMsg name="startDate" touched={touched} errors={errors} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -659,7 +658,7 @@ const InterestLoanForm = ({
                   readOnly={isViewOnly}
                   className={getFieldClass("emiStartDate")}
                 />
-                <ErrorMsg name="emiStartDate" />
+                <ErrorMsg name="emiStartDate" touched={touched} errors={errors} />
               </div>
             </div>
 
