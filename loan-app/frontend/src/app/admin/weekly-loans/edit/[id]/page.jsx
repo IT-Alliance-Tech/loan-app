@@ -96,8 +96,8 @@ const EditWeeklyLoanPage = ({ params: paramsPromise }) => {
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
                       Edit Weekly Loan
                     </h1>
-                    <p className="text-slate-500 font-medium text-sm text-left">
-                      Loan Number: {loanData?.loanNumber}
+                    <p className="text-slate-500 font-medium text-sm">
+                      Updating loan record: {loanData?.loanNumber}
                     </p>
                   </div>
                 </div>
