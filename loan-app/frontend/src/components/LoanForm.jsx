@@ -19,6 +19,15 @@ import { getLoanExpensesTotal } from "../services/expenseService";
 
 const _monthlyLoanUniquenessCache = new Map();
 
+const ErrorMsg = ({ name, formik }) => {
+  const meta = formik.getFieldMeta(name);
+  return meta.touched && meta.error ? (
+    <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
+      {meta.error}
+    </p>
+  ) : null;
+};
+
 const LoanForm = ({
   initialData,
   onSubmit,
@@ -517,14 +526,6 @@ const LoanForm = ({
     formik.values.loanTerms.processingFee,
   ]);
 
-  const ErrorMsg = ({ name }) => {
-    const meta = formik.getFieldMeta(name);
-    return meta.touched && meta.error ? (
-      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
-        {meta.error}
-      </p>
-    ) : null;
-  };
 
   const getFieldClass = (name) => {
     const meta = formik.getFieldMeta(name);
@@ -639,7 +640,7 @@ const LoanForm = ({
                   }
                   placeholder="LN-001"
                 />
-                <ErrorMsg name="loanTerms.loanNumber" />
+                <ErrorMsg name="loanTerms.loanNumber" formik={formik} />
                 {formik.touched.loanTerms?.loanNumber && !formik.errors.loanTerms?.loanNumber && formik.values.loanTerms.loanNumber && !isViewOnly && (
                   <p className="text-[9px] font-bold text-emerald-500 mt-1 uppercase tracking-wider">
                     Loan number is available
@@ -660,7 +661,7 @@ const LoanForm = ({
                   className={getFieldClass("customerDetails.customerName")}
                   placeholder="Full Name"
                 />
-                <ErrorMsg name="customerDetails.customerName" />
+                <ErrorMsg name="customerDetails.customerName" formik={formik} />
               </div>
             </div>
           </div>
@@ -684,7 +685,7 @@ const LoanForm = ({
                   rows="2"
                   className={getFieldClass("customerDetails.address")}
                 ></textarea>
-                <ErrorMsg name="customerDetails.address" />
+                <ErrorMsg name="customerDetails.address" formik={formik} />
               </div>
               {/* Left Column: Own/Rent & PAN */}
               <div className="space-y-6">
@@ -703,7 +704,7 @@ const LoanForm = ({
                     <option value="Own">Own</option>
                     <option value="Rent">Rent</option>
                   </select>
-                  <ErrorMsg name="customerDetails.ownRent" />
+                  <ErrorMsg name="customerDetails.ownRent" formik={formik} />
                 </div>
 
                 <div className="space-y-1">
@@ -728,7 +729,7 @@ const LoanForm = ({
                     }
                     placeholder="ABCDE1234F"
                   />
-                  <ErrorMsg name="customerDetails.panNumber" />
+                  <ErrorMsg name="customerDetails.panNumber" formik={formik} />
                 </div>
               </div>
 
@@ -901,7 +902,7 @@ const LoanForm = ({
                     className={getFieldClass("customerDetails.aadharNumber")}
                     placeholder="12 digit number"
                   />
-                  <ErrorMsg name="customerDetails.aadharNumber" />
+                  <ErrorMsg name="customerDetails.aadharNumber" formik={formik} />
                 </div>
               </div>
 
@@ -923,7 +924,7 @@ const LoanForm = ({
                       className={getFieldClass("customerDetails.guarantorName")}
                       placeholder="Enter Guarantor Name"
                     />
-                    <ErrorMsg name="customerDetails.guarantorName" />
+                    <ErrorMsg name="customerDetails.guarantorName" formik={formik} />
                   </div>
 
                   {/* Guarantor Mobile Numbers */}
@@ -1154,7 +1155,7 @@ const LoanForm = ({
                   readOnly={isViewOnly}
                   className={getFieldClass("loanTerms.tenureMonths")}
                 />
-                <ErrorMsg name="loanTerms.tenureMonths" />
+                <ErrorMsg name="loanTerms.tenureMonths" formik={formik} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -1170,7 +1171,7 @@ const LoanForm = ({
                   readOnly={isViewOnly}
                   className={getFieldClass("loanTerms.annualInterestRate")}
                 />
-                <ErrorMsg name="loanTerms.annualInterestRate" />
+                <ErrorMsg name="loanTerms.annualInterestRate" formik={formik} />
               </div>
 
             </div>
@@ -1381,7 +1382,7 @@ const LoanForm = ({
                   }
                   placeholder="KA-01-AB-1234"
                 />
-                <ErrorMsg name="vehicleInformation.vehicleNumber" />
+                <ErrorMsg name="vehicleInformation.vehicleNumber" formik={formik} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -1444,7 +1445,7 @@ const LoanForm = ({
                   className={getFieldClass("vehicleInformation.modelYear")}
                   placeholder="e.g. 2024"
                 />
-                <ErrorMsg name="vehicleInformation.modelYear" />
+                <ErrorMsg name="vehicleInformation.modelYear" formik={formik} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
