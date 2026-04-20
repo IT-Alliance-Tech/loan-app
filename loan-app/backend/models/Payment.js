@@ -15,7 +15,7 @@ const paymentSchema = new mongoose.Schema(
     loanModel: {
       type: String,
       required: true,
-      enum: ["Loan", "WeeklyLoan", "DailyLoan"],
+      enum: ["Loan", "WeeklyLoan", "DailyLoan", "InterestLoan"],
     },
     amount: {
       type: Number,
@@ -48,7 +48,14 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentType: {
       type: String,
-      enum: ["Monthly", "Daily", "Weekly", "Processing Fee", "Overdue"],
+      enum: [
+        "Monthly",
+        "Daily",
+        "Weekly",
+        "Processing Fee",
+        "Overdue",
+        "Interest",
+      ],
       required: true,
     },
     status: {
