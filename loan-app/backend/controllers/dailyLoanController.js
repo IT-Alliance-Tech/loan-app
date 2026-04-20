@@ -532,18 +532,63 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     }).sort({ emiNumber: 1 });
 
     if (emis.length > 0) {
+      const oldTenure = emis.length;
+      const newTenure = parseInt(totalEmis || dailyLoan.totalEmis);
+      const newEmiStartDate = new Date(dailyLoan.emiStartDate);
+
+      // 1. Update existing EMIs
       const updatePromises = emis.map((emi, index) => {
-        const newDueDate = new Date(dailyLoan.emiStartDate);
+        const newDueDate = new Date(newEmiStartDate);
         newDueDate.setDate(newDueDate.getDate() + index);
 
-        return EMI.findByIdAndUpdate(emi._id, {
+        const updates = {
           dueDate: newDueDate,
-          emiAmount: Math.ceil(dailyLoan.emiAmount),
           customerName: dailyLoan.customerName,
           loanNumber: dailyLoan.loanNumber,
-        });
+        };
+
+        // Only update amount for non-paid EMIs to prevent historical data mismatch
+        if (emi.status !== "Paid") {
+          updates.emiAmount = Math.ceil(dailyLoan.emiAmount);
+        }
+
+        return EMI.findByIdAndUpdate(emi._id, updates);
       });
       await Promise.all(updatePromises);
+
+      // 2. Handle Tenure Increase
+      if (newTenure > oldTenure) {
+        const extraEmis = [];
+        for (let i = oldTenure + 1; i <= newTenure; i++) {
+          const newDueDate = new Date(newEmiStartDate);
+          newDueDate.setDate(newDueDate.getDate() + (i - 1));
+
+          extraEmis.push({
+            loanId: dailyLoan._id,
+            loanModel: "DailyLoan",
+            loanNumber: dailyLoan.loanNumber,
+            customerName: dailyLoan.customerName,
+            emiNumber: i,
+            dueDate: newDueDate,
+            emiAmount: Math.ceil(dailyLoan.emiAmount),
+            status: "Pending",
+            overdue: [],
+          });
+        }
+        if (extraEmis.length > 0) {
+          await EMI.insertMany(extraEmis);
+        }
+      }
+      // 3. Handle Tenure Decrease
+      else if (newTenure < oldTenure) {
+        // Remove extra EMIs only if they are Pending
+        await EMI.deleteMany({
+          loanId: dailyLoan._id,
+          loanModel: "DailyLoan",
+          emiNumber: { $gt: newTenure },
+          status: "Pending",
+        });
+      }
     }
   }
 
