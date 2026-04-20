@@ -1,70 +1,64 @@
-import axios from "axios";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
-const getAuthConfig = () => {
-  const token = localStorage.getItem("token");
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    withCredentials: true,
-  };
-};
+import apiHandler from "./api";
 
 const interestLoanService = {
   createLoan: async (loanData) => {
-    const response = await axios.post(`${API_URL}/interest-loans`, loanData, getAuthConfig());
-    return response.data;
+    return await apiHandler("/api/interest-loans", {
+      method: "POST",
+      body: JSON.stringify(loanData),
+    });
   },
 
   getAllLoans: async (params = {}) => {
-    const response = await axios.get(`${API_URL}/interest-loans`, {
-      ...getAuthConfig(),
-      params,
-    });
-    return response.data;
+    const queryString = new URLSearchParams(params).toString();
+    return await apiHandler(
+      `/api/interest-loans${queryString ? `?${queryString}` : ""}`,
+      {
+        method: "GET",
+      }
+    );
   },
 
   getLoanById: async (id) => {
-    const response = await axios.get(`${API_URL}/interest-loans/${id}`, getAuthConfig());
-    return response.data;
+    return await apiHandler(`/api/interest-loans/${id}`, {
+      method: "GET",
+    });
   },
 
   updateLoan: async (id, loanData) => {
-    const response = await axios.put(`${API_URL}/interest-loans/${id}`, loanData, getAuthConfig());
-    return response.data;
+    return await apiHandler(`/api/interest-loans/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(loanData),
+    });
   },
 
   deleteLoan: async (id) => {
-    const response = await axios.delete(`${API_URL}/interest-loans/${id}`, getAuthConfig());
-    return response.data;
+    return await apiHandler(`/api/interest-loans/${id}`, {
+      method: "DELETE",
+    });
   },
 
   addPrincipalPayment: async (id, paymentData) => {
-    const response = await axios.post(
-      `${API_URL}/interest-loans/${id}/principal-payment`,
-      paymentData,
-      getAuthConfig()
-    );
-    return response.data;
+    return await apiHandler(`/api/interest-loans/${id}/principal-payment`, {
+      method: "POST",
+      body: JSON.stringify(paymentData),
+    });
   },
 
   payInterestEMI: async (emiId, paymentData) => {
-    const response = await axios.put(
-      `${API_URL}/interest-loans/emi/${emiId}/pay`,
-      paymentData,
-      getAuthConfig()
-    );
-    return response.data;
+    return await apiHandler(`/api/interest-loans/emi/${emiId}/pay`, {
+      method: "PUT",
+      body: JSON.stringify(paymentData),
+    });
   },
 
   getPendingPayments: async (params = {}) => {
-    const response = await axios.get(`${API_URL}/interest-loans/pending`, {
-      ...getAuthConfig(),
-      params,
-    });
-    return response.data;
+    const queryString = new URLSearchParams(params).toString();
+    return await apiHandler(
+      `/api/interest-loans/pending${queryString ? `?${queryString}` : ""}`,
+      {
+        method: "GET",
+      }
+    );
   },
 };
 
