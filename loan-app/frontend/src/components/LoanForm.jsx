@@ -1800,7 +1800,6 @@ const LoanForm = ({
                 </div>
               </div>
             </div>
-          </div>div>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end pt-8 border-t border-slate-100 mt-8 gap-6 sm:gap-4">
