@@ -171,7 +171,7 @@ const EditLoanPage = () => {
                     Modify Loan Parameters
                   </h1>
                   <p className="text-slate-500 font-medium text-sm">
-                    Updating loan record: {loan?.loanNumber}
+                    Updating loan record: {loan?.loanTerms?.loanNumber}
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
