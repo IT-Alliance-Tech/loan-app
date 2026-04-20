@@ -521,11 +521,11 @@ const LoanForm = ({
     <div className="bg-white w-full max-w-4xl mx-auto rounded-3xl shadow-sm overflow-hidden border border-slate-200 flex flex-col">
       <div className="p-8">
         <form onSubmit={formik.handleSubmit} className="space-y-8">
-          {/* Basic Info */}
+          {/* Header Bar: Status & Meta Info */}
           <div className="space-y-4 relative">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-primary/10 pb-4 md:pb-2">
               <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">
-                Basic Information
+                System Information
               </h3>
 
               <div className="flex items-center gap-2">
@@ -548,7 +548,6 @@ const LoanForm = ({
               </div>
 
               <div className="w-full md:w-auto min-w-[150px] flex flex-wrap justify-start md:justify-end gap-x-4 gap-y-2">
-                {/* Created By Section */}
                 {initialData?._id && formik.values.status?.createdBy && (
                   <div className="flex flex-col items-start md:items-end pointer-events-none">
                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
@@ -572,7 +571,6 @@ const LoanForm = ({
                   </div>
                 )}
 
-                {/* Last Updated By Section */}
                 {initialData?._id && formik.values.status?.updatedBy && (
                   <div className="flex flex-col items-start md:items-end pointer-events-none">
                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
@@ -597,6 +595,13 @@ const LoanForm = ({
                 )}
               </div>
             </div>
+          </div>
+
+          {/* 1. Customer Details */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
+              Customer Details
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -628,7 +633,7 @@ const LoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Name
+                  Customer Name
                 </label>
                 <input
                   type="text"
@@ -642,15 +647,7 @@ const LoanForm = ({
                 />
                 <ErrorMsg name="customerDetails.customerName" />
               </div>
-            </div>
-          </div>
 
-          {/* Customer Details */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
-              Customer Details
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1 md:col-span-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Current Address
@@ -1055,279 +1052,7 @@ const LoanForm = ({
             </div>
           </div>
 
-          {/* Loan Terms */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
-              Loan Terms (monthly)
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Amount
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                    ₹
-                  </span>
-                  <input
-                    type="number"
-                    name="loanTerms.principalAmount"
-                    value={formik.values.loanTerms.principalAmount || ""}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    readOnly={isViewOnly}
-                    className={
-                      getFieldClass("loanTerms.principalAmount") + " pl-8 pr-4"
-                    }
-                  />
-                </div>
-                <ErrorMsg name="loanTerms.principalAmount" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Processing Fee Rate (%)
-                </label>
-                <input
-                  type="number"
-                  name="loanTerms.processingFeeRate"
-                  value={formik.values.loanTerms.processingFeeRate || ""}
-                  onChange={(e) =>
-                    handleProcessingFeeRateChange(e.target.value)
-                  }
-                  onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
-                  className={getFieldClass("loanTerms.processingFeeRate")}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Processing Fee
-                </label>
-                <input
-                  type="number"
-                  name="loanTerms.processingFee"
-                  value={formik.values.loanTerms.processingFee || ""}
-                  onChange={(e) => handleProcessingFeeChange(e.target.value)}
-                  onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
-                  className={
-                    getFieldClass("loanTerms.processingFee") +
-                    (isViewOnly ? " bg-slate-100 italic" : "")
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Tenure (Months)
-                </label>
-                <input
-                  type="number"
-                  name="loanTerms.tenureMonths"
-                  value={formik.values.loanTerms.tenureMonths || ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
-                  className={getFieldClass("loanTerms.tenureMonths")}
-                />
-                <ErrorMsg name="loanTerms.tenureMonths" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Interest Rate (%)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  name="loanTerms.annualInterestRate"
-                  value={formik.values.loanTerms.annualInterestRate || ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
-                  className={getFieldClass("loanTerms.annualInterestRate")}
-                />
-                <ErrorMsg name="loanTerms.annualInterestRate" />
-              </div>
-            </div>
-          </div>
-
-          {/* Dates & EMI */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
-              Dates & EMI
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Date Loan Disbursed
-                </label>
-                <input
-                  type="date"
-                  name="loanTerms.dateLoanDisbursed"
-                  value={formik.values.loanTerms.dateLoanDisbursed || ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
-                  className={getFieldClass("loanTerms.dateLoanDisbursed")}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  EMI Start Date
-                </label>
-                <input
-                  type="date"
-                  name="loanTerms.emiStartDate"
-                  value={formik.values.loanTerms.emiStartDate || ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
-                  className={getFieldClass("loanTerms.emiStartDate")}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  EMI End Date
-                </label>
-                <input
-                  type="date"
-                  name="loanTerms.emiEndDate"
-                  value={formik.values.loanTerms.emiEndDate || ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  readOnly={isViewOnly}
-                  className={getFieldClass("loanTerms.emiEndDate")}
-                />
-              </div>
-              <div className="md:col-span-3">
-                {/* MOBILE VIEW SUMMARY */}
-                <div className="md:hidden space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Monthly EMI */}
-                    <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10">
-                      <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">
-                        Monthly EMI
-                      </span>
-                      <p className="text-lg font-black text-primary">
-                        ₹{formik.values.loanTerms.monthlyEMI || 0}
-                      </p>
-                    </div>
-                    {/* Total Collected */}
-                    <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
-                      <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block mb-1">
-                        Collected
-                      </span>
-                      <p className="text-lg font-black text-emerald-600">
-                        ₹{totalCollectedAmount || 0}
-                      </p>
-                    </div>
-                    {/* Total Expenses */}
-                    <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100">
-                      <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest block mb-1">
-                        Expenses
-                      </span>
-                      <p className="text-lg font-black text-orange-600">
-                        ₹{totalExpenses.toLocaleString("en-IN") || 0}
-                      </p>
-                    </div>
-                    {/* Total Interest */}
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                        Total Interest
-                      </span>
-                      <p className="text-lg font-black text-slate-700">
-                        ₹{formik.values.loanTerms.totalInterestAmount || 0}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Remaining Principal */}
-                  <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex justify-between items-center group active:scale-[0.98] transition-all">
-                    <div>
-                      <span className="text-[10px] font-black text-primary uppercase tracking-widest block mb-1">
-                        Remaining Principal Amount
-                      </span>
-                      <p className="text-xl font-black text-primary">
-                        ₹{remainingPrincipalAmount || 0}
-                      </p>
-                    </div>
-                    <div className="bg-primary/10 p-2.5 rounded-full">
-                      <svg
-                        className="w-5 h-5 text-primary"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2.5"
-                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                {/* DESKTOP VIEW SUMMARY */}
-                <div className="hidden md:flex bg-primary/5 p-4 rounded-2xl border border-primary/10 justify-between items-center">
-                  <div>
-                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">
-                      Monthly EMI
-                    </span>
-                    <p className="text-xl font-black text-primary">
-                      ₹{formik.values.loanTerms.monthlyEMI || 0}
-                    </p>
-                  </div>
-                  <div className="text-center px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col justify-center items-center">
-                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                      Total Collected Amount
-                    </span>
-                    <p className="text-xl font-black text-emerald-600">
-                      ₹{totalCollectedAmount || 0}
-                    </p>
-                  </div>
-                  <div className="text-center px-4 py-2 bg-orange-50 rounded-xl border border-orange-100 flex flex-col justify-center items-center">
-                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">
-                      Total Expenses
-                    </span>
-                    <p className="text-xl font-black text-orange-600">
-                      ₹{totalExpenses.toLocaleString("en-IN") || 0}
-                    </p>
-                  </div>
-                  <div className="text-right flex flex-col items-end gap-2">
-                    <div className="flex flex-col items-end">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                        Total Interest Amount
-                      </label>
-                      <input
-                        type="number"
-                        name="loanTerms.totalInterestAmount"
-                        value={
-                          formik.values.loanTerms.totalInterestAmount || ""
-                        }
-                        readOnly
-                        className="bg-transparent border-b border-slate-200 text-sm font-bold text-slate-700 focus:outline-none focus:border-primary text-right w-32"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <label className="text-[10px] font-black text-primary uppercase tracking-widest block mb-1">
-                        Remaining Principal Amount
-                      </label>
-                      <input
-                        type="text"
-                        value={`₹${remainingPrincipalAmount || 0}`}
-                        readOnly
-                        className="bg-transparent border-b border-primary/20 text-sm font-black text-primary focus:outline-none text-right w-40"
-                        placeholder="₹0"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Vehicle Info */}
+          {/* 2. Vehicle Info */}
           <div className="space-y-4">
             <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
               Vehicle Information
@@ -1451,9 +1176,7 @@ const LoanForm = ({
                 </select>
               </div>
             </div>
-          </div>
 
-          <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -1805,6 +1528,279 @@ const LoanForm = ({
                 )}
               </div>
             </div>
+          </div>
+
+          {/* 3. Loan Terms */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
+              Loan Terms (monthly)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Amount
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                    ₹
+                  </span>
+                  <input
+                    type="number"
+                    name="loanTerms.principalAmount"
+                    value={formik.values.loanTerms.principalAmount || ""}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    readOnly={isViewOnly}
+                    className={
+                      getFieldClass("loanTerms.principalAmount") + " pl-8 pr-4"
+                    }
+                  />
+                </div>
+                <ErrorMsg name="loanTerms.principalAmount" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Processing Fee Rate (%)
+                </label>
+                <input
+                  type="number"
+                  name="loanTerms.processingFeeRate"
+                  value={formik.values.loanTerms.processingFeeRate || ""}
+                  onChange={(e) =>
+                    handleProcessingFeeRateChange(e.target.value)
+                  }
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.processingFeeRate")}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Processing Fee
+                </label>
+                <input
+                  type="number"
+                  name="loanTerms.processingFee"
+                  value={formik.values.loanTerms.processingFee || ""}
+                  onChange={(e) => handleProcessingFeeChange(e.target.value)}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={
+                    getFieldClass("loanTerms.processingFee") +
+                    (isViewOnly ? " bg-slate-100 italic" : "")
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Tenure (Months)
+                </label>
+                <input
+                  type="number"
+                  name="loanTerms.tenureMonths"
+                  value={formik.values.loanTerms.tenureMonths || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.tenureMonths")}
+                />
+                <ErrorMsg name="loanTerms.tenureMonths" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Interest Rate (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="loanTerms.annualInterestRate"
+                  value={formik.values.loanTerms.annualInterestRate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.annualInterestRate")}
+                />
+                <ErrorMsg name="loanTerms.annualInterestRate" />
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Dates & EMI */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
+              Dates & EMI
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Date Loan Disbursed
+                </label>
+                <input
+                  type="date"
+                  name="loanTerms.dateLoanDisbursed"
+                  value={formik.values.loanTerms.dateLoanDisbursed || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.dateLoanDisbursed")}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  EMI Start Date
+                </label>
+                <input
+                  type="date"
+                  name="loanTerms.emiStartDate"
+                  value={formik.values.loanTerms.emiStartDate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.emiStartDate")}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  EMI End Date
+                </label>
+                <input
+                  type="date"
+                  name="loanTerms.emiEndDate"
+                  value={formik.values.loanTerms.emiEndDate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.emiEndDate")}
+                />
+              </div>
+              <div className="md:col-span-3">
+                {/* MOBILE VIEW SUMMARY */}
+                <div className="md:hidden space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Monthly EMI */}
+                    <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10">
+                      <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">
+                        Monthly EMI
+                      </span>
+                      <p className="text-lg font-black text-primary">
+                        ₹{formik.values.loanTerms.monthlyEMI || 0}
+                      </p>
+                    </div>
+                    {/* Total Collected */}
+                    <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
+                      <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block mb-1">
+                        Collected
+                      </span>
+                      <p className="text-lg font-black text-emerald-600">
+                        ₹{totalCollectedAmount || 0}
+                      </p>
+                    </div>
+                    {/* Total Expenses */}
+                    <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100">
+                      <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest block mb-1">
+                        Expenses
+                      </span>
+                      <p className="text-lg font-black text-orange-600">
+                        ₹{totalExpenses.toLocaleString("en-IN") || 0}
+                      </p>
+                    </div>
+                    {/* Total Interest */}
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Total Interest
+                      </span>
+                      <p className="text-lg font-black text-slate-700">
+                        ₹{formik.values.loanTerms.totalInterestAmount || 0}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Remaining Principal */}
+                  <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex justify-between items-center group active:scale-[0.98] transition-all">
+                    <div>
+                      <span className="text-[10px] font-black text-primary uppercase tracking-widest block mb-1">
+                        Remaining Principal Amount
+                      </span>
+                      <p className="text-xl font-black text-primary">
+                        ₹{remainingPrincipalAmount || 0}
+                      </p>
+                    </div>
+                    <div className="bg-primary/10 p-2.5 rounded-full">
+                      <svg
+                        className="w-5 h-5 text-primary"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2.5"
+                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DESKTOP VIEW SUMMARY */}
+                <div className="hidden md:flex bg-primary/5 p-4 rounded-2xl border border-primary/10 justify-between items-center">
+                  <div>
+                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                      Monthly EMI
+                    </span>
+                    <p className="text-xl font-black text-primary">
+                      ₹{formik.values.loanTerms.monthlyEMI || 0}
+                    </p>
+                  </div>
+                  <div className="text-center px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col justify-center items-center">
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                      Total Collected Amount
+                    </span>
+                    <p className="text-xl font-black text-emerald-600">
+                      ₹{totalCollectedAmount || 0}
+                    </p>
+                  </div>
+                  <div className="text-center px-4 py-2 bg-orange-50 rounded-xl border border-orange-100 flex flex-col justify-center items-center">
+                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">
+                      Total Expenses
+                    </span>
+                    <p className="text-xl font-black text-orange-600">
+                      ₹{totalExpenses.toLocaleString("en-IN") || 0}
+                    </p>
+                  </div>
+                  <div className="text-right flex flex-col items-end gap-2">
+                    <div className="flex flex-col items-end">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Total Interest Amount
+                      </label>
+                      <input
+                        type="number"
+                        name="loanTerms.totalInterestAmount"
+                        value={
+                          formik.values.loanTerms.totalInterestAmount || ""
+                        }
+                        readOnly
+                        className="bg-transparent border-b border-slate-200 text-sm font-bold text-slate-700 focus:outline-none focus:border-primary text-right w-32"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <label className="text-[10px] font-black text-primary uppercase tracking-widest block mb-1">
+                        Remaining Principal Amount
+                      </label>
+                      <input
+                        type="text"
+                        value={`₹${remainingPrincipalAmount || 0}`}
+                        readOnly
+                        className="bg-transparent border-b border-primary/20 text-sm font-black text-primary focus:outline-none text-right w-40"
+                        placeholder="₹0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>div>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end pt-8 border-t border-slate-100 mt-8 gap-6 sm:gap-4">
