@@ -494,6 +494,7 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
     loan.status?.toLowerCase() === "closed" &&
+    remainingPrincipalAmount > 0 && // Only recover if it wasn't a standard 'Full Pay'
     !loan.foreclosureAmount && // Trigger if 0, null, or undefined
     !loan.soldDetails?.sellAmount // Don't trigger if it's a sold vehicle
   ) {
@@ -625,6 +626,7 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
     loan.status?.toLowerCase() === "closed" &&
+    remainingPrincipalAmount > 0 && // Only recover if it wasn't a standard 'Full Pay'
     !loan.foreclosureAmount && // Trigger if 0, null, or undefined
     !loan.soldDetails?.sellAmount // Don't trigger if it's a sold vehicle
   ) {
