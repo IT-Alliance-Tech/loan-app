@@ -44,7 +44,7 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentType: {
       type: String,
-      enum: ["Monthly", "Daily", "Weekly", "Processing Fee", "Overdue"],
+      enum: ["Monthly", "Daily", "Weekly", "Processing Fee", "Overdue", "Foreclosure"],
       required: true,
     },
     status: {
