@@ -198,6 +198,7 @@ const CollectionsPage = () => {
                   item.paymentType === 'Monthly' ? 'bg-purple-50 text-purple-600 border-purple-100' :
                   item.paymentType === 'Weekly' ? 'bg-orange-50 text-orange-600 border-orange-100' :
                   item.paymentType === 'Overdue' ? 'bg-red-50 text-red-600 border-red-100' :
+                  item.paymentType === 'Foreclosure' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                   'bg-emerald-50 text-emerald-600 border-emerald-100'
                 }`}>
                   {item.paymentType}
