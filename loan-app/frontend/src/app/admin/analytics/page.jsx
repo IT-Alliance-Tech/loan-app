@@ -95,12 +95,24 @@ const AnalyticsPage = () => {
                   value={`₹${stats?.cards?.totalLoanAmount?.toLocaleString("en-IN") || "0"}`}
                   icon={<IndianRupee className="w-6 h-6" />}
                   color="primary"
+                  breakdown={[
+                    { label: "Monthly", value: stats?.cards?.disbursementBreakdown?.monthly || 0 },
+                    { label: "Weekly", value: stats?.cards?.disbursementBreakdown?.weekly || 0 },
+                    { label: "Daily", value: stats?.cards?.disbursementBreakdown?.daily || 0 },
+                    { label: "Interest", value: stats?.cards?.disbursementBreakdown?.interest || 0 },
+                  ]}
                 />
                 <StatsCard
                   title="Total Collected"
                   value={`₹${stats?.cards?.totalCollectedAmount?.toLocaleString("en-IN") || "0"}`}
                   icon={<TrendingUp className="w-6 h-6" />}
                   color="success"
+                  breakdown={[
+                    { label: "Monthly", value: stats?.cards?.collectedBreakdown?.monthly || 0 },
+                    { label: "Weekly", value: stats?.cards?.collectedBreakdown?.weekly || 0 },
+                    { label: "Daily", value: stats?.cards?.collectedBreakdown?.daily || 0 },
+                    { label: "Interest", value: stats?.cards?.collectedBreakdown?.interest || 0 },
+                  ]}
                 />
                 <StatsCard
                   title="Total Expenses"

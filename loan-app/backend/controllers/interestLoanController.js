@@ -202,11 +202,25 @@ exports.getAllInterestLoans = asyncHandler(async (req, res, next) => {
 
   const skip = (page - 1) * limit;
   const total = await InterestLoan.countDocuments(query);
-  const loans = await InterestLoan.find(query)
-    .sort({ createdAt: -1 })
+
+  let sortConfig = { createdAt: -1 };
+  let collationConfig = null;
+
+  if (searchQuery && searchQuery !== "undefined" && searchQuery !== "null") {
+    sortConfig = { loanNumber: 1 };
+    collationConfig = { locale: "en", numericOrdering: true };
+  }
+
+  const findQuery = InterestLoan.find(query)
+    .sort(sortConfig)
     .skip(skip)
-    .limit(Number(limit))
-    .lean();
+    .limit(Number(limit));
+
+  if (collationConfig) {
+    findQuery.collation(collationConfig);
+  }
+
+  const loans = await findQuery.lean();
 
   sendResponse(res, 200, "success", "Interest loans fetched successfully", null, {
     loans,

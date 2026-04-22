@@ -539,9 +539,17 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
 
   const total = await EMI.countDocuments(query);
 
-  const emis = await EMI.aggregate([
+  let sortConfig = { updatedAt: -1 };
+  let collationConfig = null;
+
+  if (loanNumber) {
+    sortConfig = { loanNumber: 1 };
+    collationConfig = { locale: "en", numericOrdering: true };
+  }
+
+  const aggregatePipeline = [
     { $match: query },
-    { $sort: { updatedAt: -1 } },
+    { $sort: sortConfig },
     { $skip: skip },
     { $limit: limit },
     {
@@ -623,7 +631,14 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
         paymentHistory: 1,
       },
     },
-  ]);
+  ];
+
+  let emis;
+  if (collationConfig) {
+    emis = await EMI.aggregate(aggregatePipeline).collation(collationConfig);
+  } else {
+    emis = await EMI.aggregate(aggregatePipeline);
+  }
 
   sendResponse(res, 200, "success", "EMI details fetched successfully", null, {
     emis,

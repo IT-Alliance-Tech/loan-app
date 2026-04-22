@@ -250,11 +250,19 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
 
   let loans;
   const dbStart = performance.now();
+  let sortConfig = { createdAt: -1 };
+  let collationConfig = null;
+
+  if (loanNumber) {
+    sortConfig = { loanNumber: 1 };
+    collationConfig = { locale: "en", numericOrdering: true };
+  }
+
   if (forExport) {
     // Advanced aggregation for export with repayment stats
-    loans = await Loan.aggregate([
+    const pipeline = [
       { $match: query },
-      { $sort: { createdAt: -1 } },
+      { $sort: sortConfig },
       {
         $lookup: {
           from: "emis",
@@ -350,16 +358,28 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
         },
       },
       { $project: { emis: 0 } },
-    ]);
+    ];
+
+    if (collationConfig) {
+      loans = await Loan.aggregate(pipeline).collation(collationConfig);
+    } else {
+      loans = await Loan.aggregate(pipeline);
+    }
   } else {
-    loans = await Loan.find(query)
+    const findQuery = Loan.find(query)
       .select(
         "loanNumber customerName mobileNumbers guarantorName guarantorMobileNumbers monthlyEMI tenureMonths status isSeized clientResponse createdBy updatedBy createdAt principalAmount vehicleNumber chassisNumber engineNumber typeOfVehicle modelYear ywBoard dealerName dealerNumber hpEntry fcDate insuranceDate rtoWorkPending annualInterestRate processingFee emiStartDate emiEndDate",
       )
-      .sort({ createdAt: -1 })
+      .sort(sortConfig)
       .skip(skip)
       .limit(limit)
       .lean();
+
+    if (collationConfig) {
+      loans = await findQuery.collation(collationConfig);
+    } else {
+      loans = await findQuery;
+    }
   }
   const dbTime = (performance.now() - dbStart).toFixed(2);
 
@@ -1129,7 +1149,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
       }
     }
 
-    return [
+    let pipeline = [
       { $match: matchQuery },
       {
         $lookup: {
@@ -1252,23 +1272,34 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         },
       },
     ];
+    pipeline.push({
+      $sort: loanNumber ? { loanNumber: 1 } : { createdAt: -1 }
+    });
+    return pipeline;
+  };
+
+  const getResultsWithCollation = async (model, pipeline) => {
+    if (loanNumber) {
+      return await model.aggregate(pipeline).collation({ locale: "en", numericOrdering: true });
+    }
+    return await model.aggregate(pipeline);
   };
 
   const promises = [];
   if (!queryLoanType || queryLoanType.toLowerCase() === "monthly") {
-    promises.push(Loan.aggregate(getPipeline("Loan", "Monthly")));
+    promises.push(getResultsWithCollation(Loan, getPipeline("Loan", "Monthly")));
   } else {
     promises.push(Promise.resolve([]));
   }
 
   if (!queryLoanType || queryLoanType.toLowerCase() === "daily") {
-    promises.push(DailyLoan.aggregate(getPipeline("DailyLoan", "Daily")));
+    promises.push(getResultsWithCollation(DailyLoan, getPipeline("DailyLoan", "Daily")));
   } else {
     promises.push(Promise.resolve([]));
   }
 
   if (!queryLoanType || queryLoanType.toLowerCase() === "weekly") {
-    promises.push(WeeklyLoan.aggregate(getPipeline("WeeklyLoan", "Weekly")));
+    promises.push(getResultsWithCollation(WeeklyLoan, getPipeline("WeeklyLoan", "Weekly")));
   } else {
     promises.push(Promise.resolve([]));
   }
@@ -1278,6 +1309,10 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
 
   let allResults = [...monthlyResult, ...dailyResult, ...weeklyResult].sort(
     (a, b) => {
+      if (loanNumber) {
+        // Numeric sort by loanNumber
+        return a.loanNumber.localeCompare(b.loanNumber, undefined, { numeric: true, sensitivity: 'base' });
+      }
       if (!a.earliestDueDate) return 1;
       if (!b.earliestDueDate) return -1;
       return new Date(a.earliestDueDate) - new Date(b.earliestDueDate);
@@ -1630,26 +1665,37 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
         },
       },
     );
+    pipeline.push({
+      $sort: loanNumber ? { loanNumber: 1 } : { createdAt: -1 }
+    });
+
     return pipeline;
+  };
+
+  const getResultsWithCollation = async (model, pipeline) => {
+    if (loanNumber) {
+      return await model.aggregate(pipeline).collation({ locale: "en", numericOrdering: true });
+    }
+    return await model.aggregate(pipeline);
   };
 
   // Run aggregations for models based on loanType filter
   const promises = [];
 
   if (!queryLoanType || queryLoanType.toLowerCase() === "monthly") {
-    promises.push(Loan.aggregate(getPipeline("Loan", "Monthly")));
+    promises.push(getResultsWithCollation(Loan, getPipeline("Loan", "Monthly")));
   } else {
     promises.push(Promise.resolve([]));
   }
 
   if (!queryLoanType || queryLoanType.toLowerCase() === "daily") {
-    promises.push(DailyLoan.aggregate(getPipeline("DailyLoan", "Daily")));
+    promises.push(getResultsWithCollation(DailyLoan, getPipeline("DailyLoan", "Daily")));
   } else {
     promises.push(Promise.resolve([]));
   }
 
   if (!queryLoanType || queryLoanType.toLowerCase() === "weekly") {
-    promises.push(WeeklyLoan.aggregate(getPipeline("WeeklyLoan", "Weekly")));
+    promises.push(getResultsWithCollation(WeeklyLoan, getPipeline("WeeklyLoan", "Weekly")));
   } else {
     promises.push(Promise.resolve([]));
   }
@@ -1663,6 +1709,10 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     ...dailyFollowups,
     ...weeklyFollowups,
   ].sort((a, b) => {
+    if (loanNumber) {
+      // Numeric sort by loanNumber
+      return a.loanNumber.localeCompare(b.loanNumber, undefined, { numeric: true, sensitivity: 'base' });
+    }
     // Sort by earliestDueDate ascending
     if (!a.earliestDueDate) return 1;
     if (!b.earliestDueDate) return -1;
