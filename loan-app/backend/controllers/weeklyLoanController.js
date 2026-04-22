@@ -243,9 +243,18 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
 
   const skip = (page - 1) * limit;
   const total = await WeeklyLoan.countDocuments(query);
-  const weeklyLoans = await WeeklyLoan.aggregate([
+
+  let sortConfig = { createdAt: -1 };
+  let collationConfig = null;
+
+  if (searchQuery) {
+    sortConfig = { loanNumber: 1 };
+    collationConfig = { locale: "en", numericOrdering: true };
+  }
+
+  const aggregatePipeline = [
     { $match: query },
-    { $sort: { createdAt: -1 } },
+    { $sort: sortConfig },
     { $skip: skip },
     { $limit: Number(limit) },
     {
@@ -356,7 +365,14 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
     },
     { $addFields: { principalAmount: "$disbursementAmount" } },
     { $project: { emis: 0 } },
-  ]);
+  ];
+
+  let weeklyLoans;
+  if (collationConfig) {
+    weeklyLoans = await WeeklyLoan.aggregate(aggregatePipeline).collation(collationConfig);
+  } else {
+    weeklyLoans = await WeeklyLoan.aggregate(aggregatePipeline);
+  }
 
   sendResponse(res, 200, "success", "Weekly loans fetched successfully", null, {
     weeklyLoans,

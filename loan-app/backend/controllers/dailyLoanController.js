@@ -237,9 +237,18 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
 
   const skip = (page - 1) * limit;
   const total = await DailyLoan.countDocuments(query);
-  const dailyLoans = await DailyLoan.aggregate([
+
+  let sortConfig = { createdAt: -1 };
+  let collationConfig = null;
+
+  if (searchQuery) {
+    sortConfig = { loanNumber: 1 };
+    collationConfig = { locale: "en", numericOrdering: true };
+  }
+
+  const aggregatePipeline = [
     { $match: query },
-    { $sort: { createdAt: -1 } },
+    { $sort: sortConfig },
     { $skip: skip },
     { $limit: Number(limit) },
     {
@@ -350,7 +359,13 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
     },
     { $addFields: { principalAmount: "$disbursementAmount" } },
     { $project: { emis: 0 } },
-  ]);
+  ];
+  let dailyLoans;
+  if (collationConfig) {
+    dailyLoans = await DailyLoan.aggregate(aggregatePipeline).collation(collationConfig);
+  } else {
+    dailyLoans = await DailyLoan.aggregate(aggregatePipeline);
+  }
 
   sendResponse(res, 200, "success", "Daily loans fetched successfully", null, {
     dailyLoans,
