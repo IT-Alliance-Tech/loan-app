@@ -65,7 +65,7 @@ const EditDailyLoanPage = () => {
     try {
       await updateDailyLoan(id, formData);
       showToast("Daily loan updated successfully", "success");
-      router.push("/admin/daily-loans");
+      await fetchData();
     } catch (err) {
       showToast(err.message || "Failed to update daily loan", "error");
     } finally {

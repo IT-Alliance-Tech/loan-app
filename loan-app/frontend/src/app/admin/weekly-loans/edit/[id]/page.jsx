@@ -24,38 +24,39 @@ const EditWeeklyLoanPage = ({ params: paramsPromise }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const fetchData = React.useCallback(async () => {
+    try {
+      const [loanRes, emiRes] = await Promise.all([
+        getWeeklyLoanById(params.id),
+        getWeeklyLoanEMIs(params.id),
+      ]);
+      const data = loanRes.data;
+      const emiData = emiRes.data || [];
+
+      // Format dates for the form
+      if (data.startDate)
+        data.startDate = format(new Date(data.startDate), "yyyy-MM-dd");
+      if (data.emiStartDate)
+        data.emiStartDate = format(new Date(data.emiStartDate), "yyyy-MM-dd");
+      if (data.nextFollowUpDate)
+        data.nextFollowUpDate = format(
+          new Date(data.nextFollowUpDate),
+          "yyyy-MM-dd",
+        );
+
+      setLoanData(data);
+      setEmis(emiData);
+    } catch (err) {
+      showToast(err.message || "Failed to fetch details", "error");
+      router.push("/admin/weekly-loans");
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id, router, showToast]);
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [loanRes, emiRes] = await Promise.all([
-          getWeeklyLoanById(params.id),
-          getWeeklyLoanEMIs(params.id),
-        ]);
-        const data = loanRes.data;
-        const emiData = emiRes.data || [];
-
-        // Format dates for the form
-        if (data.startDate)
-          data.startDate = format(new Date(data.startDate), "yyyy-MM-dd");
-        if (data.emiStartDate)
-          data.emiStartDate = format(new Date(data.emiStartDate), "yyyy-MM-dd");
-        if (data.nextFollowUpDate)
-          data.nextFollowUpDate = format(
-            new Date(data.nextFollowUpDate),
-            "yyyy-MM-dd",
-          );
-
-        setLoanData(data);
-        setEmis(emiData);
-      } catch (err) {
-        showToast(err.message || "Failed to fetch details", "error");
-        router.push("/admin/weekly-loans");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
-  }, [params.id]);
+  }, [fetchData]);
 
   const refreshEMIs = async () => {
     try {
@@ -71,7 +72,7 @@ const EditWeeklyLoanPage = ({ params: paramsPromise }) => {
     try {
       await updateWeeklyLoan(params.id, formData);
       showToast("Weekly loan record updated successfully", "success");
-      router.push("/admin/weekly-loans");
+      await fetchData();
     } catch (err) {
       showToast(err.message || "Failed to update weekly loan", "error");
     } finally {
