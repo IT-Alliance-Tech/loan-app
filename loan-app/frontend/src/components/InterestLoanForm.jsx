@@ -170,9 +170,7 @@ const InterestLoanForm = ({
   // Auto-fill EMI Start Date when Start Date changes
   useEffect(() => {
     if (values.startDate && !initialData?._id) {
-      const d = new Date(values.startDate);
-      const nextMonth = addMonths(d, 1);
-      setFieldValue("emiStartDate", format(nextMonth, "yyyy-MM-dd"));
+      setFieldValue("emiStartDate", values.startDate);
     }
   }, [values.startDate, setFieldValue, initialData?._id]);
 
@@ -677,24 +675,6 @@ const InterestLoanForm = ({
                   placeholder="e.g. 2"
                 />
                 <ErrorMsg name="interestRate" touched={touched} errors={errors} />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Payment Mode
-                </label>
-                <select
-                  name="paymentMode"
-                  value={values.paymentMode}
-                  onChange={formik.handleChange}
-                  onBlur={handleBlur}
-                  disabled={isViewOnly}
-                  className={getFieldClass("paymentMode")}
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="Online">Online</option>
-                  <option value="Cheque">Cheque</option>
-                </select>
               </div>
             </div>
           </div>

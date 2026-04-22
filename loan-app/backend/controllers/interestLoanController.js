@@ -11,6 +11,38 @@ const {
   normalizeToMidnight,
 } = require("../utils/dateUtils");
 
+// Helper to recalculate pending EMIs when principal changes
+const recalculatePendingEMIs = async (interestLoanId) => {
+  const InterestLoan = require("../models/InterestLoan");
+  const InterestEMI = require("../models/InterestEMI");
+  
+  const loan = await InterestLoan.findById(interestLoanId);
+  if (!loan) return;
+
+  const pendingEmis = await InterestEMI.find({
+    interestLoanId: loan._id,
+    status: { $in: ["Pending", "Partially Paid"] },
+  });
+
+  for (const emi of pendingEmis) {
+    const newInterestAmount = Math.ceil(
+      loan.remainingPrincipalAmount * (loan.interestRate / 100)
+    );
+    emi.interestAmount = newInterestAmount;
+    
+    // Re-evaluate status if interest amount changed
+    if (emi.amountPaid >= emi.interestAmount) {
+      emi.status = "Paid";
+    } else if (emi.amountPaid > 0) {
+      emi.status = "Partially Paid";
+    } else {
+      emi.status = "Pending";
+    }
+    
+    await emi.save();
+  }
+};
+
 // Create Interest Loan
 exports.createInterestLoan = asyncHandler(async (req, res, next) => {
   const {
@@ -83,6 +115,9 @@ exports.createInterestLoan = asyncHandler(async (req, res, next) => {
   while (emiNum === 1 || currentEmiDate <= today) {
     const emiInterestAmount = Math.ceil(interestLoan.initialPrincipalAmount * (r / 100));
     const isFirst = emiNum === 1;
+    const disbursementDate = normalizeToMidnight(new Date(interestLoan.startDate));
+    const firstEmiDate = normalizeToMidnight(new Date(interestLoan.emiStartDate));
+    const shouldAutoPay = isFirst && disbursementDate.getTime() === firstEmiDate.getTime();
 
     const emi = await InterestEMI.create({
       interestLoanId: interestLoan._id,
@@ -91,12 +126,12 @@ exports.createInterestLoan = asyncHandler(async (req, res, next) => {
       emiNumber: emiNum,
       dueDate: new Date(currentEmiDate),
       interestAmount: emiInterestAmount,
-      amountPaid: isFirst ? emiInterestAmount : 0,
-      status: isFirst ? "Paid" : "Pending",
-      paymentDate: isFirst ? new Date(interestLoan.startDate) : null,
-      paymentMode: isFirst ? (paymentMode || "Cash") : "",
-      remarks: isFirst ? "Auto-paid First EMI" : "",
-      paymentHistory: isFirst
+      amountPaid: shouldAutoPay ? emiInterestAmount : 0,
+      status: shouldAutoPay ? "Paid" : "Pending",
+      paymentDate: shouldAutoPay ? new Date(interestLoan.startDate) : null,
+      paymentMode: shouldAutoPay ? paymentMode || "Cash" : "",
+      remarks: shouldAutoPay ? "Auto-paid First EMI" : "",
+      paymentHistory: shouldAutoPay
         ? [
             {
               amount: emiInterestAmount,
@@ -106,10 +141,10 @@ exports.createInterestLoan = asyncHandler(async (req, res, next) => {
             },
           ]
         : [],
-      updatedBy: isFirst ? req.user._id : undefined,
+      updatedBy: shouldAutoPay ? req.user._id : undefined,
     });
 
-    if (isFirst) {
+    if (shouldAutoPay) {
       // Create Payment record for auto-paid first EMI
       await Payment.create({
         emiId: emi._id,
@@ -203,9 +238,10 @@ exports.getInterestLoanById = asyncHandler(async (req, res, next) => {
   // Self-healing: Ensure at least one pending or paid EMI exists, and if the last one is paid, generate the next one
   if (loan.status && loan.status.toLowerCase() === "active") {
     if (emis.length === 0) {
-      const firstAmount = Math.ceil(
-        loan.initialPrincipalAmount * (loan.interestRate / 100)
-      );
+      const disbursementDate = normalizeToMidnight(new Date(loan.startDate));
+      const firstEmiDate = normalizeToMidnight(new Date(loan.emiStartDate));
+      const shouldAutoPay = disbursementDate.getTime() === firstEmiDate.getTime();
+
       const newEmi = await InterestEMI.create({
         interestLoanId: loan._id,
         loanNumber: loan.loanNumber,
@@ -213,8 +249,38 @@ exports.getInterestLoanById = asyncHandler(async (req, res, next) => {
         emiNumber: 1,
         dueDate: new Date(loan.emiStartDate),
         interestAmount: firstAmount,
-        status: "Pending",
+        amountPaid: shouldAutoPay ? firstAmount : 0,
+        status: shouldAutoPay ? "Paid" : "Pending",
+        paymentDate: shouldAutoPay ? new Date(loan.startDate) : null,
+        paymentMode: shouldAutoPay ? loan.paymentMode || "Cash" : "",
+        remarks: shouldAutoPay ? "Auto-paid First EMI" : "",
+        paymentHistory: shouldAutoPay
+          ? [
+              {
+                amount: firstAmount,
+                mode: loan.paymentMode || "Cash",
+                date: new Date(loan.startDate),
+                addedBy: req.user._id,
+              },
+            ]
+          : [],
       });
+
+      if (shouldAutoPay) {
+        const Payment = require("../models/Payment");
+        await Payment.create({
+          emiId: newEmi._id,
+          loanId: loan._id,
+          loanModel: "InterestLoan",
+          amount: firstAmount,
+          mode: loan.paymentMode || "Cash",
+          paymentDate: new Date(loan.startDate),
+          paymentType: "Interest",
+          status: "Success",
+          remarks: "Auto-paid First EMI",
+          collectedBy: req.user._id,
+        });
+      }
       emis = [newEmi];
     } else {
       let lastEmi = emis[emis.length - 1];
@@ -282,10 +348,9 @@ exports.addPrincipalPayment = asyncHandler(async (req, res, next) => {
   }
 
   await loan.save();
-
-  // Note: Future interest EMIs will be generated based on this new remainingPrincipalAmount.
-  // Existing "Pending" EMIs are not automatically adjusted unless business logic requires it.
-  // We'll stick to the "next month" generation logic.
+  
+  // Recalculate future EMIs based on the new remaining principal
+  await recalculatePendingEMIs(loan._id);
 
   sendResponse(res, 200, "success", "Principal payment added successfully", null, loan);
 });
@@ -623,6 +688,9 @@ exports.updateInterestLoan = asyncHandler(async (req, res, next) => {
       while (emiNum === 1 || currentEmiDate <= today) {
         const emiInterestAmount = Math.ceil(initialP * (r / 100));
         const isFirst = emiNum === 1;
+        const disbursementDate = normalizeToMidnight(new Date(req.body.startDate || loan.startDate));
+        const firstEmiDate = normalizeToMidnight(new Date(req.body.emiStartDate || loan.emiStartDate));
+        const shouldAutoPay = isFirst && disbursementDate.getTime() === firstEmiDate.getTime();
 
         const emi = await InterestEMI.create({
           interestLoanId: loan._id,
@@ -631,16 +699,16 @@ exports.updateInterestLoan = asyncHandler(async (req, res, next) => {
           emiNumber: emiNum,
           dueDate: new Date(currentEmiDate),
           interestAmount: emiInterestAmount,
-          amountPaid: isFirst ? emiInterestAmount : 0,
-          status: isFirst ? "Paid" : "Pending",
-          paymentDate: isFirst
+          amountPaid: shouldAutoPay ? emiInterestAmount : 0,
+          status: shouldAutoPay ? "Paid" : "Pending",
+          paymentDate: shouldAutoPay
             ? new Date(req.body.startDate || loan.startDate)
             : null,
-          paymentMode: isFirst
+          paymentMode: shouldAutoPay
             ? req.body.paymentMode || loan.paymentMode || "Cash"
             : "",
-          remarks: isFirst ? "Auto-paid First EMI" : "",
-          paymentHistory: isFirst
+          remarks: shouldAutoPay ? "Auto-paid First EMI" : "",
+          paymentHistory: shouldAutoPay
             ? [
                 {
                   amount: emiInterestAmount,
@@ -650,10 +718,10 @@ exports.updateInterestLoan = asyncHandler(async (req, res, next) => {
                 },
               ]
             : [],
-          updatedBy: isFirst ? req.user._id : undefined,
+          updatedBy: shouldAutoPay ? req.user._id : undefined,
         });
 
-        if (isFirst) {
+        if (shouldAutoPay) {
           const Payment = require("../models/Payment");
           await Payment.create({
             emiId: emi._id,
@@ -700,6 +768,9 @@ exports.updateInterestLoan = asyncHandler(async (req, res, next) => {
     new: true,
     runValidators: true,
   });
+
+  // Recalculate future EMIs based on the new remaining principal from update
+  await recalculatePendingEMIs(updatedLoan._id);
 
   sendResponse(res, 200, "success", "Loan updated successfully", null, updatedLoan);
 });
