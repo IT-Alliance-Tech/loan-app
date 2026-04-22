@@ -589,7 +589,7 @@ exports.getInterestPendingPayments = asyncHandler(async (req, res, next) => {
   const pendingPayments = await InterestEMI.find(query)
     .populate({
       path: "interestLoanId",
-      select: "mobileNumbers remainingPrincipalAmount"
+      select: "mobileNumbers remainingPrincipalAmount initialPrincipalAmount"
     })
     .sort({ dueDate: 1 })
     .skip(skip)

@@ -266,8 +266,14 @@ const PartialPaymentsPage = () => {
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                           Applicant Name
                         </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                           Applicant Mobile
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          Vehicle Number
+                        </th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                          Disbursement
                         </th>
 
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
@@ -291,7 +297,7 @@ const PartialPaymentsPage = () => {
                       {loading ? (
                         <tr>
                           <td
-                            colSpan="8"
+                            colSpan="10"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             Loading records...
@@ -300,7 +306,7 @@ const PartialPaymentsPage = () => {
                       ) : data.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="8"
+                            colSpan="10"
                             className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase text-center"
                           >
                             No records found
@@ -331,7 +337,7 @@ const PartialPaymentsPage = () => {
                               </span>
                             </td>
                             <td className="px-6 py-5 whitespace-nowrap">
-                              <div className="flex flex-col gap-0.5 mt-1">
+                               <div className="flex flex-col gap-0.5 mt-1">
                                 {(item.mobileNumbers || []).map((num, idx) => (
                                   <button
                                     key={idx}
@@ -344,15 +350,25 @@ const PartialPaymentsPage = () => {
                                         type: "Applicant",
                                         x: rect.left,
                                         y: rect.bottom,
-                                      });
-                                    }}
-                                    className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
-                                  >
-                                    {num}
-                                  </button>
-                                ))}
-                              </div>
-                            </td>
+                                        });
+                                      }}
+                                      className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
+                                    >
+                                      {num}
+                                    </button>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-6 py-5 whitespace-nowrap">
+                                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                                  {item.vehicleNumber || "—"}
+                                </span>
+                              </td>
+                              <td className="px-6 py-5 text-center whitespace-nowrap">
+                                <span className="text-[11px] font-black text-slate-900 tracking-tight">
+                                  ₹{item.principalAmount?.toLocaleString() || "—"}
+                                </span>
+                              </td>
 
                             <td className="px-6 py-5">
                               <div className="flex items-center">

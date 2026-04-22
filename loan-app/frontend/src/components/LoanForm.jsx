@@ -842,6 +842,7 @@ const LoanForm = ({
                             </div>
                             <ErrorMsg
                               name={`customerDetails.mobileNumbers.${idx}`}
+                              formik={formik}
                             />
                           </div>
                         ),
@@ -1034,6 +1035,7 @@ const LoanForm = ({
                             </div>
                             <ErrorMsg
                               name={`customerDetails.guarantorMobileNumbers.${idx}`}
+                              formik={formik}
                             />
                           </div>
                         ),
