@@ -229,8 +229,11 @@ const DailyLoansList = ({ type, title }) => {
                     MOBILE
                   </th>
 
-                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                     EMI
+                  </th>
+                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                    DISBURSEMENT
                   </th>
                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                     TENURE
@@ -318,12 +321,17 @@ const DailyLoansList = ({ type, title }) => {
                         </div>
                       </td>
 
-                      <td className="px-4 py-5 text-center whitespace-nowrap">
+                       <td className="px-4 py-5 text-center whitespace-nowrap">
                         <div className="flex flex-col items-center">
                           <span className="font-black text-primary text-[11px]">
                             ₹{loan.emiAmount}
                           </span>
                         </div>
+                      </td>
+                      <td className="px-4 py-5 text-center whitespace-nowrap">
+                        <span className="font-bold text-slate-900 text-[10px]">
+                          ₹{loan.principalAmount?.toLocaleString()}
+                        </span>
                       </td>
                       <td className="px-4 py-5 text-center whitespace-nowrap">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-black">
@@ -443,8 +451,11 @@ const DailyLoansList = ({ type, title }) => {
                   Mobile
                 </th>
 
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   EMI
+                </th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                  Disbursement
                 </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Tenure
@@ -532,7 +543,7 @@ const DailyLoansList = ({ type, title }) => {
                       </div>
                     </td>
 
-                    <td className="px-6 py-5 text-center whitespace-nowrap">
+                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <div className="flex flex-col items-center">
                         <span className="font-black text-primary text-xs">
                           ₹{loan.emiAmount?.toFixed(2)}
@@ -541,6 +552,9 @@ const DailyLoansList = ({ type, title }) => {
                           Per Day
                         </span>
                       </div>
+                    </td>
+                    <td className="px-6 py-5 text-center whitespace-nowrap font-bold text-slate-900 text-xs">
+                      ₹{loan.principalAmount?.toLocaleString()}
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-black">

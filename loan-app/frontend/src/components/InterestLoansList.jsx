@@ -151,7 +151,8 @@ const InterestLoansList = ({ type, title }) => {
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Loan No</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Principal</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Disbursement</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Principal</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Interest Rate</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
@@ -159,9 +160,9 @@ const InterestLoansList = ({ type, title }) => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase">Loading...</td></tr>
+                <tr><td colSpan="7" className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase">Loading...</td></tr>
               ) : loans.length === 0 ? (
-                <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase">No records found</td></tr>
+                <tr><td colSpan="7" className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase">No records found</td></tr>
               ) : (
                 loans.map((loan) => (
                   <tr key={loan._id} className="hover:bg-slate-50 transition-colors group">
@@ -176,8 +177,14 @@ const InterestLoansList = ({ type, title }) => {
                         <span className="text-[10px] text-slate-500 font-bold">{loan.mobileNumbers?.[0]}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-5">
-                      <div className="flex flex-col">
+                     <td className="px-6 py-5 text-center">
+                      <div className="flex flex-col items-center">
+                        <span className="font-black text-slate-800 text-xs">₹{(loan.principalAmount || loan.initialPrincipalAmount)?.toLocaleString("en-IN")}</span>
+                        <span className="text-[9px] text-slate-400 uppercase font-bold">Disbursed</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <div className="flex flex-col items-center">
                         <span className="font-black text-slate-800 text-xs">₹{loan.remainingPrincipalAmount?.toLocaleString("en-IN")}</span>
                         <span className="text-[9px] text-slate-400 uppercase font-bold">Remaining</span>
                       </div>

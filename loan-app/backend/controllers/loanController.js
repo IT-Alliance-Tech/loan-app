@@ -354,7 +354,7 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
   } else {
     loans = await Loan.find(query)
       .select(
-        "loanNumber customerName mobileNumbers guarantorName guarantorMobileNumbers monthlyEMI tenureMonths status isSeized clientResponse createdBy updatedBy createdAt",
+        "loanNumber customerName mobileNumbers guarantorName guarantorMobileNumbers monthlyEMI tenureMonths status isSeized clientResponse createdBy updatedBy createdAt principalAmount vehicleNumber chassisNumber engineNumber typeOfVehicle modelYear ywBoard dealerName dealerNumber hpEntry fcDate insuranceDate rtoWorkPending annualInterestRate processingFee emiStartDate emiEndDate",
       )
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -1197,6 +1197,12 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
           guarantorMobileNumbers: modelName === "Loan" ? 1 : { $literal: [] },
           vehicleNumber: 1,
           model: 1,
+          principalAmount: {
+            $ifNull: [
+              "$principalAmount",
+              { $ifNull: ["$disbursementAmount", "$initialPrincipalAmount"] },
+            ],
+          },
           unpaidMonths: { $size: "$pendingEmisList" },
           totalDueAmount: {
             $reduce: {

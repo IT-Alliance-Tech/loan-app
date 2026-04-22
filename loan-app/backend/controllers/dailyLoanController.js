@@ -348,6 +348,7 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
         },
       },
     },
+    { $addFields: { principalAmount: "$disbursementAmount" } },
     { $project: { emis: 0 } },
   ]);
 
