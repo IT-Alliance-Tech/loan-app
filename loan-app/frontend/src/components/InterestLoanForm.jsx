@@ -866,6 +866,28 @@ const InterestLoanForm = ({
                 </div>
               </div>
             </div>
+
+            {/* Pledge Information */}
+            <div className="space-y-4 pt-6 border-t border-primary/5">
+              <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
+                Pledge Information
+              </h3>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Pledge Details / Notes
+                </label>
+                <textarea
+                  name="remarks"
+                  value={values.remarks}
+                  onChange={formik.handleChange}
+                  onBlur={handleBlur}
+                  readOnly={isViewOnly}
+                  rows="3"
+                  className={getFieldClass("remarks")}
+                  placeholder="Enter any additional notes or pledge information here..."
+                ></textarea>
+              </div>
+            </div>
           </div>
 
 

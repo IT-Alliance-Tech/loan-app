@@ -240,10 +240,26 @@ const InterestLoanDetails = ({ loan, emis, onRefresh }) => {
                   </div>
                 </div>
               </div>
-            </div>
           </div>
+        </div>
 
-
+        {/* Pledge Info */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+              <History size={14} className="text-primary" /> Pledge Information
+            </h3>
+            {loan.remarks ? (
+              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                <p className="text-xs font-bold text-slate-700 leading-relaxed whitespace-pre-wrap">
+                  {loan.remarks}
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 font-bold italic">
+                No pledge information recorded
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
