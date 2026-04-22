@@ -112,6 +112,8 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
       "Address",
       "Own/Rent",
       "Mobile Numbers",
+      "Guarantor Name",
+      "Guar. Mobile",
       "PAN Number",
       "Aadhar Number",
       "Initial Principal",
@@ -120,17 +122,10 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
       "Processing Fee",
       "Start Date",
       "EMI Start Date",
-      "Vehicle No",
-      "Chassis No",
-      "Engine No",
-      "Type of Vehicle",
-      "Model Year",
-      "YW Board",
       "Remarks",
     ];
 
     data.forEach((loan) => {
-      const vInfo = loan.vehicleInformation || {};
       columns.push([
         loan.loanNumber || "-",
         loan.status || "Active",
@@ -140,6 +135,10 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
         Array.isArray(loan.mobileNumbers)
           ? loan.mobileNumbers.join(", ")
           : loan.mobileNumbers || "-",
+        loan.guarantorName || "-",
+        Array.isArray(loan.guarantorMobileNumbers)
+          ? loan.guarantorMobileNumbers.join(", ")
+          : loan.guarantorMobileNumbers || "-",
         loan.panNumber || "-",
         loan.aadharNumber || "-",
         loan.initialPrincipalAmount || 0,
@@ -148,12 +147,6 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
         loan.processingFee || 0,
         loan.startDate ? new Date(loan.startDate).toLocaleDateString("en-IN") : "-",
         loan.emiStartDate ? new Date(loan.emiStartDate).toLocaleDateString("en-IN") : "-",
-        vInfo.vehicleNumber || "-",
-        vInfo.chassisNumber || "-",
-        vInfo.engineNumber || "-",
-        vInfo.typeOfVehicle || "-",
-        vInfo.modelYear || "-",
-        vInfo.ywBoard || "-",
         loan.remarks || "-",
       ]);
     });

@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { format } from "date-fns";
 import interestLoanService from "@/services/interestLoanService";
 import { useToast } from "@/context/ToastContext";
-import { Plus, IndianRupee, History, Info, Car } from "lucide-react";
+import { Plus, IndianRupee, History, Info } from "lucide-react";
 
 const InterestLoanDetails = ({ loan, emis, onRefresh }) => {
   const { showToast } = useToast();
@@ -218,39 +218,32 @@ const InterestLoanDetails = ({ loan, emis, onRefresh }) => {
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Address</p>
                 <p className="text-xs font-bold text-slate-600 leading-relaxed">{loan.address || "—"}</p>
               </div>
+
+              {/* Guarantor Info */}
+              <div className="pt-4 border-t border-slate-50 space-y-4">
+                <div>
+                  <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Guarantor Name</p>
+                  <p className="text-sm font-bold text-slate-900">{loan.guarantorName || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Guarantor Contacts</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {loan.guarantorMobileNumbers?.length > 0 ? (
+                      loan.guarantorMobileNumbers.map((num, i) => (
+                        <span key={i} className="px-2 py-1 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold border border-slate-100">
+                          {num}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-400 font-bold italic">—</span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Vehicle Info */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-              <Car size={14} className="text-primary" /> Vehicle Information
-            </h3>
-            {loan.vehicleInformation ? (
-              <div className="space-y-4">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Vehicle No</p>
-                  <p className="text-xs font-bold text-slate-900">{loan.vehicleInformation.vehicleNumber || "—"}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Model Year</p>
-                    <p className="text-xs font-bold text-slate-900">{loan.vehicleInformation.modelYear || "—"}</p>
-                  </div>
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Engine No</p>
-                    <p className="text-xs font-bold text-slate-900">{loan.vehicleInformation.engineNumber || "—"}</p>
-                  </div>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Chassis No</p>
-                  <p className="text-xs font-bold text-slate-900">{loan.vehicleInformation.chassisNumber || "—"}</p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 font-bold italic">No vehicle info recorded</p>
-            )}
-          </div>
+
         </div>
       </div>
 

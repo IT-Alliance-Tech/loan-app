@@ -28,8 +28,11 @@ const InterestPendingList = () => {
       const params = {
         page: currentPage,
         limit,
-        searchQuery: searchQuery.trim() || undefined,
       };
+
+      if (searchQuery.trim()) {
+        params.searchQuery = searchQuery.trim();
+      }
 
       const res = await interestLoanService.getPendingPayments(params);
       if (res.data) {
