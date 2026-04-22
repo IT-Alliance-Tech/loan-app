@@ -32,6 +32,7 @@ exports.createInterestLoan = asyncHandler(async (req, res, next) => {
     disbursement,
     principalPayments,
     paymentMode,
+    remarks,
   } = req.body;
 
   if (!loanNumber) {
@@ -71,6 +72,7 @@ exports.createInterestLoan = asyncHandler(async (req, res, next) => {
     createdBy: req.user._id,
     paymentMode: paymentMode || "Cash",
     status: remainingP <= 0 ? "Closed" : (req.body.status || "Active"),
+    remarks,
   });
 
   // Generate EMIs from emiStartDate until today (Catch-up loop)
