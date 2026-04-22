@@ -35,9 +35,15 @@ const InterestLoansList = ({ type, title }) => {
       const params = {
         page: currentPage,
         limit,
-        searchQuery: searchQuery.trim() || undefined,
-        status: type === "pending" ? "Pending" : undefined,
       };
+
+      if (searchQuery.trim()) {
+        params.searchQuery = searchQuery.trim();
+      }
+
+      if (type === "pending") {
+        params.status = "Pending";
+      }
 
       const response = await interestLoanService.getAllLoans(params);
       const { loans: dataLoans, pagination } = response.data;

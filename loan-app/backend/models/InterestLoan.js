@@ -27,6 +27,13 @@ const interestLoanSchema = new mongoose.Schema(
       type: [String],
       index: true,
     },
+    guarantorName: {
+      type: String,
+      trim: true,
+    },
+    guarantorMobileNumbers: {
+      type: [String],
+    },
     panNumber: {
       type: String,
       trim: true,
@@ -69,15 +76,7 @@ const interestLoanSchema = new mongoose.Schema(
       enum: ["Cash", "Online", "Cheque"],
       default: "Cash",
     },
-    // Vehicle Information
-    vehicleInformation: {
-      vehicleNumber: { type: String, trim: true },
-      chassisNumber: { type: String, trim: true },
-      engineNumber: { type: String, trim: true },
-      modelYear: { type: String, trim: true },
-      typeOfVehicle: { type: String, trim: true },
-      ywBoard: { type: String, trim: true },
-    },
+
     // Payments tracking
     principalPayments: [
       {

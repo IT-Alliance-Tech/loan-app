@@ -26,9 +26,12 @@ const InterestFollowupList = () => {
       const params = {
         page: currentPage,
         limit,
-        searchQuery: searchQuery.trim() || undefined,
         followup: "true", // Special filter for follow-ups
       };
+
+      if (searchQuery.trim()) {
+        params.searchQuery = searchQuery.trim();
+      }
 
       const res = await interestLoanService.getAllLoans(params);
       if (res.data) {

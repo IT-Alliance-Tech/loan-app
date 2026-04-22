@@ -21,13 +21,14 @@ exports.createInterestLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     panNumber,
     aadharNumber,
+    guarantorName,
+    guarantorMobileNumbers,
     principalAmount,
     interestRate,
     processingFeeRate,
     processingFee,
     startDate,
     emiStartDate,
-    vehicleInformation,
     disbursement,
     principalPayments,
     paymentMode,
@@ -56,6 +57,8 @@ exports.createInterestLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     panNumber,
     aadharNumber,
+    guarantorName,
+    guarantorMobileNumbers,
     initialPrincipalAmount: initialP,
     remainingPrincipalAmount: remainingP,
     interestRate: r,
@@ -63,7 +66,6 @@ exports.createInterestLoan = asyncHandler(async (req, res, next) => {
     processingFee: fee,
     startDate: startDate || new Date(),
     emiStartDate: emiStartDate || new Date(),
-    vehicleInformation,
     disbursement: disbursement || [],
     principalPayments: principalPayments || [],
     createdBy: req.user._id,
@@ -132,7 +134,7 @@ exports.createInterestLoan = asyncHandler(async (req, res, next) => {
       loanId: interestLoan._id,
       loanModel: "InterestLoan",
       amount: fee,
-      mode: "CASH",
+      mode: "Cash",
       paymentDate: interestLoan.startDate || new Date(),
       paymentType: "Processing Fee",
       status: "Success",
@@ -149,8 +151,11 @@ exports.getAllInterestLoans = asyncHandler(async (req, res, next) => {
   const { searchQuery, status, page = 1, limit = 25 } = req.query;
   const query = {};
 
-  if (status) query.status = status;
-  if (searchQuery) {
+  if (status && status !== "undefined" && status !== "null") {
+    query.status = status;
+  }
+  
+  if (searchQuery && searchQuery !== "undefined" && searchQuery !== "null") {
     query.$or = [
       { loanNumber: { $regex: searchQuery, $options: "i" } },
       { customerName: { $regex: searchQuery, $options: "i" } },
@@ -284,9 +289,28 @@ exports.addPrincipalPayment = asyncHandler(async (req, res, next) => {
 });
 
 // Update/Pay Interest EMI
+const normalizePaymentMode = (mode) => {
+  if (!mode) return "Cash";
+  const m = mode.trim().toLowerCase();
+  if (m === "cash") return "Cash";
+  if (m === "online") return "Online";
+  if (m === "cheque") return "Cheque";
+  // Return Title Case for other strings just in case
+  return mode.charAt(0).toUpperCase() + mode.slice(1).toLowerCase();
+};
+
 exports.payInterestEMI = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const { overdue, remarks, dateGroups } = req.body;
+  const { remarks, dateGroups } = req.body;
+  let { overdue } = req.body;
+
+  // Normalize overdue modes
+  if (Array.isArray(overdue)) {
+    overdue = overdue.map(ov => ({
+      ...ov,
+      mode: normalizePaymentMode(ov.mode)
+    }));
+  }
 
   if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
     return next(new ErrorHandler("Invalid EMI ID provided", 400));
@@ -324,7 +348,7 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
     else buckets[key].overdueDelta += isNew ? val : -val;
 
     if (isNew && val > 0) {
-      if (mode) buckets[key].modes.add(mode.toUpperCase());
+      if (mode) buckets[key].modes.add(normalizePaymentMode(mode));
       if (chequeNumber) buckets[key].chequeNumbers.add(chequeNumber);
     }
   };
@@ -337,13 +361,15 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
         group.payments.forEach((p) => {
           const amount = parseFloat(p.amount);
           if (amount > 0) {
+            const normalizedMode = normalizePaymentMode(p.mode);
             emi.paymentHistory.push({
               amount: amount,
-              mode: p.mode || "CASH",
+              mode: normalizedMode,
               chequeNumber: p.chequeNumber || "",
               date: new Date(group.date),
               addedBy: req.user._id,
             });
+            addToBucket(group.date, normalizedMode, p.chequeNumber, "EMI", amount, true);
           }
         });
       }
@@ -384,7 +410,7 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
 
     if (totalDelta !== 0 || emiDelta !== 0 || overdueDelta !== 0) {
       const combinedMode =
-        modes.size > 0 ? Array.from(modes).join(", ") : "CASH";
+        modes.size > 0 ? Array.from(modes).join(", ") : "Cash";
       const combinedChequeNo =
         chequeNumbers.size > 0 ? Array.from(chequeNumbers).join(", ") : "";
 
@@ -485,7 +511,7 @@ exports.getInterestPendingPayments = asyncHandler(async (req, res, next) => {
     dueDate: { $lte: now }
   };
 
-  if (searchQuery) {
+  if (searchQuery && searchQuery !== "undefined" && searchQuery !== "null") {
     query.$or = [
       { loanNumber: { $regex: searchQuery, $options: "i" } },
       { customerName: { $regex: searchQuery, $options: "i" } },
@@ -496,7 +522,7 @@ exports.getInterestPendingPayments = asyncHandler(async (req, res, next) => {
   const pendingPayments = await InterestEMI.find(query)
     .populate({
       path: "interestLoanId",
-      select: "mobileNumbers vehicleInformation remainingPrincipalAmount"
+      select: "mobileNumbers remainingPrincipalAmount"
     })
     .sort({ dueDate: 1 })
     .skip(skip)

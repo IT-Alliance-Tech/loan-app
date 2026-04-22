@@ -14,7 +14,7 @@ import { getLoanExpensesTotal } from "@/services/expenseService";
 
 const _loanUniquenessCache = new Map();
 
-const ErrorMsg = ({ name, touched, errors }) => {
+const ErrorMsg = ({ name, touched = {}, errors = {} }) => {
   const [section, field] = name.includes(".") ? name.split(".") : [null, name];
   const isTouched = section ? touched[section]?.[field] : touched[field];
   const error = section ? errors[section]?.[field] : errors[field];
@@ -88,9 +88,15 @@ const InterestLoanForm = ({
       customerName: initialData?.customerName || "",
       address: initialData?.address || "",
       ownRent: initialData?.ownRent || "Own",
-      mobileNumbers: Array.isArray(initialData?.mobileNumbers)
-        ? initialData.mobileNumbers
-        : [""],
+      mobileNumbers:
+        initialData?.mobileNumbers?.length > 0
+          ? initialData.mobileNumbers
+          : [""],
+      guarantorName: initialData?.guarantorName || "",
+      guarantorMobileNumbers:
+        initialData?.guarantorMobileNumbers?.length > 0
+          ? initialData.guarantorMobileNumbers
+          : [""],
       panNumber: initialData?.panNumber || "",
       aadharNumber: initialData?.aadharNumber || "",
       initialPrincipalAmount: initialData?.initialPrincipalAmount || 0,
@@ -100,14 +106,6 @@ const InterestLoanForm = ({
       startDate: formatDateForInput(initialData?.startDate || new Date()),
       emiStartDate: formatDateForInput(initialData?.emiStartDate || new Date()),
       status: initialData?.status || "Active",
-      vehicleInformation: {
-        vehicleNumber: initialData?.vehicleInformation?.vehicleNumber || "",
-        chassisNumber: initialData?.vehicleInformation?.chassisNumber || "",
-        engineNumber: initialData?.vehicleInformation?.engineNumber || "",
-        modelYear: initialData?.vehicleInformation?.modelYear || "",
-        typeOfVehicle: initialData?.vehicleInformation?.typeOfVehicle || "",
-        ywBoard: initialData?.vehicleInformation?.ywBoard || "Yellow",
-      },
       disbursement: initialData?.disbursement || [],
       principalPayments: initialData?.principalPayments || [],
       remarks: initialData?.remarks || "",
@@ -124,7 +122,8 @@ const InterestLoanForm = ({
     onSubmit: (values) => {
       // Filter empty mobile numbers
       const mobiles = values.mobileNumbers.filter((num) => num.trim() !== "");
-      onSubmit({ ...values, mobileNumbers: mobiles });
+      const guarantorMobiles = values.guarantorMobileNumbers.filter((num) => num.trim() !== "");
+      onSubmit({ ...values, mobileNumbers: mobiles, guarantorMobileNumbers: guarantorMobiles });
     },
   });
 
@@ -499,6 +498,100 @@ const InterestLoanForm = ({
             </div>
           </div>
 
+          {/* Guarantor Details */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
+              Guarantor Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Guarantor Name
+                </label>
+                <input
+                  type="text"
+                  name="guarantorName"
+                  value={values.guarantorName}
+                  onChange={formik.handleChange}
+                  onBlur={handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("guarantorName")}
+                  placeholder="Guarantor full name"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
+                  Guarantor Mobile Numbers
+                  {!isViewOnly && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFieldValue("guarantorMobileNumbers", [
+                          ...values.guarantorMobileNumbers,
+                          "",
+                        ])
+                      }
+                      className="text-primary text-[9px] font-black uppercase hover:underline"
+                    >
+                      + Add Number
+                    </button>
+                  )}
+                </label>
+                <div className="space-y-2">
+                  {values.guarantorMobileNumbers.map((num, idx) => (
+                    <div
+                      key={idx}
+                      className="flex gap-2 animate-in slide-in-from-left-2 duration-200"
+                    >
+                      <input
+                        type="text"
+                        maxLength={10}
+                        value={num}
+                        onChange={(e) => {
+                          const newArr = [...values.guarantorMobileNumbers];
+                          newArr[idx] = e.target.value.replace(/[^0-9]/g, "");
+                          setFieldValue("guarantorMobileNumbers", newArr);
+                        }}
+                        readOnly={isViewOnly}
+                        className={getFieldClass(`guarantorMobileNumbers[${idx}]`)}
+                        placeholder={`Number ${idx + 1}`}
+                      />
+                      {values.guarantorMobileNumbers.length > 1 && !isViewOnly && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFieldValue(
+                              "guarantorMobileNumbers",
+                              values.guarantorMobileNumbers.filter(
+                                (_, i) => i !== idx,
+                              ),
+                            )
+                          }
+                          className="bg-red-50 text-red-400 p-3 rounded-xl hover:bg-red-100 transition-colors"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2.5"
+                              d="M20 12H4"
+                            />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Loan Terms */}
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b border-primary/10 pb-2 mb-4">
@@ -775,64 +868,7 @@ const InterestLoanForm = ({
             </div>
           </div>
 
-          {/* Vehicle Information */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
-              Vehicle Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { label: "Vehicle Number", name: "vehicleNumber" },
-                { label: "Chassis Number", name: "chassisNumber" },
-                { label: "Engine Number", name: "engineNumber" },
-                { label: "Model Year", name: "modelYear" },
-                { label: "Type of Vehicle", name: "typeOfVehicle" },
-                {
-                  label: "YW Board",
-                  name: "ywBoard",
-                  type: "select",
-                  options: ["Yellow", "White"],
-                },
-              ].map((field) => (
-                <div key={field.name} className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    {field.label}
-                  </label>
-                  {field.type === "select" ? (
-                    <select
-                      name={`vehicleInformation.${field.name}`}
-                      value={values.vehicleInformation[field.name]}
-                      onChange={formik.handleChange}
-                      disabled={isViewOnly}
-                      className={getFieldClass(
-                        field.name,
-                        "vehicleInformation",
-                      )}
-                    >
-                      {field.options.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      name={`vehicleInformation.${field.name}`}
-                      value={values.vehicleInformation[field.name]}
-                      onChange={formik.handleChange}
-                      readOnly={isViewOnly}
-                      className={getFieldClass(
-                        field.name,
-                        "vehicleInformation",
-                      )}
-                      placeholder={field.label}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+
 
           <ClientResponseSection
             clientResponse={values.clientResponse}

@@ -53,6 +53,7 @@ const interestEmiSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    overdue: [{ date: { type: Date }, amount: { type: Number }, mode: { type: String }, chequeNumber: { type: String } }],
     paymentHistory: [
       {
         amount: { type: Number, required: true },
