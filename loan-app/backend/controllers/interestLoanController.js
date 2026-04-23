@@ -257,6 +257,7 @@ exports.getInterestLoanById = asyncHandler(async (req, res, next) => {
 
   let emis = await InterestEMI.find({ interestLoanId: loan._id })
     .populate("updatedBy", "name")
+    .populate("approvedBy", "name")
     .sort({
       emiNumber: 1,
     });
@@ -404,13 +405,42 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
     }));
   }
 
-  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
-    return next(new ErrorHandler("Invalid EMI ID provided", 400));
-  }
-
   let emi = await InterestEMI.findById(id);
   if (!emi) {
     return next(new ErrorHandler("Interest EMI record not found", 404));
+  }
+
+  // Check for Payment Approval Authority
+  const isSuperAdmin = req.user.role === "SUPER_ADMIN";
+  const hasApprovalAuthority = req.user.permissions?.paymentApproval;
+
+  if (!isSuperAdmin && !hasApprovalAuthority) {
+    const Approval = require("../models/Approval");
+    const existingApproval = await Approval.findOne({
+      targetId: emi._id,
+      status: "Pending",
+    });
+
+    if (existingApproval) {
+      return next(new ErrorHandler("This EMI is already waiting for approval", 400));
+    }
+
+    await Approval.create({
+      requestType: "INTEREST_PAYMENT",
+      targetId: emi._id,
+      targetModel: "InterestEMI",
+      loanNumber: emi.loanNumber,
+      customerName: emi.customerName || "Customer",
+      requestedData: req.body,
+      requestedBy: req.user._id,
+      status: "Pending",
+    });
+
+    emi.status = "Waiting for Approval";
+    emi.updatedBy = req.user._id;
+    await emi.save();
+
+    return sendResponse(res, 200, "success", "Interest payment submitted for approval", null, emi);
   }
 
   const loan = await InterestLoan.findById(emi.interestLoanId);

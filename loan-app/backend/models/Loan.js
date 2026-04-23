@@ -181,7 +181,7 @@ const loanSchema = new mongoose.Schema(
       type: String,
       required: [true, "Status is required"],
       enum: {
-        values: ["Active", "Closed", "Seized", "Pending"],
+        values: ["Active", "Closed", "Seized", "Pending", "Waiting for Approval"],
         message: "Please select a valid status",
       },
       default: "Active",
@@ -231,6 +231,13 @@ const loanSchema = new mongoose.Schema(
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
     },
     soldDetails: {
       sellAmount: {

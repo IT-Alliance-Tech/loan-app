@@ -176,7 +176,8 @@ exports.getDailyLoanEMIs = asyncHandler(async (req, res, next) => {
     .sort({
       emiNumber: 1,
     })
-    .populate("updatedBy", "name");
+    .populate("updatedBy", "name")
+    .populate("approvedBy", "name");
 
   // Lazy generation for existing records that don't have EMIs
   if (emis.length === 0) {

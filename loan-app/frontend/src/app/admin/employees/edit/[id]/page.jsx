@@ -33,6 +33,7 @@ const EditEmployeePage = () => {
       analytics: { view: false, create: false, edit: false, delete: false },
       dashboard: { view: false, create: false, edit: false, delete: false },
       expenses: { view: false, create: false, edit: false, delete: false },
+      paymentApproval: false,
     },
   });
 
@@ -98,6 +99,7 @@ const EditEmployeePage = () => {
               edit: false,
               delete: false,
             },
+            paymentApproval: false,
           },
         });
       } catch (err) {
@@ -370,6 +372,30 @@ const EditEmployeePage = () => {
                       <PermissionRow label="Dashboard" module="dashboard" />
                       <PermissionRow label="Expenses" module="expenses" />
                     </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex items-center justify-between mt-6">
+                    <div>
+                      <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Payment Approval Authority</h3>
+                      <p className="text-slate-400 text-[9px] font-bold uppercase tracking-tighter mt-1">
+                        If enabled, the employee can mark payments as PAID directly. If disabled, all payments will require Super Admin approval.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={formData.permissions.paymentApproval}
+                        onChange={() => setFormData(prev => ({
+                          ...prev,
+                          permissions: {
+                            ...prev.permissions,
+                            paymentApproval: !prev.permissions.paymentApproval
+                          }
+                        }))}
+                      />
+                      <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
+                    </label>
                   </div>
                 </div>
 

@@ -24,8 +24,9 @@ const EditWeeklyLoanPage = ({ params: paramsPromise }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchData = React.useCallback(async () => {
+  const fetchData = React.useCallback(async (silent = false) => {
     try {
+      if (!silent) setLoading(true);
       const [loanRes, emiRes] = await Promise.all([
         getWeeklyLoanById(params.id),
         getWeeklyLoanEMIs(params.id),
@@ -47,16 +48,34 @@ const EditWeeklyLoanPage = ({ params: paramsPromise }) => {
       setLoanData(data);
       setEmis(emiData);
     } catch (err) {
-      showToast(err.message || "Failed to fetch details", "error");
-      router.push("/admin/weekly-loans");
+      if (!silent) {
+        showToast(err.message || "Failed to fetch details", "error");
+        router.push("/admin/weekly-loans");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [params.id, router, showToast]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Smart Polling: Refresh data automatically if any EMI is waiting for approval
+  useEffect(() => {
+    let interval;
+    const hasWaitingApprovals = emis.some(emi => emi.status === "Waiting for Approval");
+    
+    if (hasWaitingApprovals) {
+      interval = setInterval(() => {
+        fetchData(true); // Silent refresh
+      }, 10000); // Check every 10 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [emis, fetchData]);
 
   const refreshEMIs = async () => {
     try {

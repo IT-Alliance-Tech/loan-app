@@ -98,6 +98,22 @@ const EditLoanPage = () => {
     }
   }, [id]);
 
+  // Smart Polling: Refresh data automatically if any EMI is waiting for approval
+  useEffect(() => {
+    let interval;
+    const hasWaitingApprovals = emis.some(emi => emi.status === "Waiting for Approval");
+    
+    if (hasWaitingApprovals) {
+      interval = setInterval(() => {
+        fetchLoanData();
+      }, 10000); // Check every 10 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [emis, id]);
+
   const handleSubmit = async (formData) => {
     setSubmitting(true);
     try {

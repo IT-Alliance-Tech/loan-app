@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { getUserFromToken } from "../utils/auth";
 import Logo from "./Logo";
 import { useUI } from "../context/UIContext";
+import { getPendingApprovals } from "../services/approvalService";
 
 const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
@@ -59,6 +60,12 @@ const navItems = [
       { name: "Foreclosure", href: "/admin/foreclosure-payments" },
     ],
   },
+  {
+    name: "Approvals",
+    href: "/admin/approvals",
+    icon: "✅",
+    roles: ["SUPER_ADMIN"],
+  },
   { name: "Expenses", href: "/admin/expenses", icon: "🧾" },
 
   {
@@ -79,6 +86,26 @@ const Sidebar = () => {
   const user = getUserFromToken();
   const { isSidebarOpen, closeSidebar } = useUI();
   const [expandedMenus, setExpandedMenus] = useState({});
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    let interval;
+    
+    const fetchCount = () => {
+      if (user?.role === "SUPER_ADMIN") {
+        getPendingApprovals()
+          .then((res) => setPendingCount(res.data?.length || 0))
+          .catch(() => {});
+      }
+    };
+
+    fetchCount();
+    
+    // Poll every 60 seconds to keep the badge updated without flooding the logs
+    interval = setInterval(fetchCount, 60000);
+
+    return () => clearInterval(interval);
+  }, [pathname, user?.id]);
 
   useEffect(() => {
     // Auto-expand menu if sub-item is active
@@ -229,8 +256,13 @@ const Sidebar = () => {
                       : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
                   }`}
                 >
-                  <span className="text-base">{item.icon}</span>
+                  {item.icon && <span className="text-base">{item.icon}</span>}
                   {item.name}
+                  {item.name === "Approvals" && pendingCount > 0 && (
+                    <span className="ml-auto bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -365,6 +397,11 @@ const Sidebar = () => {
                   >
                     <span className="text-base">{item.icon}</span>
                     {item.name}
+                    {item.name === "Approvals" && pendingCount > 0 && (
+                      <span className="ml-auto bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">
+                        {pendingCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

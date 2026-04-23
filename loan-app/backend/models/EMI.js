@@ -58,7 +58,7 @@ const emiSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Paid", "Partially Paid", "Overdue"],
+      enum: ["Pending", "Paid", "Partially Paid", "Overdue", "Waiting for Approval"],
       default: "Pending",
     },
     remarks: {
@@ -74,6 +74,13 @@ const emiSchema = new mongoose.Schema(
         addedAt: { type: Date, default: Date.now },
       },
     ],
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
