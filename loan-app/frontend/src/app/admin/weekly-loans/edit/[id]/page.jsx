@@ -24,38 +24,58 @@ const EditWeeklyLoanPage = ({ params: paramsPromise }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [loanRes, emiRes] = await Promise.all([
-          getWeeklyLoanById(params.id),
-          getWeeklyLoanEMIs(params.id),
-        ]);
-        const data = loanRes.data;
-        const emiData = emiRes.data || [];
+  const fetchData = React.useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      const [loanRes, emiRes] = await Promise.all([
+        getWeeklyLoanById(params.id),
+        getWeeklyLoanEMIs(params.id),
+      ]);
+      const data = loanRes.data;
+      const emiData = emiRes.data || [];
 
-        // Format dates for the form
-        if (data.startDate)
-          data.startDate = format(new Date(data.startDate), "yyyy-MM-dd");
-        if (data.emiStartDate)
-          data.emiStartDate = format(new Date(data.emiStartDate), "yyyy-MM-dd");
-        if (data.nextFollowUpDate)
-          data.nextFollowUpDate = format(
-            new Date(data.nextFollowUpDate),
-            "yyyy-MM-dd",
-          );
+      // Format dates for the form
+      if (data.startDate)
+        data.startDate = format(new Date(data.startDate), "yyyy-MM-dd");
+      if (data.emiStartDate)
+        data.emiStartDate = format(new Date(data.emiStartDate), "yyyy-MM-dd");
+      if (data.nextFollowUpDate)
+        data.nextFollowUpDate = format(
+          new Date(data.nextFollowUpDate),
+          "yyyy-MM-dd",
+        );
 
-        setLoanData(data);
-        setEmis(emiData);
-      } catch (err) {
+      setLoanData(data);
+      setEmis(emiData);
+    } catch (err) {
+      if (!silent) {
         showToast(err.message || "Failed to fetch details", "error");
         router.push("/admin/weekly-loans");
-      } finally {
-        setLoading(false);
       }
-    };
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [params.id, router, showToast]);
+
+  useEffect(() => {
     fetchData();
-  }, [params.id]);
+  }, [fetchData]);
+
+  // Smart Polling: Refresh data automatically if any EMI is waiting for approval
+  useEffect(() => {
+    let interval;
+    const hasWaitingApprovals = emis.some(emi => emi.status === "Waiting for Approval");
+    
+    if (hasWaitingApprovals) {
+      interval = setInterval(() => {
+        fetchData(true); // Silent refresh
+      }, 10000); // Check every 10 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [emis, fetchData]);
 
   const refreshEMIs = async () => {
     try {
@@ -71,7 +91,7 @@ const EditWeeklyLoanPage = ({ params: paramsPromise }) => {
     try {
       await updateWeeklyLoan(params.id, formData);
       showToast("Weekly loan record updated successfully", "success");
-      router.push("/admin/weekly-loans");
+      await fetchData();
     } catch (err) {
       showToast(err.message || "Failed to update weekly loan", "error");
     } finally {

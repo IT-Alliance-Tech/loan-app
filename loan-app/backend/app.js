@@ -17,6 +17,7 @@ const collectionRoutes = require("./routes/collectionRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const interestLoanRoutes = require("./routes/interestLoanRoutes");
+const approvalRoutes = require("./routes/approvalRoutes");
 const { checkLoanNumberUniqueness } = require("./controllers/loanController");
 const compression = require("compression");
 
@@ -108,6 +109,7 @@ app.get("/api/seed-admin", async (req, res) => {
         analytics: { view: true, create: true, edit: true, delete: true },
         dashboard: { view: true, create: true, edit: true, delete: true },
         expenses: { view: true, create: true, edit: true, delete: true },
+        paymentApproval: true,
       };
       await user.save();
       return res.status(200).send("Admin updated successfully");
@@ -130,6 +132,7 @@ app.get("/api/seed-admin", async (req, res) => {
           analytics: { view: true, create: true, edit: true, delete: true },
           dashboard: { view: true, create: true, edit: true, delete: true },
           expenses: { view: true, create: true, edit: true, delete: true },
+          paymentApproval: true,
         },
       });
       return res.status(200).send("Admin created successfully");
@@ -158,6 +161,7 @@ app.use("/api/collections", collectionRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/interest-loans", interestLoanRoutes);
+app.use("/api/approvals", approvalRoutes);
 
 // Error Middleware
 app.use(errorMiddleware);

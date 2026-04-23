@@ -12,6 +12,8 @@ const LoanStatusBadge = ({ status }) => {
         return "bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100/20";
       case "pending":
         return "bg-amber-50 text-amber-600 border-amber-100 shadow-amber-100/20";
+      case "waiting for approval":
+        return "bg-blue-50 text-blue-600 border-blue-200 animate-pulse";
       default:
         return "bg-slate-50 text-slate-500 border-slate-200";
     }
@@ -27,6 +29,8 @@ const LoanStatusBadge = ({ status }) => {
         return "bg-rose-500";
       case "pending":
         return "bg-amber-500";
+      case "waiting for approval":
+        return "bg-blue-500";
       default:
         return "bg-slate-300";
     }

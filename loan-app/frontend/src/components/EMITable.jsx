@@ -233,12 +233,12 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
       }
       setShowModal(false);
       setEditingEmi(null);
-      showToast("EMI updated successfully", "success");
+      showToast(`${loanType === "interest" ? "Interest" : "EMI"} updated successfully`, "success");
       if (onUpdateSuccess) onUpdateSuccess();
     } catch (error) {
       console.error("Error updating EMI:", error);
       showToast(
-        error.message || "An error occurred while updating EMI",
+        error.message || `An error occurred while updating ${loanType === "interest" ? "Interest" : "EMI"}`,
         "error",
       );
     } finally {
@@ -307,7 +307,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
                 Due Date
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
-                EMI Amount
+                {loanType === "interest" ? "Interest Amount" : "EMI Amount"}
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
                 Amount Paid
@@ -326,6 +326,9 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[150px]">
                 Remarks
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[150px]">
+                Approved By
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[150px]">
                 Last Updated
@@ -408,7 +411,9 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
                           ? "bg-green-100 text-green-700"
                           : emi.status === "Partially Paid"
                             ? "bg-orange-100 text-orange-700"
-                            : "bg-red-100 text-red-700"
+                            : emi.status === "Waiting for Approval"
+                              ? "bg-blue-100 text-blue-700 animate-pulse"
+                              : "bg-red-100 text-red-700"
                       }`}
                     >
                       {emi.status}
@@ -420,6 +425,31 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
                   title={emi.remarks}
                 >
                   {emi.remarks || "-"}
+                </td>
+                <td className="px-6 py-4 text-xs font-medium text-slate-500 text-center whitespace-nowrap">
+                  {emi.approvedBy ? (
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-700">
+                        {typeof emi.approvedBy === "string"
+                          ? emi.approvedBy
+                          : emi.approvedBy.name}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(emi.approvedAt).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}{" "}
+                        {new Date(emi.approvedAt).toLocaleTimeString("en-IN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
+                      </span>
+                    </div>
+                  ) : (
+                    "-"
+                  )}
                 </td>
                 <td className="px-6 py-4 text-xs font-medium text-slate-500 text-center whitespace-nowrap">
                   {emi.updatedBy ? (
@@ -478,7 +508,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                  Update EMI #{editingEmi?.emiNumber}
+                  Update {loanType === "interest" ? "Interest" : "EMI"} #{editingEmi?.emiNumber}
                 </h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                   Due Date: {formatDate(editingEmi?.dueDate)} | Amount: ₹
@@ -667,11 +697,13 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
                           : "bg-red-50 border-red-200 text-red-600"
                     }`}
                   >
-                    {remainingBalance === 0
-                      ? "Paid"
-                      : remainingBalance < (editingEmi?.emiAmount || 0)
-                        ? "Partially Paid"
-                        : "Pending"}
+                    {editingEmi?.status === "Waiting for Approval"
+                      ? "Waiting for Approval"
+                      : remainingBalance === 0
+                        ? "Paid"
+                        : remainingBalance < (editingEmi?.emiAmount || 0)
+                          ? "Partially Paid"
+                          : "Pending"}
                   </div>
                 </div>
 

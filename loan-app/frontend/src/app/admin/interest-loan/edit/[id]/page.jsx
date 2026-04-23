@@ -17,22 +17,38 @@ const EditInterestLoanPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [emis, setEmis] = useState([]);
 
-  const fetchLoan = async () => {
-    setLoading(true);
+  const fetchLoan = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await interestLoanService.getLoanById(id);
       setLoan(res.data.loan);
       setEmis(res.data.emis || []);
     } catch (err) {
-      showToast(err.message || "Failed to fetch loan", "error");
+      if (!silent) showToast(err.message || "Failed to fetch loan", "error");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     if (id) fetchLoan();
   }, [id]);
+
+  // Smart Polling: Refresh data automatically if any EMI is waiting for approval
+  useEffect(() => {
+    let interval;
+    const hasWaitingApprovals = emis.some(emi => emi.status === "Waiting for Approval");
+    
+    if (hasWaitingApprovals) {
+      interval = setInterval(() => {
+        fetchLoan(true); // Silent refresh
+      }, 10000); // Check every 10 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [emis, id]);
 
   const handleSubmit = async (values) => {
     setSubmitting(true);
@@ -84,7 +100,7 @@ const EditInterestLoanPage = () => {
                   submitting={submitting} 
                   emis={emis}
                   onRefresh={fetchLoan}
-                  onCancel={() => router.push(`/admin/interest-loan/${id}`)} 
+                  onCancel={() => router.push(`/admin/interest-loan`)} 
                 />
               )}
             </div>

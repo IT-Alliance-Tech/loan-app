@@ -148,7 +148,10 @@ const getCustomerByLoanNumber = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Customer not found", 404));
   }
 
-  const emis = await EMI.find({ loanId: customer._id }).sort({ emiNumber: 1 });
+  const emis = await EMI.find({ loanId: customer._id })
+    .sort({ emiNumber: 1 })
+    .populate("updatedBy", "name")
+    .populate("approvedBy", "name");
 
   sendResponse(res, 200, "success", "Customer found", null, {
     customer: formatLoanResponse(customer),
@@ -195,13 +198,45 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     dateGroups,
   } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
-    return next(new ErrorHandler("Invalid EMI ID provided", 400));
-  }
-
   let emi = await EMI.findById(id);
   if (!emi) {
     return next(new ErrorHandler("EMI record not found", 404));
+  }
+
+  // Check for Payment Approval Authority
+  const isSuperAdmin = req.user.role === "SUPER_ADMIN";
+  const hasApprovalAuthority = req.user.permissions?.paymentApproval;
+
+  if (!isSuperAdmin && !hasApprovalAuthority) {
+    // Check if there's already a pending approval for this EMI
+    const Approval = require("../models/Approval");
+    const existingApproval = await Approval.findOne({
+      targetId: emi._id,
+      status: "Pending",
+    });
+
+    if (existingApproval) {
+      return next(new ErrorHandler("This EMI is already waiting for approval", 400));
+    }
+
+    // Create Approval Request
+    await Approval.create({
+      requestType: "EMI_PAYMENT",
+      targetId: emi._id,
+      targetModel: "EMI",
+      loanNumber: emi.loanNumber,
+      customerName: emi.customerName || "Customer",
+      requestedData: req.body,
+      requestedBy: req.user._id,
+      status: "Pending",
+    });
+
+    // Update EMI status to 'Waiting for Approval'
+    emi.status = "Waiting for Approval";
+    emi.updatedBy = req.user._id;
+    await emi.save();
+
+    return sendResponse(res, 200, "success", "Payment submitted for approval", null, emi);
   }
 
   // CALCULATE DELTAS FOR IMMUTABLE TRANSACTION RECORDING
@@ -589,6 +624,8 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
         guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
         guarantorName: "$loan.guarantorName",
         updatedBy: 1,
+        approvedBy: 1,
+        approvedAt: 1,
         paymentRecords: 1,
         paymentHistory: 1,
       },
@@ -608,8 +645,24 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
       },
     },
     {
+      $lookup: {
+        from: "users",
+        localField: "approvedBy",
+        foreignField: "_id",
+        as: "approvedBy",
+      },
+    },
+    {
+      $unwind: {
+        path: "$approvedBy",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
       $project: {
         updatedBy: { $ifNull: ["$updatedBy.name", null] },
+        approvedBy: { $ifNull: ["$approvedBy.name", null] },
+        approvedAt: 1,
         _id: 1,
         loanId: 1,
         loanNumber: 1,
@@ -661,6 +714,7 @@ const getEMIsByLoanId = asyncHandler(async (req, res, next) => {
       emiNumber: 1,
     })
     .populate("updatedBy", "name")
+    .populate("approvedBy", "name")
     .populate("paymentRecords");
   sendResponse(res, 200, "success", "EMIs fetched successfully", null, emis);
 });

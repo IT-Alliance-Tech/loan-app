@@ -60,6 +60,22 @@ const interestLoanService = {
       }
     );
   },
+  
+  getFollowupPayments: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await apiHandler(
+      `/api/interest-loans/followup-payments${queryString ? `?${queryString}` : ""}`,
+      {
+        method: "GET",
+      }
+    );
+  },
+
+  getInterestPendingEmiDetails: async (id) => {
+    return await apiHandler(`/api/interest-loans/pending-details/${id}`, {
+      method: "GET",
+    });
+  },
 };
 
 export default interestLoanService;

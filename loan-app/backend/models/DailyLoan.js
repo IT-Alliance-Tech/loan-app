@@ -80,7 +80,7 @@ const dailyLoanSchema = new mongoose.Schema(
     ],
     status: {
       type: String,
-      enum: ["Active", "Closed", "Pending", "Seized"],
+      enum: ["Active", "Closed", "Pending", "Seized", "Waiting for Approval"],
       default: "Active",
     },
     nextFollowUpDate: {
@@ -135,6 +135,13 @@ const dailyLoanSchema = new mongoose.Schema(
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
     },
   },
   {

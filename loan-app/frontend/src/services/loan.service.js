@@ -142,6 +142,7 @@ export const updateFollowup = async (id, data) => {
 
   if (loanModel === "DailyLoan") endpoint = "/api/daily-loans";
   else if (loanModel === "WeeklyLoan") endpoint = "/api/weekly-loans";
+  else if (loanModel === "InterestLoan") endpoint = "/api/interest-loans";
 
   return await apiHandler(`${endpoint}/update-followup/${id}`, {
     method: "PATCH",

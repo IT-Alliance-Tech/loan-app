@@ -10,6 +10,7 @@ const sendResponse = require("../utils/response");
 
 const InterestLoan = require("../models/InterestLoan");
 const InterestEMI = require("../models/InterestEMI");
+const Payment = require("../models/Payment");
 
 const getAnalyticsStats = asyncHandler(async (req, res, next) => {
   const startTotal = performance.now();
@@ -156,6 +157,106 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     });
   }
 
+  // Disbursement Breakdown by Mode
+  const getDisbursementModes = (loanMetrics) => {
+    let cash = 0;
+    let account = 0;
+    
+    // Monthly
+    const mDisArr = loanMetrics[0]?.disbursement || [];
+    const mainMode = loanMetrics[0]?.paymentMode || "Cash";
+    if (mDisArr.length > 0) {
+      mDisArr.forEach(d => {
+        if ((d.mode || mainMode) === "Cash") cash += (d.amount || 0);
+        else account += (d.amount || 0);
+      });
+    } else {
+      const pAmt = loanMetrics[0]?.principalAmount || 0;
+      if (mainMode === "Cash") cash += pAmt;
+      else account += pAmt;
+    }
+
+    // Daily/Weekly/Interest
+    const processLoan = (loan) => {
+      const disb = loan.disbursement || [];
+      const mode = loan.paymentMode || "Cash";
+      if (disb.length > 0) {
+        disb.forEach(d => {
+          if ((d.mode || mode) === "Cash") cash += (d.amount || 0);
+          else account += (d.amount || 0);
+        });
+      } else {
+        const amt = loan.disbursementAmount || loan.initialPrincipalAmount || 0;
+        if (mode === "Cash") cash += amt;
+        else account += amt;
+      }
+    };
+
+    return { cash, account };
+  };
+
+  // We need more granular aggregation for modes. Let's do a direct aggregate on Payment
+  const [collectionModes] = await Promise.all([
+    Payment.aggregate([
+      {
+        $group: {
+          _id: { 
+            $cond: [
+              { $eq: ["$mode", "Cash"] }, 
+              "cash", 
+              "account"
+            ]
+          },
+          total: { $sum: "$totalAmount" }
+        }
+      }
+    ])
+  ]);
+
+  // Aggregate disbursement modes across all models
+  const [dMonthly, dDaily, dWeekly, dInterest] = await Promise.all([
+    Loan.find({}, "disbursement paymentMode principalAmount"),
+    DailyLoan.find({}, "disbursement paymentMode disbursementAmount"),
+    WeeklyLoan.find({}, "disbursement paymentMode disbursementAmount"),
+    InterestLoan.find({}, "disbursement paymentMode initialPrincipalAmount"),
+  ]);
+
+  const calcD = (loans, amtField) => {
+    let c = 0; let a = 0;
+    loans.forEach(l => {
+      if (l.disbursement?.length > 0) {
+        l.disbursement.forEach(d => {
+          if (d.mode === "Cash") c += d.amount;
+          else a += d.amount;
+        });
+      } else {
+        if (l.paymentMode === "Cash") c += (l[amtField] || 0);
+        else a += (l[amtField] || 0);
+      }
+    });
+    return { c, a };
+  };
+
+  const mD = calcD(dMonthly, "principalAmount");
+  const dD = calcD(dDaily, "disbursementAmount");
+  const wD = calcD(dWeekly, "disbursementAmount");
+  const iD = calcD(dInterest, "initialPrincipalAmount");
+
+  const disByMode = {
+    cash: Math.ceil(mD.c + dD.c + wD.c + iD.c),
+    account: Math.ceil(mD.a + dD.a + wD.a + iD.a)
+  };
+
+  const collByMode = { cash: 0, account: 0 };
+  collectionModes.forEach(m => {
+    if (m._id === "account") collByMode.account = Math.ceil(m.total);
+    else collByMode.cash += Math.ceil(m.total);
+  });
+
+  // Reconcile with totalCollectedAmount to ensure consistency with main cards
+  // Any amount not explicitly recorded as 'Account' in Payment model is treated as 'Cash'
+  const finalCollCash = Math.max(0, totalCollectedAmount - collByMode.account);
+
   const duration = (performance.now() - startTotal).toFixed(2);
 
   const statsResponse = {
@@ -173,6 +274,18 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
         daily: dailyCollected,
         weekly: weeklyCollected,
         interest: interestCollected
+      },
+      paymentModeStats: {
+        disbursement: {
+          cash: disByMode.cash,
+          account: disByMode.account,
+          total: totalLoanAmount // Use totalLoanAmount for absolute consistency 
+        },
+        collection: {
+          cash: finalCollCash,
+          account: collByMode.account,
+          total: totalCollectedAmount // Match main cards exactly
+        }
       },
       pendingLoansCount: pendingMetrics[0]?.count || 0,
       partialLoansCount: partialMetrics[0]?.count || 0,
@@ -195,6 +308,158 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
   );
 });
 
+const exportAllData = asyncHandler(async (req, res, next) => {
+  const [
+    monthlyLoans,
+    dailyLoans,
+    weeklyLoans,
+    interestLoans,
+    expenses
+  ] = await Promise.all([
+    Loan.find().sort({ createdAt: -1 }).lean(),
+    DailyLoan.find().sort({ createdAt: -1 }).lean(),
+    WeeklyLoan.find().sort({ createdAt: -1 }).lean(),
+    InterestLoan.find().sort({ createdAt: -1 }).lean(),
+    Expense.find().sort({ date: -1 }).lean(),
+  ]);
+
+  sendResponse(res, 200, "success", "Export data fetched successfully", null, {
+    monthlyLoans,
+    dailyLoans,
+    weeklyLoans,
+    interestLoans,
+    expenses
+  });
+});
+
+const getTrendStats = asyncHandler(async (req, res, next) => {
+  try {
+    const { range = "max", interval = "all", startDate: customStart, endDate: customEnd } = req.query;
+
+    const now = new Date();
+    now.setHours(23, 59, 59, 999);
+    let startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    let endDate = new Date(now);
+
+    let groupFormat = "%Y-%m"; // Default Monthly
+
+    // Handle User's specific Filter Logic
+    if (interval === "daily") {
+      // "show today only"
+      startDate.setHours(0, 0, 0, 0);
+      groupFormat = "%Y-%m-%d %H:00"; // Hourly view for today
+    } else if (interval === "weekly") {
+      // "7 days trends"
+      startDate.setDate(now.getDate() - 7);
+      groupFormat = "%Y-%m-%d";
+    } else if (interval === "monthly") {
+      // "past month trend only"
+      startDate.setMonth(now.getMonth() - 1);
+      groupFormat = "%Y-%m-%d";
+    } else if (interval === "yearly") {
+      // "same for year also"
+      startDate.setFullYear(now.getFullYear() - 1);
+      groupFormat = "%Y-%m";
+    } else if (interval === "custom" && customStart && customEnd) {
+      startDate = new Date(customStart);
+      endDate = new Date(customEnd);
+      endDate.setHours(23, 59, 59, 999);
+      // Decide group format based on duration
+      const diffDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 2) groupFormat = "%Y-%m-%d %H:00";
+      else if (diffDays <= 60) groupFormat = "%Y-%m-%d";
+      else groupFormat = "%Y-%m";
+    } else {
+      // Default / Max view
+      startDate = new Date(0); // All time
+      groupFormat = "%Y-%m";
+    }
+
+    // 1. Collections
+    const collectionStats = await Payment.aggregate([
+      { $match: { paymentDate: { $gte: startDate, $lte: endDate }, status: "Success" } },
+      {
+        $group: {
+          _id: { $dateToString: { format: groupFormat, date: "$paymentDate" } },
+          total: { $sum: "$amount" }
+        }
+      }
+    ]);
+
+    // 2. Disbursements
+    const aggregateModelDisbursements = async (Model, amountField, dateFields) => {
+      return Model.aggregate([
+        {
+          $project: {
+            disbursements: {
+              $cond: {
+                if: { $and: [{ $isArray: "$disbursement" }, { $gt: [{ $size: "$disbursement" }, 0] }] },
+                then: "$disbursement",
+                else: [{ amount: { $ifNull: [`$${amountField}`, 0] }, date: { $ifNull: [...dateFields.map(f => `$${f}`), "$createdAt"] } }]
+              }
+            }
+          }
+        },
+        { $unwind: "$disbursements" },
+        { $match: { "disbursements.date": { $gte: startDate, $lte: endDate } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: groupFormat, date: "$disbursements.date" } },
+            total: { $sum: "$disbursements.amount" }
+          }
+        }
+      ]);
+    };
+
+    const disResults = await Promise.all([
+      aggregateModelDisbursements(Loan, "principalAmount", ["dateLoanDisbursed", "emiStartDate"]),
+      aggregateModelDisbursements(DailyLoan, "disbursementAmount", ["dateLoanDisbursed", "startDate"]),
+      aggregateModelDisbursements(WeeklyLoan, "disbursementAmount", ["dateLoanDisbursed", "startDate"]),
+      aggregateModelDisbursements(InterestLoan, "initialPrincipalAmount", ["startDate"]),
+    ]);
+
+    const disbursementMap = {};
+    disResults.flat().forEach(item => {
+      if (item._id) disbursementMap[item._id] = (disbursementMap[item._id] || 0) + item.total;
+    });
+
+    const collectionMap = {};
+    collectionStats.forEach(item => {
+      if (item._id) collectionMap[item._id] = item.total;
+    });
+
+    let allDates = [...new Set([...Object.keys(disbursementMap), ...Object.keys(collectionMap)])].sort();
+
+    const trendData = [];
+    let runningDisbursement = 0;
+    let runningCollection = 0;
+
+    // For today view or very short ranges, we might have few points.
+    allDates.forEach(date => {
+      const dVal = Math.round(disbursementMap[date] || 0);
+      const cVal = Math.round(collectionMap[date] || 0);
+      runningDisbursement += dVal;
+      runningCollection += cVal;
+
+      trendData.push({
+        date,
+        disbursement: dVal,
+        collection: cVal,
+        cumulativeDisbursement: runningDisbursement,
+        cumulativeCollection: runningCollection
+      });
+    });
+
+    sendResponse(res, 200, "success", "Trend stats fetched successfully", null, trendData);
+  } catch (error) {
+    console.error("Error in getTrendStats:", error);
+    next(error);
+  }
+});
+
 module.exports = {
   getAnalyticsStats,
+  exportAllData,
+  getTrendStats,
 };

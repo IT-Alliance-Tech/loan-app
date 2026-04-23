@@ -91,6 +91,7 @@ const userSchema = new mongoose.Schema(
         edit: { type: Boolean, default: false },
         delete: { type: Boolean, default: false },
       },
+      paymentApproval: { type: Boolean, default: false },
     },
     refreshToken: {
       type: String,

@@ -34,7 +34,7 @@ const interestEmiSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Paid", "Partially Paid"],
+      enum: ["Pending", "Paid", "Partially Paid", "Waiting for Approval"],
       default: "Pending",
     },
     paymentDate: {
@@ -64,6 +64,13 @@ const interestEmiSchema = new mongoose.Schema(
         addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       },
     ],
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

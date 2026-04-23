@@ -196,66 +196,60 @@ export const exportLoansToExcel = async (data, typeOrFileName) => {
     ];
 
     data.forEach((loan, index) => {
-      const customer = loan.customerDetails || {};
-      const terms = loan.loanTerms || {};
-      const status = loan.status || {};
-      const repayment = loan.repaymentStats || {};
-      const vInfo = loan.vehicleInformation || {};
-
       const rowNumber = index + 3; // Data starts at row 3 (Row 1: Title, Row 2: Headers)
 
       columns.push([
         index + 1, // A: SI No
-        terms.loanNumber || "-", // B: Loan No.
-        status.status || "Active", // C: Loan Status
-        customer.customerName || "-", // D: Name
-        customer.address || "-", // E: Address
-        customer.ownRent || "-", // F: Own/Rent
-        Array.isArray(customer.mobileNumbers)
-          ? customer.mobileNumbers.join(", ")
-          : customer.mobileNumbers || "-", // G: Mobile no.
-        terms.principalAmount || 0, // H: Amount
-        terms.annualInterestRate || 0, // I: Interest Rate
-        terms.processingFee || 0, // J: Processing fee
-        terms.tenureType || "Monthly", // K: Tenure Type
-        terms.tenureMonths || 0, // L: Tenure
-        terms.emiStartDate
-          ? new Date(terms.emiStartDate).toLocaleDateString("en-IN")
+        loan.loanNumber || "-", // B: Loan No.
+        loan.status || "Active", // C: Loan Status
+        loan.customerName || "-", // D: Name
+        loan.address || "-", // E: Address
+        loan.ownRent || "-", // F: Own/Rent
+        Array.isArray(loan.mobileNumbers)
+          ? loan.mobileNumbers.join(", ")
+          : loan.mobileNumbers || "-", // G: Mobile no.
+        loan.principalAmount || 0, // H: Amount
+        loan.annualInterestRate || 0, // I: Interest Rate
+        loan.processingFee || 0, // J: Processing fee
+        loan.tenureType || "Monthly", // K: Tenure Type
+        loan.tenureMonths || 0, // L: Tenure
+        loan.emiStartDate
+          ? new Date(loan.emiStartDate).toLocaleDateString("en-IN")
           : "-", // M: Start date
-        terms.emiEndDate
-          ? new Date(terms.emiEndDate).toLocaleDateString("en-IN")
+        loan.emiEndDate
+          ? new Date(loan.emiEndDate).toLocaleDateString("en-IN")
           : "-", // N: End date
-        terms.monthlyEMI || 0, // O: EMI Amount
-        repayment.overdueAmount || 0, // P: Overdue
-        repayment.remainingTenure || 0, // Q: Remaining Tenure
-        repayment.remainingPrincipal || 0, // R: Remaining Principle Amount
-        repayment.nextEmiDueDate
-          ? new Date(repayment.nextEmiDueDate).toLocaleDateString("en-IN")
+        loan.monthlyEMI || 0, // O: EMI Amount
+        loan.odAmount || 0, // P: Overdue
+        loan.remainingTenure || 0, // Q: Remaining Tenure
+        loan.remainingPrincipal || 0, // R: Remaining Principle Amount
+        loan.nextEmiDueDate
+          ? new Date(loan.nextEmiDueDate).toLocaleDateString("en-IN")
           : "-", // S: Next EMI DueDate
-        vInfo.vehicleNumber || "-", // T: Vehicle Number
-        vInfo.chassisNumber || "-", // U: Chassis No
-        vInfo.engineNumber || "-", // V: Engine No
-        vInfo.typeOfVehicle || "-", // W: Type of Vehicle
-        vInfo.modelYear || "-", // X: Model
-        vInfo.ywBoard || "-", // Y: YW Board
-        customer.panNumber || "-", // Z: PAN Number
-        customer.aadharNumber || "-", // AA: Aadhar Number
-        customer.guarantorName || "-", // AB: Guarantor Name
-        vInfo.dealerName || "-", // AC: Dealer name
-        vInfo.dealerNumber || "-", // AD: Dealer number
-        vInfo.hpEntry || "Not done", // AE: HP Entry
-        vInfo.fcDate ? new Date(vInfo.fcDate).toLocaleDateString("en-IN") : "-", // AF: FC Date
-        vInfo.insuranceDate
-          ? new Date(vInfo.insuranceDate).toLocaleDateString("en-IN")
+        loan.vehicleNumber || "-", // T: Vehicle Number
+        loan.chassisNumber || "-", // U: Chassis No
+        loan.engineNumber || "-", // V: Engine No
+        loan.typeOfVehicle || "-", // W: Type of Vehicle
+        loan.modelYear || "-", // X: Model
+        loan.ywBoard || "-", // Y: YW Board
+        loan.panNumber || "-", // Z: PAN Number
+        loan.aadharNumber || "-", // AA: Aadhar Number
+        loan.guarantorName || "-", // AB: Guarantor Name
+        loan.dealerName || "-", // AC: Dealer name
+        loan.dealerNumber || "-", // AD: Dealer number
+        loan.hpEntry || "Not done", // AE: HP Entry
+        loan.fcDate ? new Date(loan.fcDate).toLocaleDateString("en-IN") : "-", // AF: FC Date
+        loan.insuranceDate
+          ? new Date(loan.insuranceDate).toLocaleDateString("en-IN")
           : "-", // AG: Insurance date
-        repayment.paidEmisCount || 0, // AH: Paid EMI counter
-        status.docChecklist || "-", // AI: DOCUMENTS COLLECTED
-        Array.isArray(vInfo.rtoWorkPending)
-          ? vInfo.rtoWorkPending.join(", ")
-          : vInfo.rtoWorkPending || "-", // AJ: RTO WORK PENDING
+        loan.paidEmisCount || 0, // AH: Paid EMI counter
+        loan.docChecklist || "-", // AI: DOCUMENTS COLLECTED
+        Array.isArray(loan.rtoWorkPending)
+          ? loan.rtoWorkPending.join(", ")
+          : loan.rtoWorkPending || "-", // AJ: RTO WORK PENDING
         "-", // AK: RTO WORK COMPLETED (Placeholder)
         { formula: `AH${rowNumber}*O${rowNumber}+P${rowNumber}+J${rowNumber}` }, // AL: Value
-        status.remarks || "-", // AM: Remarks
+        loan.remarks || "-", // AM: Remarks
       ]);
     });
   }

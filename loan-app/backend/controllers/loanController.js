@@ -7,6 +7,7 @@ const Followup = require("../models/Followup");
 const DailyLoan = require("../models/DailyLoan");
 const WeeklyLoan = require("../models/WeeklyLoan");
 const Payment = require("../models/Payment");
+const InterestLoan = require("../models/InterestLoan");
 const ErrorHandler = require("../utils/ErrorHandler");
 const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
@@ -474,6 +475,7 @@ const populateLoanDetails = (query) => {
     .populate("createdBy", "name")
     .populate("foreclosedBy", "name")
     .populate("updatedBy", "name")
+    .populate("approvedBy", "name")
     .populate("soldDetails.soldBy", "name")
     .populate("seizedDetails")
     .populate("closureDetails")
@@ -1700,7 +1702,13 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     promises.push(Promise.resolve([]));
   }
 
-  const [monthlyFollowups, dailyFollowups, weeklyFollowups] =
+  if (!queryLoanType || queryLoanType.toLowerCase() === "interest") {
+    promises.push(getResultsWithCollation(InterestLoan, getPipeline("InterestLoan", "Interest")));
+  } else {
+    promises.push(Promise.resolve([]));
+  }
+
+  const [monthlyFollowups, dailyFollowups, weeklyFollowups, interestFollowups] =
     await Promise.all(promises);
 
   // Combine and sort
@@ -1708,6 +1716,7 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     ...monthlyFollowups,
     ...dailyFollowups,
     ...weeklyFollowups,
+    ...interestFollowups,
   ].sort((a, b) => {
     if (loanNumber) {
       // Numeric sort by loanNumber
@@ -1748,6 +1757,7 @@ const updateFollowup = asyncHandler(async (req, res, next) => {
   if (loanModel === "Loan") Model = Loan;
   else if (loanModel === "DailyLoan") Model = DailyLoan;
   else if (loanModel === "WeeklyLoan") Model = WeeklyLoan;
+  else if (loanModel === "InterestLoan") Model = InterestLoan;
   else {
     return next(new ErrorHandler("Invalid loan model provided", 400));
   }
@@ -1936,13 +1946,42 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
     chequeNumber,
   } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return next(new ErrorHandler("Invalid Loan ID", 400));
-  }
-
   const loan = await Loan.findById(id);
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // Check for Payment Approval Authority
+  const isSuperAdmin = req.user.role === "SUPER_ADMIN";
+  const hasApprovalAuthority = req.user.permissions?.paymentApproval;
+
+  if (!isSuperAdmin && !hasApprovalAuthority) {
+    const Approval = require("../models/Approval");
+    const existingApproval = await Approval.findOne({
+      targetId: loan._id,
+      status: "Pending",
+    });
+
+    if (existingApproval) {
+      return next(new ErrorHandler("This foreclosure is already waiting for approval", 400));
+    }
+
+    await Approval.create({
+      requestType: "FORECLOSURE",
+      targetId: loan._id,
+      targetModel: "Loan",
+      loanNumber: loan.loanNumber,
+      customerName: loan.customerName || "Customer",
+      requestedData: req.body,
+      requestedBy: req.user._id,
+      status: "Pending",
+    });
+
+    loan.status = "Waiting for Approval";
+    loan.updatedBy = req.user._id;
+    await loan.save();
+
+    return sendResponse(res, 200, "success", "Foreclosure submitted for approval", null, loan);
   }
 
   if (loan.status === "Closed") {
