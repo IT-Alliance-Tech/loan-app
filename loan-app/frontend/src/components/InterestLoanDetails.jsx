@@ -119,7 +119,7 @@ const InterestLoanDetails = ({ loan, emis, onRefresh }) => {
               <table className="w-full text-left">
                 <thead className="bg-slate-50 border-b border-slate-100">
                   <tr>
-                    <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">EMI #</th>
+                    <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Interest #</th>
                     <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Due Date</th>
                     <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
                     <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</th>
@@ -332,7 +332,7 @@ const InterestLoanDetails = ({ loan, emis, onRefresh }) => {
           <div className="bg-white rounded-[32px] w-full max-w-md p-10 shadow-2xl relative">
             <button onClick={() => setInterestModalOpen(false)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-500 transition-colors text-2xl font-black">×</button>
             <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">Interest Payment</h3>
-            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-8">FOR EMI #{selectedEMI?.emiNumber}</p>
+            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-8">FOR INTEREST #{selectedEMI?.emiNumber}</p>
             <form onSubmit={handleInterestSubmit} className="space-y-6">
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Amount to Pay</label>

@@ -7,6 +7,7 @@ const Followup = require("../models/Followup");
 const DailyLoan = require("../models/DailyLoan");
 const WeeklyLoan = require("../models/WeeklyLoan");
 const Payment = require("../models/Payment");
+const InterestLoan = require("../models/InterestLoan");
 const ErrorHandler = require("../utils/ErrorHandler");
 const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
@@ -1700,7 +1701,13 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     promises.push(Promise.resolve([]));
   }
 
-  const [monthlyFollowups, dailyFollowups, weeklyFollowups] =
+  if (!queryLoanType || queryLoanType.toLowerCase() === "interest") {
+    promises.push(getResultsWithCollation(InterestLoan, getPipeline("InterestLoan", "Interest")));
+  } else {
+    promises.push(Promise.resolve([]));
+  }
+
+  const [monthlyFollowups, dailyFollowups, weeklyFollowups, interestFollowups] =
     await Promise.all(promises);
 
   // Combine and sort
@@ -1708,6 +1715,7 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     ...monthlyFollowups,
     ...dailyFollowups,
     ...weeklyFollowups,
+    ...interestFollowups,
   ].sort((a, b) => {
     if (loanNumber) {
       // Numeric sort by loanNumber
@@ -1748,6 +1756,7 @@ const updateFollowup = asyncHandler(async (req, res, next) => {
   if (loanModel === "Loan") Model = Loan;
   else if (loanModel === "DailyLoan") Model = DailyLoan;
   else if (loanModel === "WeeklyLoan") Model = WeeklyLoan;
+  else if (loanModel === "InterestLoan") Model = InterestLoan;
   else {
     return next(new ErrorHandler("Invalid loan model provided", 400));
   }

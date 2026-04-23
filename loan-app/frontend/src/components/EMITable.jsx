@@ -233,12 +233,12 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
       }
       setShowModal(false);
       setEditingEmi(null);
-      showToast("EMI updated successfully", "success");
+      showToast(`${loanType === "interest" ? "Interest" : "EMI"} updated successfully`, "success");
       if (onUpdateSuccess) onUpdateSuccess();
     } catch (error) {
       console.error("Error updating EMI:", error);
       showToast(
-        error.message || "An error occurred while updating EMI",
+        error.message || `An error occurred while updating ${loanType === "interest" ? "Interest" : "EMI"}`,
         "error",
       );
     } finally {
@@ -307,7 +307,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
                 Due Date
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
-                EMI Amount
+                {loanType === "interest" ? "Interest Amount" : "EMI Amount"}
               </th>
               <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
                 Amount Paid
@@ -478,7 +478,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                  Update EMI #{editingEmi?.emiNumber}
+                  Update {loanType === "interest" ? "Interest" : "EMI"} #{editingEmi?.emiNumber}
                 </h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                   Due Date: {formatDate(editingEmi?.dueDate)} | Amount: ₹

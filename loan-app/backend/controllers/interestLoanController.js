@@ -185,13 +185,25 @@ exports.createInterestLoan = asyncHandler(async (req, res, next) => {
 
 // Get All Interest Loans
 exports.getAllInterestLoans = asyncHandler(async (req, res, next) => {
-  const { searchQuery, status, page = 1, limit = 25 } = req.query;
+  const { searchQuery, status, customerName, loanNumber, mobileNumber, page = 1, limit = 25 } = req.query;
   const query = {};
 
   if (status && status !== "undefined" && status !== "null") {
     query.status = status;
   }
   
+  if (customerName) {
+    query.customerName = { $regex: customerName, $options: "i" };
+  }
+
+  if (loanNumber) {
+    query.loanNumber = { $regex: loanNumber, $options: "i" };
+  }
+
+  if (mobileNumber) {
+    query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
+  }
+
   if (searchQuery && searchQuery !== "undefined" && searchQuery !== "null") {
     query.$or = [
       { loanNumber: { $regex: searchQuery, $options: "i" } },
@@ -255,6 +267,7 @@ exports.getInterestLoanById = asyncHandler(async (req, res, next) => {
       const disbursementDate = normalizeToMidnight(new Date(loan.startDate));
       const firstEmiDate = normalizeToMidnight(new Date(loan.emiStartDate));
       const shouldAutoPay = disbursementDate.getTime() === firstEmiDate.getTime();
+      const firstAmount = Math.ceil(loan.initialPrincipalAmount * (loan.interestRate / 100));
 
       const newEmi = await InterestEMI.create({
         interestLoanId: loan._id,
@@ -376,7 +389,6 @@ const normalizePaymentMode = (mode) => {
   if (m === "cash") return "Cash";
   if (m === "online") return "Online";
   if (m === "cheque") return "Cheque";
-  // Return Title Case for other strings just in case
   return mode.charAt(0).toUpperCase() + mode.slice(1).toLowerCase();
 };
 
@@ -385,7 +397,6 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
   const { remarks, dateGroups } = req.body;
   let { overdue } = req.body;
 
-  // Normalize overdue modes
   if (Array.isArray(overdue)) {
     overdue = overdue.map(ov => ({
       ...ov,
@@ -407,7 +418,6 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Interest loan not found", 404));
   }
 
-  // --- DELTA CALCULATIONS FOR TRANSACTIONS ---
   const originalEmi = await InterestEMI.findById(id).lean();
   const buckets = {};
   const getGroupKey = (date) =>
@@ -434,7 +444,6 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
     }
   };
 
-  // Process history from dateGroups if provided
   if (dateGroups && Array.isArray(dateGroups)) {
     emi.paymentHistory = [];
     dateGroups.forEach((group) => {
@@ -457,11 +466,9 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
     });
   }
 
-  // Update properties on the document directly
   if (overdue !== undefined) emi.overdue = overdue;
   if (remarks !== undefined) emi.remarks = remarks;
 
-  // Process Old vs New state for buckets to create transaction records
   if (Array.isArray(originalEmi.paymentHistory)) {
     originalEmi.paymentHistory.forEach((p) =>
       addToBucket(p.date, p.mode, p.chequeNumber, "EMI", p.amount, false)
@@ -484,16 +491,13 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
     );
   }
 
-  // Create Payment Records for each bucket with a non-zero delta
   for (const key in buckets) {
     const { date, modes, chequeNumbers, emiDelta, overdueDelta } = buckets[key];
     const totalDelta = emiDelta + overdueDelta;
 
     if (totalDelta !== 0 || emiDelta !== 0 || overdueDelta !== 0) {
-      const combinedMode =
-        modes.size > 0 ? Array.from(modes).join(", ") : "Cash";
-      const combinedChequeNo =
-        chequeNumbers.size > 0 ? Array.from(chequeNumbers).join(", ") : "";
+      const combinedMode = modes.size > 0 ? Array.from(modes).join(", ") : "Cash";
+      const combinedChequeNo = chequeNumbers.size > 0 ? Array.from(chequeNumbers).join(", ") : "";
 
       await Payment.create({
         emiId: emi._id,
@@ -511,42 +515,28 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // Recalculate amountPaid and status
-  const newAmountPaid = emi.paymentHistory.reduce(
-    (acc, curr) => acc + curr.amount,
-    0
-  );
+  const newAmountPaid = emi.paymentHistory.reduce((acc, curr) => acc + curr.amount, 0);
   emi.amountPaid = newAmountPaid;
 
   const oldStatus = originalEmi.status;
   if (emi.amountPaid >= emi.interestAmount) {
     emi.status = "Paid";
-    emi.paymentDate =
-      emi.paymentHistory.length > 0
-        ? emi.paymentHistory[emi.paymentHistory.length - 1].date
-        : new Date();
+    emi.paymentDate = emi.paymentHistory.length > 0 ? emi.paymentHistory[emi.paymentHistory.length - 1].date : new Date();
   } else if (emi.amountPaid > 0) {
     emi.status = "Partially Paid";
   } else {
-    const hasOverdue =
-      emi.overdue &&
-      Array.isArray(emi.overdue) &&
-      emi.overdue.some((ov) => parseFloat(ov.amount) > 0);
+    const hasOverdue = emi.overdue && Array.isArray(emi.overdue) && emi.overdue.some((ov) => parseFloat(ov.amount) > 0);
     emi.status = hasOverdue ? "Overdue" : "Pending";
   }
 
   emi.updatedBy = req.user._id;
 
-  // Sync paymentMode from history
   if (Array.isArray(emi.paymentHistory)) {
-    emi.paymentMode = [
-      ...new Set(emi.paymentHistory.map((p) => p.mode).filter(Boolean)),
-    ].join(", ");
+    emi.paymentMode = [...new Set(emi.paymentHistory.map((p) => p.mode).filter(Boolean)),].join(", ");
   }
 
   await emi.save();
 
-  // NEXT month logic: Open next month's EMI if the current one just became "Paid"
   if (emi.status === "Paid" && oldStatus !== "Paid") {
     const nextEmi = await InterestEMI.findOne({
       interestLoanId: loan._id,
@@ -571,14 +561,7 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
     }
   }
 
-  sendResponse(
-    res,
-    200,
-    "success",
-    "Interest EMI updated successfully",
-    null,
-    emi
-  );
+  sendResponse(res, 200, "success", "Interest EMI updated successfully", null, emi);
 });
 
 // Get Pending Interest Payments
@@ -587,11 +570,9 @@ exports.getInterestPendingPayments = asyncHandler(async (req, res, next) => {
   const skip = (Number(page) - 1) * Number(limit);
 
   const now = new Date();
-  const query = {
-    status: { $ne: "Paid" },
-    dueDate: { $lte: now }
-  };
+  now.setHours(23, 59, 59, 999);
 
+  const query = {};
   if (searchQuery && searchQuery !== "undefined" && searchQuery !== "null") {
     query.$or = [
       { loanNumber: { $regex: searchQuery, $options: "i" } },
@@ -599,25 +580,57 @@ exports.getInterestPendingPayments = asyncHandler(async (req, res, next) => {
     ];
   }
 
-  const total = await InterestEMI.countDocuments(query);
-  const pendingPayments = await InterestEMI.find(query)
-    .populate({
-      path: "interestLoanId",
-      select: "mobileNumbers remainingPrincipalAmount initialPrincipalAmount"
-    })
-    .sort({ dueDate: 1 })
-    .skip(skip)
-    .limit(Number(limit))
-    .lean();
+  const result = await InterestLoan.aggregate([
+    { $match: { ...query, status: { $ne: "Closed" } } },
+    { $lookup: { from: "interestemis", localField: "_id", foreignField: "interestLoanId", as: "emis" } },
+    { $lookup: { from: "users", localField: "updatedBy", foreignField: "_id", as: "updatedByInfo" } },
+    { $addFields: { updatedBy: { $arrayElemAt: ["$updatedByInfo", 0] } } },
+    { $addFields: { pendingEmisList: { $filter: { input: "$emis", as: "emi", cond: { $and: [{ $ne: ["$$emi.status", "Paid"] }, { $lte: ["$$emi.dueDate", now] }] } } } } },
+    { $match: { $expr: { $gt: [{ $size: "$pendingEmisList" }, 0] } } },
+    {
+      $project: {
+        loanId: "$_id",
+        loanNumber: 1,
+        customerName: 1,
+        mobileNumbers: 1,
+        status: 1,
+        unpaidMonths: { $size: "$pendingEmisList" },
+        initialPrincipalAmount: 1,
+        totalDueAmount: {
+          $reduce: {
+            input: "$pendingEmisList",
+            initialValue: 0,
+            in: {
+              $add: ["$$value", { $subtract: [{ $toDouble: "$$this.interestAmount" }, { $toDouble: { $ifNull: ["$$this.amountPaid", 0] } }] }]
+            }
+          }
+        },
+        penalOverdue: {
+          $reduce: {
+            input: "$emis",
+            initialValue: 0,
+            in: { $add: ["$$value", { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }] }
+          }
+        },
+        earliestDueDate: { $min: "$pendingEmisList.dueDate" },
+        earliestEmiId: { $let: { vars: { overdueEmi: { $arrayElemAt: ["$pendingEmisList", 0] } }, in: { $toString: "$$overdueEmi._id" } } },
+        clientResponse: 1,
+        nextFollowUpDate: 1,
+        updatedBy: { _id: 1, name: 1 },
+        updatedAt: 1,
+        loanModel: { $literal: "InterestLoan" },
+      }
+    },
+    { $sort: { earliestDueDate: 1 } },
+    { $facet: { payments: [{ $skip: skip }, { $limit: Number(limit) }], totalCount: [{ $count: "count" }] } }
+  ]);
 
-  sendResponse(res, 200, "success", "Pending interest payments fetched", null, {
-    pendingPayments,
-    pagination: {
-      total,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: Math.ceil(total / limit)
-    }
+  const payments = result[0].payments;
+  const total = result[0].totalCount[0]?.count || 0;
+
+  sendResponse(res, 200, "success", "Interest pending payments fetched successfully", null, {
+    pendingPayments: payments,
+    pagination: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) }
   });
 });
 
@@ -628,46 +641,30 @@ exports.updateInterestLoan = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Loan not found", 404));
   }
 
-  const oldEmiStartDate = loan.emiStartDate
-    ? new Date(loan.emiStartDate).toISOString().split("T")[0]
-    : null;
-  const newEmiStartDate = req.body.emiStartDate
-    ? new Date(req.body.emiStartDate).toISOString().split("T")[0]
-    : null;
-
-  const dateChanged =
-    newEmiStartDate && oldEmiStartDate && newEmiStartDate !== oldEmiStartDate;
+  const oldEmiStartDate = loan.emiStartDate ? new Date(loan.emiStartDate).toISOString().split("T")[0] : null;
+  const newEmiStartDate = req.body.emiStartDate ? new Date(req.body.emiStartDate).toISOString().split("T")[0] : null;
+  const dateChanged = newEmiStartDate && oldEmiStartDate && newEmiStartDate !== oldEmiStartDate;
 
   if (dateChanged) {
     const oldDate = normalizeToMidnight(new Date(loan.emiStartDate));
     const newDate = normalizeToMidnight(new Date(req.body.emiStartDate));
     const monthDiff = differenceInCalendarMonths(newDate, oldDate);
 
-    const emis = await InterestEMI.find({ interestLoanId: loan._id }).sort({
-      emiNumber: 1,
-    });
+    const emis = await InterestEMI.find({ interestLoanId: loan._id }).sort({ emiNumber: 1 });
 
     if (emis.length > 0) {
-      // Shift existing EMIs
       for (const emi of emis) {
         emi.dueDate = addMonths(new Date(emi.dueDate), monthDiff);
         await emi.save();
       }
 
-      // Catch-up logic after shift
       const today = normalizeToMidnight(new Date());
       let lastEmi = emis[emis.length - 1];
       let currentEmiDate = addMonths(new Date(lastEmi.dueDate), 1);
       let emiNum = lastEmi.emiNumber + 1;
 
       const r = parseFloat(req.body.interestRate || loan.interestRate) || 0;
-      const initialP =
-        (req.body.disbursement || loan.disbursement || []).reduce(
-          (sum, d) => sum + (parseFloat(d.amount) || 0),
-          0,
-        ) ||
-        loan.initialPrincipalAmount ||
-        0;
+      const initialP = (req.body.disbursement || loan.disbursement || []).reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0) || loan.initialPrincipalAmount || 0;
 
       while (currentEmiDate <= today) {
         const emiInterestAmount = Math.ceil(initialP * (r / 100));
@@ -680,24 +677,16 @@ exports.updateInterestLoan = asyncHandler(async (req, res, next) => {
           interestAmount: emiInterestAmount,
           status: "Pending",
         });
-
         emiNum++;
         currentEmiDate = addMonths(currentEmiDate, 1);
         if (emiNum > 120) break;
       }
     } else {
-      // No EMIs exist yet, just run the standard generation loop
+      // standard generation loop
       const today = normalizeToMidnight(new Date());
       let currentEmiDate = normalizeToMidnight(new Date(req.body.emiStartDate));
       const r = parseFloat(req.body.interestRate || loan.interestRate) || 0;
-      const initialP =
-        (req.body.disbursement || loan.disbursement || []).reduce(
-          (sum, d) => sum + (parseFloat(d.amount) || 0),
-          0,
-        ) ||
-        loan.initialPrincipalAmount ||
-        0;
-
+      const initialP = (req.body.disbursement || loan.disbursement || []).reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0) || loan.initialPrincipalAmount || 0;
       let emiNum = 1;
       while (emiNum === 1 || currentEmiDate <= today) {
         const emiInterestAmount = Math.ceil(initialP * (r / 100));
@@ -715,42 +704,17 @@ exports.updateInterestLoan = asyncHandler(async (req, res, next) => {
           interestAmount: emiInterestAmount,
           amountPaid: shouldAutoPay ? emiInterestAmount : 0,
           status: shouldAutoPay ? "Paid" : "Pending",
-          paymentDate: shouldAutoPay
-            ? new Date(req.body.startDate || loan.startDate)
-            : null,
-          paymentMode: shouldAutoPay
-            ? req.body.paymentMode || loan.paymentMode || "Cash"
-            : "",
+          paymentDate: shouldAutoPay ? new Date(req.body.startDate || loan.startDate) : null,
+          paymentMode: shouldAutoPay ? req.body.paymentMode || loan.paymentMode || "Cash" : "",
           remarks: shouldAutoPay ? "Auto-paid First EMI" : "",
-          paymentHistory: shouldAutoPay
-            ? [
-                {
-                  amount: emiInterestAmount,
-                  mode: req.body.paymentMode || loan.paymentMode || "Cash",
-                  date: new Date(req.body.startDate || loan.startDate),
-                  addedBy: req.user._id,
-                },
-              ]
-            : [],
+          paymentHistory: shouldAutoPay ? [{ amount: emiInterestAmount, mode: req.body.paymentMode || loan.paymentMode || "Cash", date: new Date(req.body.startDate || loan.startDate), addedBy: req.user._id }] : [],
           updatedBy: shouldAutoPay ? req.user._id : undefined,
         });
 
         if (shouldAutoPay) {
           const Payment = require("../models/Payment");
-          await Payment.create({
-            emiId: emi._id,
-            loanId: loan._id,
-            loanModel: "InterestLoan",
-            amount: emiInterestAmount,
-            mode: req.body.paymentMode || loan.paymentMode || "Cash",
-            paymentDate: new Date(req.body.startDate || loan.startDate),
-            paymentType: "Interest",
-            status: "Success",
-            remarks: "Auto-paid First EMI",
-            collectedBy: req.user._id,
-          });
+          await Payment.create({ emiId: emi._id, loanId: loan._id, loanModel: "InterestLoan", amount: emiInterestAmount, mode: req.body.paymentMode || loan.paymentMode || "Cash", paymentDate: new Date(req.body.startDate || loan.startDate), paymentType: "Interest", status: "Success", remarks: "Auto-paid First EMI", collectedBy: req.user._id });
         }
-
         emiNum++;
         currentEmiDate = addMonths(currentEmiDate, 1);
         if (emiNum > 120) break;
@@ -759,34 +723,72 @@ exports.updateInterestLoan = asyncHandler(async (req, res, next) => {
   }
 
   if (req.body.disbursement || req.body.principalPayments) {
-    const initialP = (
-      req.body.disbursement ||
-      loan.disbursement ||
-      []
-    ).reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
-    const paidP = (
-      req.body.principalPayments ||
-      loan.principalPayments ||
-      []
-    ).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const initialP = (req.body.disbursement || loan.disbursement || []).reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+    const paidP = (req.body.principalPayments || loan.principalPayments || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
     req.body.initialPrincipalAmount = initialP;
     req.body.remainingPrincipalAmount = initialP - paidP;
-    if (req.body.remainingPrincipalAmount <= 0) {
-      req.body.status = "Closed";
-    }
+    if (req.body.remainingPrincipalAmount <= 0) req.body.status = "Closed";
   }
 
   req.body.updatedBy = req.user._id;
-
-  const updatedLoan = await InterestLoan.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-
-  // Recalculate future EMIs based on the new remaining principal from update
+  const updatedLoan = await InterestLoan.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
   await recalculatePendingEMIs(updatedLoan._id);
-
   sendResponse(res, 200, "success", "Loan updated successfully", null, updatedLoan);
+});
+
+// Get Interest Followup Loans
+exports.getInterestFollowupLoans = asyncHandler(async (req, res, next) => {
+  const { customerName, loanNumber, mobileNumber, nextFollowUpDate, startDate, endDate, page = 1, limit = 25 } = req.query;
+  const skip = (Number(page) - 1) * Number(limit);
+  const query = {};
+  if (customerName) query.customerName = { $regex: customerName, $options: "i" };
+  if (loanNumber) query.loanNumber = { $regex: loanNumber, $options: "i" };
+  if (mobileNumber) query.mobileNumbers = { $regex: mobileNumber, $options: "i" };
+
+  if (startDate && endDate) {
+    const start = new Date(startDate); start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate); end.setHours(23, 59, 59, 999);
+    query.nextFollowUpDate = { $gte: start, $lte: end };
+  } else {
+    const dateToFilter = nextFollowUpDate || new Date().toISOString().split("T")[0];
+    const start = new Date(dateToFilter); start.setHours(0, 0, 0, 0);
+    const end = new Date(dateToFilter); end.setHours(23, 59, 59, 999);
+    query.nextFollowUpDate = { $gte: start, $lte: end };
+  }
+
+  const result = await InterestLoan.aggregate([
+    { $match: { ...query, status: { $ne: "Closed" } } },
+    { $lookup: { from: "interestemis", localField: "_id", foreignField: "interestLoanId", as: "emis" } },
+    { $addFields: { pendingEmisList: { $filter: { input: "$emis", as: "emi", cond: { $ne: ["$$emi.status", "Paid"] } } } } },
+    {
+      $project: {
+        loanId: "$_id", loanNumber: 1, customerName: 1, mobileNumbers: 1, status: 1,
+        unpaidMonths: { $cond: { if: { $gt: [{ $size: "$pendingEmisList" }, 0] }, then: { $size: "$pendingEmisList" }, else: 1 } },
+        totalDueAmount: {
+          $let: {
+            vars: {
+              sumOverdue: { $reduce: { input: "$pendingEmisList", initialValue: 0, in: { $add: ["$$value", { $subtract: [{ $toDouble: "$$this.interestAmount" }, { $toDouble: "$$this.amountPaid" }] }] } } },
+              nextEmi: { $arrayElemAt: [{ $filter: { input: "$emis", as: "e", cond: { $ne: ["$$e.status", "Paid"] } } }, 0] },
+            },
+            in: { $cond: { if: { $gt: [{ $size: "$pendingEmisList" }, 0] }, then: "$$sumOverdue", else: { $subtract: [{ $toDouble: { $ifNull: ["$$nextEmi.interestAmount", 0] } }, { $toDouble: { $ifNull: ["$$nextEmi.amountPaid", 0] } }] } } }
+          }
+        },
+        earliestDueDate: { $let: { vars: { overdueMin: { $min: "$pendingEmisList.dueDate" }, anyPending: { $arrayElemAt: [{ $sortArray: { input: { $filter: { input: "$emis", as: "e", cond: { $ne: ["$$e.status", "Paid"] } } }, sortBy: { dueDate: 1 } } }, 0] } }, in: { $ifNull: ["$$overdueMin", "$$anyPending.dueDate"] } } },
+        earliestEmiId: { $let: { vars: { overdueMin: { $arrayElemAt: [{ $sortArray: { input: "$pendingEmisList", sortBy: { dueDate: 1 } } }, 0] }, anyPending: { $arrayElemAt: [{ $sortArray: { input: { $filter: { input: "$emis", as: "e", cond: { $ne: ["$$e.status", "Paid"] } } }, sortBy: { dueDate: 1 } } }, 0] } }, in: { $toString: { $ifNull: ["$$overdueMin._id", "$$anyPending._id"] } } } },
+        clientResponse: 1, nextFollowUpDate: 1, loanModel: { $literal: "InterestLoan" },
+      }
+    },
+    { $sort: { earliestDueDate: 1 } },
+    { $facet: { payments: [{ $skip: skip }, { $limit: Number(limit) }], totalCount: [{ $count: "count" }] } }
+  ]);
+
+  const payments = result[0].payments;
+  const total = result[0].totalCount[0]?.count || 0;
+
+  sendResponse(res, 200, "success", "Interest follow-up loans fetched successfully", null, {
+    payments,
+    pagination: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) }
+  });
 });
 
 // Delete Interest Loan
@@ -795,10 +797,104 @@ exports.deleteInterestLoan = asyncHandler(async (req, res, next) => {
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
   }
-
   await InterestEMI.deleteMany({ interestLoanId: loan._id });
   await Payment.deleteMany({ loanId: loan._id, loanModel: "InterestLoan" });
   await loan.deleteOne();
-
   sendResponse(res, 200, "success", "Interest loan deleted successfully");
+});
+
+// Get Interest Pending EMI Details
+exports.getInterestPendingEmiDetails = asyncHandler(async (req, res, next) => {
+  const emiId = req.params.id;
+
+  // Find the target EMI first to get the loanId
+  const targetEmi = await InterestEMI.findById(emiId);
+  if (!targetEmi) {
+    return next(new ErrorHandler("Installment not found", 404));
+  }
+
+  const emiDetails = await InterestEMI.aggregate([
+    {
+      $match: {
+        interestLoanId: targetEmi.interestLoanId,
+        status: { $ne: "Paid" },
+      },
+    },
+    { $sort: { dueDate: 1 } },
+    {
+      $lookup: {
+        from: "payments",
+        localField: "_id",
+        foreignField: "emiId",
+        as: "paymentRecords",
+      },
+    },
+    {
+      $lookup: {
+        from: "interestloans",
+        localField: "interestLoanId",
+        foreignField: "_id",
+        as: "loan",
+      },
+    },
+    { $unwind: "$loan" },
+    {
+      $lookup: {
+        from: "users",
+        localField: "loan.updatedBy",
+        foreignField: "_id",
+        as: "updatedUserInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$updatedUserInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        loanId: "$loan._id",
+        loanModel: { $literal: "InterestLoan" },
+        loanNumber: "$loan.loanNumber",
+        customerName: "$loan.customerName",
+        mobileNumbers: "$loan.mobileNumbers",
+        guarantorName: "$loan.guarantorName",
+        guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
+        disbursementAmount: "$loan.initialPrincipalAmount",
+        remainingPrincipalAmount: "$loan.remainingPrincipalAmount",
+        emiAmount: "$interestAmount",
+        amountPaid: "$amountPaid",
+        status: "$status",
+        dueDate: "$dueDate",
+        paymentHistory: 1,
+        paymentDate: 1,
+        paymentMode: 1,
+        remarks: "$remarks",
+        clientResponse: "$loan.clientResponse",
+        nextFollowUpDate: "$loan.nextFollowUpDate",
+        emiNumber: 1,
+        overdue: "$overdue",
+        updatedAt: "$loan.updatedAt",
+        updatedBy: { $ifNull: ["$updatedUserInfo.name", "$loan.updatedBy"] },
+        paymentRecords: 1,
+      },
+    },
+  ]);
+
+  if (!emiDetails || emiDetails.length === 0) {
+    return next(
+      new ErrorHandler(`No pending installments found for this loan`, 404),
+    );
+  }
+
+  sendResponse(
+    res,
+    200,
+    "success",
+    "Interest EMI details fetched successfully",
+    null,
+    emiDetails,
+  );
 });

@@ -67,7 +67,7 @@ const InterestLoanForm = ({
       .min(1),
     interestRate: Yup.number().required("Interest rate is required").min(0),
     startDate: Yup.string().required("Start date is required"),
-    emiStartDate: Yup.string().required("EMI start date is required"),
+    emiStartDate: Yup.string().required("Interest start date is required"),
     panNumber: Yup.string()
       .matches(/^(?:[A-Z]{5}[0-9]{4}[A-Z]{1})?$/, "Invalid PAN format")
       .nullable(),
@@ -702,7 +702,7 @@ const InterestLoanForm = ({
           {/* Dates & EMI Section Refined */}
           <div className="space-y-4">
             <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
-              Dates & EMI
+              Dates & Interest
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
               <div className="space-y-1">
@@ -721,7 +721,7 @@ const InterestLoanForm = ({
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  EMI Start Date <span className="text-red-500">*</span>
+                  Interest Start Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -739,7 +739,7 @@ const InterestLoanForm = ({
             <div className="hidden md:flex bg-white rounded-3xl border border-slate-100 shadow-sm p-6 justify-between items-center gap-6">
               <div>
                 <span className="text-[10px] font-black text-primary uppercase tracking-widest block mb-1">
-                  Monthly EMI
+                  Monthly Interest
                 </span>
                 <p className="text-2xl font-black text-primary">
                   ₹{monthlyInterest.toLocaleString("en-IN")}
@@ -789,7 +789,7 @@ const InterestLoanForm = ({
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
                   <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">
-                    Monthly EMI
+                    Monthly Interest
                   </span>
                   <p className="text-lg font-black text-primary">
                     ₹{monthlyInterest.toLocaleString()}
@@ -908,7 +908,7 @@ const InterestLoanForm = ({
           <div className="mt-12 pt-8 border-t border-slate-100">
             <div className="flex items-center gap-3 mb-8 px-1">
               <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
-                EMI PAYMENT SCHEDULE
+                INTEREST PAYMENT SCHEDULE
               </h3>
             </div>
             <div className="rounded-3xl border border-slate-200 shadow-md overflow-hidden bg-white">

@@ -84,7 +84,7 @@ const EditInterestLoanPage = () => {
                   submitting={submitting} 
                   emis={emis}
                   onRefresh={fetchLoan}
-                  onCancel={() => router.push(`/admin/interest-loan/${id}`)} 
+                  onCancel={() => router.push(`/admin/interest-loan`)} 
                 />
               )}
             </div>

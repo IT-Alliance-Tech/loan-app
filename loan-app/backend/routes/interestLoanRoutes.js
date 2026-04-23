@@ -9,16 +9,27 @@ const {
   addPrincipalPayment,
   payInterestEMI,
   getInterestPendingPayments,
+  getInterestFollowupLoans,
+  getInterestPendingEmiDetails,
 } = require("../controllers/interestLoanController");
+const { updateFollowup } = require("../controllers/loanController");
 const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
 
 router.use(isAuthenticated);
+
+router.patch(
+  "/update-followup/:id",
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  updateFollowup,
+);
 
 router.route("/")
   .get(getAllInterestLoans)
   .post(createInterestLoan);
 
 router.route("/pending").get(getInterestPendingPayments);
+router.route("/followup-payments").get(getInterestFollowupLoans);
+router.get("/pending-details/:id", getInterestPendingEmiDetails);
 
 router.route("/:id")
   .get(getInterestLoanById)
