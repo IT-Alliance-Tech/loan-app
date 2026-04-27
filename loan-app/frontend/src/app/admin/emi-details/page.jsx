@@ -28,18 +28,6 @@ const EMIDetailsPage = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const params = { page: currentPage, limit };
-      if (searchQuery.trim()) {
-        params.loanNumber = searchQuery;
-      }
-      fetchEMIs({ ...filters, ...params });
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, currentPage, fetchEMIs, filters, limit]);
-
   const fetchEMIs = useCallback(
     async (params = {}) => {
       try {
@@ -60,6 +48,18 @@ const EMIDetailsPage = () => {
     },
     [limit],
   );
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const params = { page: currentPage, limit };
+      if (searchQuery.trim()) {
+        params.loanNumber = searchQuery;
+      }
+      fetchEMIs({ ...filters, ...params });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, currentPage, fetchEMIs, filters, limit]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
