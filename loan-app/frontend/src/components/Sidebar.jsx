@@ -95,7 +95,7 @@ const Sidebar = () => {
     
     const fetchCount = () => {
       if (user?.role === "SUPER_ADMIN") {
-        getPendingApprovals()
+        getPendingApprovals({ silent: true })
           .then((res) => setPendingCount(res.data?.length || 0))
           .catch(() => {});
       }

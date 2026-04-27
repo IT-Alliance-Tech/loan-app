@@ -2,10 +2,11 @@ import apiHandler from "./api";
 
 const API_ROOT = "/api/approvals";
 
-export const getPendingApprovals = async () => {
+export const getPendingApprovals = async (options = {}) => {
     try {
         const response = await apiHandler(`${API_ROOT}/pending`, {
             method: "GET",
+            ...options,
         });
         return response;
     } catch (error) {
