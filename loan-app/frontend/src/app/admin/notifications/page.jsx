@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
@@ -8,9 +8,6 @@ import {
   Trash2, 
   CheckCircle2, 
   Clock, 
-  Calendar, 
-  Filter, 
-  Trash,
   ChevronLeft,
   ChevronRight,
   Info,

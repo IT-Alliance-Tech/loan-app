@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import { getUserFromToken, getToken } from "../utils/auth";
 
@@ -8,7 +8,6 @@ const NotificationContext = createContext();
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [socket, setSocket] = useState(null);
   const user = getUserFromToken();
 
   const fetchNotifications = useCallback(async () => {
@@ -66,7 +65,7 @@ export const NotificationProvider = ({ children }) => {
       setUnreadCount(count);
     });
 
-    setSocket(newSocket);
+    // setSocket(newSocket); 
 
     return () => newSocket.close();
   }, [user?._id]);

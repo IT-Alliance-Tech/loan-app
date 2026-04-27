@@ -1,3 +1,4 @@
+import React from "react";
 import { UIProvider } from "../../context/UIContext";
 import { NotificationProvider } from "../../context/NotificationContext";
 
