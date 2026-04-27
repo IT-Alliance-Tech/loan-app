@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
@@ -38,25 +38,28 @@ const EMIDetailsPage = () => {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, currentPage]);
+  }, [searchQuery, currentPage, fetchEMIs, filters, limit]);
 
-  const fetchEMIs = async (params = {}) => {
-    try {
-      setLoading(true);
-      const response = await getAllEMIs({ ...params, limit });
-      if (response.data && response.data.emis) {
-        setEmis(response.data.emis || []);
-        setTotalPages(response.data.pagination.totalPages);
-        setTotalRecords(response.data.pagination.total);
-      } else {
-        setEmis(response.data || []);
+  const fetchEMIs = useCallback(
+    async (params = {}) => {
+      try {
+        setLoading(true);
+        const response = await getAllEMIs({ ...params, limit });
+        if (response.data && response.data.emis) {
+          setEmis(response.data.emis || []);
+          setTotalPages(response.data.pagination.totalPages);
+          setTotalRecords(response.data.pagination.total);
+        } else {
+          setEmis(response.data || []);
+        }
+      } catch (err) {
+        setError(err.message || "Failed to fetch EMI details");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(err.message || "Failed to fetch EMI details");
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [limit],
+  );
 
   const handlePageChange = (page) => {
     setCurrentPage(page);

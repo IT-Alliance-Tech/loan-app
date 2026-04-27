@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, use, useCallback } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import AuthGuard from "../../../../../../components/AuthGuard";
 import Navbar from "../../../../../../components/Navbar";
 import Sidebar from "../../../../../../components/Sidebar";

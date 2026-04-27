@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../../../components/Sidebar";
 import Navbar from "../../../../components/Navbar";
@@ -26,7 +26,7 @@ const ViewDailyLoanPage = ({ params: paramsPromise }) => {
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [loanRes, emiRes, historyRes] = await Promise.all([
         getDailyLoanById(params.id),
@@ -59,11 +59,11 @@ const ViewDailyLoanPage = ({ params: paramsPromise }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router, showToast]);
 
   useEffect(() => {
     fetchData();
-  }, [params.id]);
+  }, [params.id, fetchData]);
 
   return (
     <AuthGuard>

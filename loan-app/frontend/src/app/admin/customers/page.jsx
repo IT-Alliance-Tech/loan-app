@@ -5,7 +5,6 @@ import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import ContactActionMenu from "../../../components/ContactActionMenu";
 import { useToast } from "../../../context/ToastContext";
-import { getUserFromToken } from "../../../utils/auth";
 import { getCustomers, createCustomer } from "../../../services/customer";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
 import { calculateEMI as fetchEMI } from "../../../services/loan.service";
