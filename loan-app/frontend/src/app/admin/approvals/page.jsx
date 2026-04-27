@@ -1,18 +1,20 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
+import { useRouter } from "next/navigation";
 import { useToast } from "../../../context/ToastContext";
 import { getPendingApprovals, processApproval } from "../../../services/approvalService";
 
 const ApprovalsPage = () => {
+    const router = useRouter();
     const { showToast } = useToast();
     const [approvals, setApprovals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState(null);
 
-    const fetchApprovals = async () => {
+    const fetchApprovals = useCallback(async () => {
         setLoading(true);
         try {
             const res = await getPendingApprovals();
@@ -22,6 +24,19 @@ const ApprovalsPage = () => {
         } finally {
             setLoading(false);
         }
+    }, [showToast]);
+
+    const redirectToLoan = (app) => {
+        const loanId = app.requestedData?.loanId || app.targetId;
+        const model = app.targetModel;
+        let path = "";
+        
+        if (model === "EMI" || model === "Loan") path = `/admin/loans/edit/${loanId}`;
+        else if (model === "DailyLoan") path = `/admin/daily-loans/edit/${loanId}`;
+        else if (model === "WeeklyLoan") path = `/admin/weekly-loans/edit/${loanId}`;
+        else if (model === "InterestEMI" || model === "InterestLoan") path = `/admin/interest-loan/edit/${loanId}`;
+        
+        if (path) router.push(path);
     };
 
     useEffect(() => {
@@ -33,7 +48,7 @@ const ApprovalsPage = () => {
         }, 30000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [fetchApprovals]);
 
     const handleAction = async (id, status) => {
         setProcessingId(id);
@@ -85,63 +100,133 @@ const ApprovalsPage = () => {
                                         <table className="w-full text-left">
                                             <thead>
                                                 <tr className="bg-slate-50 border-b border-slate-100">
-                                                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Request Info</th>
+                                                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Loan #</th>
                                                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer</th>
-                                                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount / Mode</th>
+                                                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                                                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">EMI #</th>
+                                                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
+                                                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode</th>
                                                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Requested By</th>
                                                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
-                                                {approvals.map((app) => (
-                                                    <tr key={app._id} className="hover:bg-slate-50/50 transition-colors">
-                                                        <td className="px-6 py-5">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-black text-slate-900 uppercase">{app.requestType.replace("_", " ")}</span>
-                                                                <span className="text-[10px] font-bold text-slate-400 mt-0.5">#{app.loanNumber}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-5">
-                                                            <span className="text-xs font-bold text-slate-600 uppercase">{app.customerName}</span>
-                                                        </td>
-                                                        <td className="px-6 py-5">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-black text-emerald-600">
-                                                                    ₹{app.requestedData.totalAmount || app.requestedData.amount || app.requestedData.dateGroups?.reduce((acc, g) => acc + g.payments.reduce((pAcc, p) => pAcc + parseFloat(p.amount), 0), 0) || "N/A"}
+                                                {approvals.map((app) => {
+                                                    const getLoanType = () => {
+                                                        const model = app.targetModel;
+                                                        if (model === "EMI") return "Monthly";
+                                                        if (model === "DailyLoan") return "Daily";
+                                                        if (model === "WeeklyLoan") return "Weekly";
+                                                        if (model === "InterestEMI" || model === "InterestLoan") return "Interest";
+                                                        return model || "N/A";
+                                                    };
+
+                                                    const getModeSplits = () => {
+                                                        const data = app.requestedData;
+                                                        const splits = {};
+
+                                                        // If backend identified NEW payments, show ONLY those
+                                                        if (data.newPayments && Array.isArray(data.newPayments)) {
+                                                            data.newPayments.forEach(p => {
+                                                                const mode = p.mode || "N/A";
+                                                                splits[mode] = (splits[mode] || 0) + (parseFloat(p.amount) || 0);
+                                                            });
+                                                            return splits;
+                                                        }
+
+                                                        // Fallback for older records or types without delta tracking (e.g. Foreclosures)
+                                                        if (data.dateGroups) {
+                                                            data.dateGroups.forEach(g => {
+                                                                (g.payments || []).forEach(p => {
+                                                                    const mode = p.mode || "N/A";
+                                                                    splits[mode] = (splits[mode] || 0) + (parseFloat(p.amount) || 0);
+                                                                });
+                                                            });
+                                                        } else {
+                                                            const amount = data.addedAmount || data.amountPaid || data.totalAmount || data.amount || 0;
+                                                            const mode = data.paymentMode || "N/A";
+                                                            if (amount > 0) {
+                                                                splits[mode] = (splits[mode] || 0) + parseFloat(amount);
+                                                            }
+                                                        }
+                                                        return splits;
+                                                    };
+
+                                                    const splits = getModeSplits();
+                                                    const totalAmount = Object.values(splits).reduce((a, b) => a + b, 0);
+
+                                                    return (
+                                                        <tr key={app._id} className="hover:bg-slate-50/50 transition-colors">
+                                                            <td className="px-6 py-5 text-sm">
+                                                                <button 
+                                                                    onClick={() => redirectToLoan(app)}
+                                                                    className="text-xs font-black text-primary hover:underline uppercase"
+                                                                >
+                                                                    {app.loanNumber}
+                                                                </button>
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <span className="text-xs font-bold text-slate-600 uppercase">{app.customerName}</span>
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <span className="px-2 py-1 bg-slate-100 text-[9px] font-black text-slate-500 rounded uppercase">
+                                                                    {getLoanType()}
                                                                 </span>
-                                                                <span className="text-[10px] font-bold text-slate-400">
-                                                                    {app.requestedData.paymentMode || "Multi-mode"}
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <span className="text-xs font-black text-slate-400">
+                                                                    {app.requestedData.emiNumber || "—"}
                                                                 </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-5">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-[10px] font-black text-primary border border-blue-100">
-                                                                    {app.requestedBy?.name?.charAt(0).toUpperCase()}
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <span className="text-sm font-black text-emerald-600">
+                                                                    ₹{totalAmount.toLocaleString()}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <div className="flex flex-col gap-1">
+                                                                    {Object.entries(splits).map(([mode, amt]) => (
+                                                                        <div key={mode} className="flex items-center gap-2">
+                                                                            <span className="text-[9px] font-black text-slate-400 uppercase w-12">{mode}</span>
+                                                                            <span className="text-[10px] font-black text-slate-600">- ₹{amt.toLocaleString()}</span>
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
-                                                                <span className="text-xs font-bold text-slate-700">{app.requestedBy?.name}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-5 text-right">
-                                                            <div className="flex items-center justify-end gap-2">
-                                                                <button 
-                                                                    onClick={() => handleAction(app._id, "Rejected")}
-                                                                    disabled={processingId === app._id}
-                                                                    className="px-4 py-2 text-[10px] font-black uppercase text-rose-500 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100 disabled:opacity-50"
-                                                                >
-                                                                    Reject
-                                                                </button>
-                                                                <button 
-                                                                    onClick={() => handleAction(app._id, "Approved")}
-                                                                    disabled={processingId === app._id}
-                                                                    className="px-6 py-2 text-[10px] font-black uppercase text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl shadow-lg shadow-emerald-100 transform active:scale-95 transition-all disabled:opacity-50"
-                                                                >
-                                                                    Authorize
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center text-[8px] font-black text-primary border border-blue-100">
+                                                                            {app.requestedBy?.name?.charAt(0).toUpperCase()}
+                                                                        </div>
+                                                                        <span className="text-[11px] font-black text-slate-700">{app.requestedBy?.name}</span>
+                                                                    </div>
+                                                                    <span className="text-[9px] font-bold text-slate-400">
+                                                                        {new Date(app.createdAt).toLocaleString()}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-5 text-right">
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    <button 
+                                                                        onClick={() => handleAction(app._id, "Rejected")}
+                                                                        disabled={processingId === app._id}
+                                                                        className="px-4 py-2 text-[10px] font-black uppercase text-rose-500 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100 disabled:opacity-50"
+                                                                    >
+                                                                        Reject
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => handleAction(app._id, "Approved")}
+                                                                        disabled={processingId === app._id}
+                                                                        className="px-6 py-2 text-[10px] font-black uppercase text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl shadow-lg shadow-emerald-100 transform active:scale-95 transition-all disabled:opacity-50"
+                                                                    >
+                                                                        Authorize
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>

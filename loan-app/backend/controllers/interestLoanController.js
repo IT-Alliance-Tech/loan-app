@@ -5,6 +5,7 @@ const Payment = require("../models/Payment");
 const ErrorHandler = require("../utils/ErrorHandler");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
+const { notifyAdmins } = require("./notificationController");
 const { addMonths, differenceInCalendarMonths } = require("date-fns");
 const {
   parseDateInLocalFormat,
@@ -341,9 +342,30 @@ exports.getInterestLoanById = asyncHandler(async (req, res, next) => {
     }
   }
 
+  // Fetch pending approvals for these EMIs in batch
+  const Approval = require("../models/Approval");
+  const emiIds = emis.map((e) => e._id);
+  const pendingApprovals = await Approval.find({
+    targetId: { $in: emiIds },
+    status: "Pending",
+  });
+
+  const pendingMap = {};
+  pendingApprovals.forEach((a) => {
+    pendingMap[a.targetId.toString()] = a.requestedData;
+  });
+
+  const emisWithPending = emis.map((emi) => {
+    const emiObj = typeof emi.toObject === "function" ? emi.toObject() : emi;
+    if (pendingMap[emiObj._id.toString()]) {
+      emiObj.pendingApproval = pendingMap[emiObj._id.toString()];
+    }
+    return emiObj;
+  });
+
   sendResponse(res, 200, "success", "Interest loan fetched successfully", null, {
     loan,
-    emis,
+    emis: emisWithPending,
   });
 });
 
@@ -415,6 +437,27 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
   const hasApprovalAuthority = req.user.permissions?.paymentApproval;
 
   if (!isSuperAdmin && !hasApprovalAuthority) {
+    // Identify NEW payments (not present in current emi.paymentHistory)
+    const currentHistory = emi.paymentHistory || [];
+    const newPayments = [];
+    
+    if (req.body.dateGroups && Array.isArray(req.body.dateGroups)) {
+      req.body.dateGroups.forEach(group => {
+        (group.payments || []).forEach(p => {
+          const match = currentHistory.find(hp => 
+            hp.amount === parseFloat(p.amount) && 
+            hp.mode === (p.mode || "Cash") && 
+            new Date(hp.date).toDateString() === new Date(group.date).toDateString()
+          );
+          if (!match) {
+            newPayments.push({ mode: p.mode || "Cash", amount: parseFloat(p.amount) });
+          }
+        });
+      });
+    } else if (req.body.addedAmount) {
+       newPayments.push({ mode: req.body.paymentMode || "Cash", amount: parseFloat(req.body.addedAmount) });
+    }
+
     const Approval = require("../models/Approval");
     const existingApproval = await Approval.findOne({
       targetId: emi._id,
@@ -422,7 +465,16 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
     });
 
     if (existingApproval) {
-      return next(new ErrorHandler("This EMI is already waiting for approval", 400));
+      existingApproval.requestedData = { 
+        ...req.body, 
+        emiNumber: emi.emiNumber, 
+        loanId: emi.interestLoanId,
+        newPayments: newPayments.length > 0 ? newPayments : null
+      };
+      existingApproval.requestedBy = req.user._id;
+      existingApproval.createdAt = Date.now();
+      await existingApproval.save();
+      return sendResponse(res, 200, "success", "Pending interest payment approval request has been updated", null, existingApproval);
     }
 
     await Approval.create({
@@ -431,10 +483,44 @@ exports.payInterestEMI = asyncHandler(async (req, res, next) => {
       targetModel: "InterestEMI",
       loanNumber: emi.loanNumber,
       customerName: emi.customerName || "Customer",
-      requestedData: req.body,
+      requestedData: { 
+        ...req.body, 
+        emiNumber: emi.emiNumber, 
+        loanId: emi.interestLoanId,
+        newPayments: newPayments.length > 0 ? newPayments : null
+      },
       requestedBy: req.user._id,
       status: "Pending",
     });
+
+    // Calculate total amount if dateGroups is present
+    let displayAmount = req.body.addedAmount || 0;
+    if (req.body.dateGroups && Array.isArray(req.body.dateGroups)) {
+      displayAmount = req.body.dateGroups.reduce((total, group) => {
+        return total + (group.payments || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+      }, 0);
+    }
+
+    // Notify Admins
+    const { notifyApprovalCountChange, notifyAdmins } = require("./notificationController");
+    await notifyAdmins({
+      senderId: req.user._id,
+      type: "PAYMENT_REQUEST",
+      title: "New Interest EMI Request",
+      message: `Employee ${req.user.name} requested approval for Interest EMI of ₹${displayAmount} for loan ${emi.loanNumber} (${emi.customerName}).`,
+      data: {
+        loanNumber: emi.loanNumber,
+        customerName: emi.customerName,
+        amount: displayAmount,
+        employeeName: req.user.name,
+        loanId: emi.interestLoanId,
+        loanType: "InterestLoan",
+        targetId: emi._id,
+      },
+    });
+
+    // Notify count change for real-time badge updates
+    await notifyApprovalCountChange();
 
     emi.status = "Waiting for Approval";
     emi.updatedBy = req.user._id;

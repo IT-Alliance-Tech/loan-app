@@ -13,6 +13,7 @@ const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 const { formatLoanResponse } = require("../utils/loanFormatter");
+const { notifyAdmins } = require("./notificationController");
 
 const extractId = (val) => {
   if (!val) return null;
@@ -492,7 +493,23 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   }
 
   // Calculate remaining principal accurately including partial payments
-  const emis = await EMI.find({ loanId: loan._id });
+  const emisData = await EMI.find({ loanId: loan._id }).sort({ emiNumber: 1 });
+  const Approval = require("../models/Approval");
+
+  const emis = await Promise.all(
+    emisData.map(async (emi) => {
+      const pendingApproval = await Approval.findOne({
+        targetId: emi._id,
+        status: "Pending",
+      });
+      const emiObj = emi.toObject();
+      if (pendingApproval) {
+        emiObj.pendingApproval = pendingApproval.requestedData;
+      }
+      return emiObj;
+    })
+  );
+
   let remainingTenureCount = 0;
 
   if (emis && emis.length > 0) {
@@ -623,7 +640,23 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   }
 
   // Calculate remaining principal accurately including partial payments
-  const emis = await EMI.find({ loanId: loan._id });
+  const emisData = await EMI.find({ loanId: loan._id }).sort({ emiNumber: 1 });
+  const Approval = require("../models/Approval");
+
+  const emis = await Promise.all(
+    emisData.map(async (emi) => {
+      const pendingApproval = await Approval.findOne({
+        targetId: emi._id,
+        status: "Pending",
+      });
+      const emiObj = emi.toObject();
+      if (pendingApproval) {
+        emiObj.pendingApproval = pendingApproval.requestedData;
+      }
+      return emiObj;
+    })
+  );
+
   let remainingTenureCount = 0;
 
   if (emis && emis.length > 0) {
@@ -1972,10 +2005,31 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
       targetModel: "Loan",
       loanNumber: loan.loanNumber,
       customerName: loan.customerName || "Customer",
-      requestedData: req.body,
+      requestedData: { ...req.body, loanId: loan._id },
       requestedBy: req.user._id,
       status: "Pending",
     });
+
+    // Notify Admins
+    const { notifyApprovalCountChange, notifyAdmins } = require("./notificationController");
+    await notifyAdmins({
+      senderId: req.user._id,
+      type: "PAYMENT_REQUEST",
+      title: "New Foreclosure Approval Request",
+      message: `Employee ${req.user.name} requested approval for Foreclosure of ₹${req.body.totalAmount || 0} for loan ${loan.loanNumber} (${loan.customerName}).`,
+      data: {
+        loanNumber: loan.loanNumber,
+        customerName: loan.customerName,
+        amount: req.body.totalAmount || 0,
+        employeeName: req.user.name,
+        loanId: loan._id,
+        loanType: "Loan",
+        targetId: loan._id,
+      },
+    });
+
+    // Notify count change for real-time badge updates
+    await notifyApprovalCountChange();
 
     loan.status = "Waiting for Approval";
     loan.updatedBy = req.user._id;

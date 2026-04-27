@@ -1,18 +1,15 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
 import ContactActionMenu from "../../../components/ContactActionMenu";
 import { useToast } from "../../../context/ToastContext";
-import { getUserFromToken } from "../../../utils/auth";
 import { getCustomers, createCustomer } from "../../../services/customer";
 import { exportLoansToExcel } from "../../../utils/exportExcel";
 import { calculateEMI as fetchEMI } from "../../../services/loan.service";
 
 const CustomersPage = () => {
-  const user = getUserFromToken();
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const { showToast } = useToast();
 
   const [customers, setCustomers] = useState([]);
@@ -42,7 +39,7 @@ const CustomersPage = () => {
     status: "",
   });
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getCustomers();
@@ -53,11 +50,11 @@ const CustomersPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [fetchCustomers]);
 
   useEffect(() => {
     const P = parseFloat(formData.principalAmount);

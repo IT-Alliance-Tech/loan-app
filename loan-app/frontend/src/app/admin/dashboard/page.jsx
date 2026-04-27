@@ -2,7 +2,6 @@
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
-import StatsCard from "../../../components/analytics/StatsCard";
 import { getUserFromToken } from "../../../utils/auth";
 import { useState, useEffect } from "react";
 import { getAnalyticsStats } from "../../../services/loan.service";
@@ -10,11 +9,6 @@ import {
   ShieldCheck,
   UserCheck,
   Users,
-  IndianRupee,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle,
-  BarChart3,
 } from "lucide-react";
 import TodoDashboardSection from "../../../components/analytics/TodoDashboardSection";
 

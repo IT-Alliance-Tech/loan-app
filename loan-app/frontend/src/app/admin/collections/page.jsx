@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
@@ -8,7 +8,7 @@ import AddExpenseModal from "../../../components/AddExpenseModal";
 import { getCollectionTransactions, getLoansGivenSummary } from "../../../services/collection.service";
 import { getAllExpenses } from "../../../services/expenseService";
 import { useToast } from "../../../context/ToastContext";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import Pagination from "../../../components/Pagination";
 
 const CollectionsPage = () => {
@@ -47,18 +47,7 @@ const CollectionsPage = () => {
   // Modal State for Expenses
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
-  // Fetch Logic based on date filters and active tab
-  useEffect(() => {
-    fetchAllData();
-  }, [activeTab, pagination.collections.page, pagination.loans.page]);
-
-  const fetchAllData = () => {
-    fetchCollections(pagination.collections.page);
-    fetchLoansGiven(pagination.loans.page);
-    fetchExpenses();
-  };
-
-  const fetchCollections = async (page = 1) => {
+  const fetchCollections = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       setError("");
@@ -81,9 +70,9 @@ const CollectionsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, showToast]);
 
-  const fetchLoansGiven = async (page = 1) => {
+  const fetchLoansGiven = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       setError("");
@@ -106,9 +95,9 @@ const CollectionsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, showToast]);
 
-  const fetchExpenses = async () => {
+  const fetchExpenses = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -124,7 +113,17 @@ const CollectionsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, showToast]);
+
+  const fetchAllData = useCallback(() => {
+    fetchCollections(pagination.collections.page);
+    fetchLoansGiven(pagination.loans.page);
+    fetchExpenses();
+  }, [fetchCollections, fetchLoansGiven, fetchExpenses, pagination.collections.page, pagination.loans.page]);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData, activeTab]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;

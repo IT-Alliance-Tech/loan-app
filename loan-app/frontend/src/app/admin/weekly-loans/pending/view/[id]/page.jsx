@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect, use } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, use, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import AuthGuard from "../../../../../../components/AuthGuard";
 import Navbar from "../../../../../../components/Navbar";
 import Sidebar from "../../../../../../components/Sidebar";
@@ -21,7 +21,6 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
   const fromPage = searchParams.get("from");
   const [loan, setLoan] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [newFollowUpDate, setNewFollowUpDate] = useState("");
   const [updating, setUpdating] = useState(false);
@@ -39,9 +38,9 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
 
   useEffect(() => {
     if (params.id) fetchLoanDetails();
-  }, [params.id]);
+  }, [params.id, fetchLoanDetails]);
 
-  const fetchLoanDetails = async () => {
+  const fetchLoanDetails = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getWeeklyPendingEmiDetails(params.id);
@@ -58,11 +57,11 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
         );
       }
     } catch (err) {
-      setError(err.message);
+      console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
   const handleUpdateStatus = async () => {
     try {

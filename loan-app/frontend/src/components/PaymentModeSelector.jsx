@@ -14,7 +14,7 @@ const PaymentModeSelector = ({
   const selectedModes = value
     ? value
         .split(",")
-        .map((m) => m.trim())
+        .map((m) => m.trim().toLowerCase())
         .filter((m) => m !== "")
     : [];
 
@@ -32,18 +32,21 @@ const PaymentModeSelector = ({
   }, []);
 
   const toggleMode = (mode) => {
+    const lowerMode = mode.toLowerCase();
     let newModes;
     if (allowMultiple) {
-      if (selectedModes.includes(mode)) {
-        newModes = selectedModes.filter((m) => m !== mode);
+      if (selectedModes.includes(lowerMode)) {
+        newModes = selectedModes.filter((m) => m !== lowerMode);
       } else {
-        newModes = [...selectedModes, mode];
+        newModes = [...selectedModes, lowerMode];
       }
     } else {
-      newModes = [mode];
+      newModes = [lowerMode];
       setIsOpen(false);
     }
-    onChange(newModes.join(", "));
+    // Convert back to capitalized for display if possible, or just join
+    const displayModes = newModes.map(m => m.charAt(0).toUpperCase() + m.slice(1));
+    onChange(displayModes.join(", "));
   };
 
   return (
@@ -60,8 +63,8 @@ const PaymentModeSelector = ({
         <span className="truncate">
           {selectedModes.length > 0
             ? allowMultiple
-              ? selectedModes.join(", ")
-              : selectedModes[0]
+              ? selectedModes.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(", ")
+              : selectedModes[0].charAt(0).toUpperCase() + selectedModes[0].slice(1)
             : "Select Mode"}
         </span>
         <span
@@ -74,7 +77,7 @@ const PaymentModeSelector = ({
       {isOpen && (
         <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[120] p-2 animate-in fade-in slide-in-from-top-2 duration-200">
           {modes.map((mode) => {
-            const isSelected = selectedModes.includes(mode);
+            const isSelected = selectedModes.includes(mode.toLowerCase());
             return (
               <button
                 key={mode}

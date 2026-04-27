@@ -32,7 +32,7 @@ export const isAuthenticated = () => {
     const payload = JSON.parse(atob(token.split(".")[1]));
     const expiry = payload.exp * 1000;
     return Date.now() < expiry;
-  } catch (e) {
+  } catch {
     return false;
   }
 };
@@ -44,7 +44,7 @@ export const getUser = () => {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
     return payload;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
