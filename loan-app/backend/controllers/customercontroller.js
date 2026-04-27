@@ -7,6 +7,7 @@ const { formatLoanResponse } = require("../utils/loanFormatter");
 const asyncHandler = require("../utils/asyncHandler");
 const { parseDateInLocalFormat, normalizeToMidnight } = require('../utils/dateUtils');
 const sendResponse = require("../utils/response");
+const { notifyAdmins } = require("./notificationController");
 
 const calculateEMI = (principal, roi, tenureMonths) => {
   const p = parseFloat(principal);
@@ -208,6 +209,27 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   const hasApprovalAuthority = req.user.permissions?.paymentApproval;
 
   if (!isSuperAdmin && !hasApprovalAuthority) {
+    // Identify NEW payments (not present in current emi.paymentHistory)
+    const currentHistory = emi.paymentHistory || [];
+    const newPayments = [];
+    
+    if (req.body.dateGroups && Array.isArray(req.body.dateGroups)) {
+      req.body.dateGroups.forEach(group => {
+        (group.payments || []).forEach(p => {
+          const match = currentHistory.find(hp => 
+            hp.amount === parseFloat(p.amount) && 
+            hp.mode === (p.mode || "CASH") && 
+            new Date(hp.date).toDateString() === new Date(group.date).toDateString()
+          );
+          if (!match) {
+            newPayments.push({ mode: p.mode || "CASH", amount: parseFloat(p.amount) });
+          }
+        });
+      });
+    } else if (req.body.addedAmount) {
+       newPayments.push({ mode: req.body.paymentMode || "CASH", amount: parseFloat(req.body.addedAmount) });
+    }
+
     // Check if there's already a pending approval for this EMI
     const Approval = require("../models/Approval");
     const existingApproval = await Approval.findOne({
@@ -216,7 +238,16 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     });
 
     if (existingApproval) {
-      return next(new ErrorHandler("This EMI is already waiting for approval", 400));
+      existingApproval.requestedData = { 
+        ...req.body, 
+        emiNumber: emi.emiNumber, 
+        loanId: emi.loanId,
+        newPayments: newPayments.length > 0 ? newPayments : null
+      };
+      existingApproval.requestedBy = req.user._id;
+      existingApproval.createdAt = Date.now();
+      await existingApproval.save();
+      return sendResponse(res, 200, "success", "Pending approval request has been updated with new data", null, existingApproval);
     }
 
     // Create Approval Request
@@ -226,10 +257,44 @@ const updateEMI = asyncHandler(async (req, res, next) => {
       targetModel: "EMI",
       loanNumber: emi.loanNumber,
       customerName: emi.customerName || "Customer",
-      requestedData: req.body,
+      requestedData: { 
+        ...req.body, 
+        emiNumber: emi.emiNumber, 
+        loanId: emi.loanId,
+        newPayments: newPayments.length > 0 ? newPayments : null
+      },
       requestedBy: req.user._id,
       status: "Pending",
     });
+
+    // Calculate total amount if dateGroups is present
+    let displayAmount = req.body.addedAmount || req.body.amountPaid || 0;
+    if (req.body.dateGroups && Array.isArray(req.body.dateGroups)) {
+      displayAmount = req.body.dateGroups.reduce((total, group) => {
+        return total + (group.payments || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+      }, 0);
+    }
+
+    // Notify Admins
+    const { notifyApprovalCountChange } = require("./notificationController");
+    await notifyAdmins({
+      senderId: req.user._id,
+      type: "PAYMENT_REQUEST",
+      title: "New EMI Payment Approval Request",
+      message: `Employee ${req.user.name} requested approval for EMI payment of ₹${displayAmount} for loan ${emi.loanNumber} (${emi.customerName}).`,
+      data: {
+        loanNumber: emi.loanNumber,
+        customerName: emi.customerName,
+        amount: displayAmount,
+        employeeName: req.user.name,
+        loanId: emi.loanId,
+        loanType: emi.loanModel || "Loan",
+        targetId: emi._id,
+      },
+    });
+
+    // Notify count change for real-time badge updates
+    await notifyApprovalCountChange();
 
     // Update EMI status to 'Waiting for Approval'
     emi.status = "Waiting for Approval";
@@ -709,13 +774,29 @@ const getEMIsByLoanId = asyncHandler(async (req, res, next) => {
   if (!mongoose.Types.ObjectId.isValid(loanId) || loanId === "undefined") {
     return next(new ErrorHandler("Invalid Loan ID provided", 400));
   }
-  const emis = await EMI.find({ loanId })
-    .sort({
-      emiNumber: 1,
-    })
+  const emis = await EMI.find({ loanId }).sort({ emiNumber: 1 }).lean()
     .populate("updatedBy", "name")
     .populate("approvedBy", "name")
     .populate("paymentRecords");
+
+  const Approval = require("../models/Approval");
+  const emiIds = emis.map((e) => e._id);
+  const pendingApprovals = await Approval.find({
+    targetId: { $in: emiIds },
+    status: "Pending",
+  });
+
+  const pendingMap = {};
+  pendingApprovals.forEach((a) => {
+    pendingMap[a.targetId.toString()] = a.requestedData;
+  });
+
+  emis.forEach((emi) => {
+    if (pendingMap[emi._id.toString()]) {
+      emi.pendingApproval = pendingMap[emi._id.toString()];
+    }
+  });
+
   sendResponse(res, 200, "success", "EMIs fetched successfully", null, emis);
 });
 

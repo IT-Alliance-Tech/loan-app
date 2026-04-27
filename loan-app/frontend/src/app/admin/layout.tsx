@@ -1,4 +1,5 @@
 import { UIProvider } from "../../context/UIContext";
+import { NotificationProvider } from "../../context/NotificationContext";
 
 export default function AdminLayout({
   children,
@@ -7,9 +8,11 @@ export default function AdminLayout({
 }) {
   return (
     <UIProvider>
-      <div className="flex-1 animate-fade-in w-full max-w-[800px] mx-auto sm:max-w-none px-4 sm:px-0">
-        {children}
-      </div>
+      <NotificationProvider>
+        <div className="flex-1 animate-fade-in w-full max-w-[800px] mx-auto sm:max-w-none px-4 sm:px-0">
+          {children}
+        </div>
+      </NotificationProvider>
     </UIProvider>
   );
 }

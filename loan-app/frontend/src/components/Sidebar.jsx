@@ -90,6 +90,7 @@ const Sidebar = () => {
 
   useEffect(() => {
     let interval;
+    let socket;
     
     const fetchCount = () => {
       if (user?.role === "SUPER_ADMIN") {
@@ -100,11 +101,34 @@ const Sidebar = () => {
     };
 
     fetchCount();
-    
-    // Poll every 60 seconds to keep the badge updated without flooding the logs
-    interval = setInterval(fetchCount, 60000);
 
-    return () => clearInterval(interval);
+    // Socket implementation for real-time updates
+    if (user?.role === "SUPER_ADMIN") {
+      const { io } = require("socket.io-client");
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL === "undefined" || !process.env.NEXT_PUBLIC_API_BASE_URL
+        ? 'http://localhost:5000'
+        : process.env.NEXT_PUBLIC_API_BASE_URL;
+
+      socket = io(apiBase, {
+        transports: ['websocket', 'polling']
+      });
+
+      socket.on("connect", () => {
+        socket.emit("join", user._id);
+      });
+
+      socket.on("pending_approvals_count", (count) => {
+        setPendingCount(count);
+      });
+    }
+    
+    // Poll every 10 seconds as a reliable fallback
+    interval = setInterval(fetchCount, 10000);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      if (socket) socket.close();
+    };
   }, [pathname, user?.id]);
 
   useEffect(() => {

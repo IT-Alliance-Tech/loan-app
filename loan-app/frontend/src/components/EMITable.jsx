@@ -30,15 +30,28 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "stand
 
   const handleEditClick = (emi) => {
     setEditingEmi(emi);
+    
+    // Priority: 1. Pending Approval Data, 2. Confirmed EMI Data, 3. Defaults
+    const pendingData = emi.pendingApproval || {};
+    
     setEditData({
-      overdue: (emi.overdue && emi.overdue.length > 0)
-        ? emi.overdue.map(ov => ({ ...ov, id: Math.random(), mode: ov.mode || "Cash", chequeNumber: ov.chequeNumber || "" }))
-        : [],
+      overdue: (pendingData.overdue && pendingData.overdue.length > 0)
+        ? pendingData.overdue.map(ov => ({ ...ov, id: Math.random(), mode: ov.mode || "Cash", chequeNumber: ov.chequeNumber || "" }))
+        : (emi.overdue && Array.isArray(emi.overdue) && emi.overdue.length > 0)
+          ? emi.overdue.map(ov => ({ ...ov, id: Math.random(), mode: ov.mode || "Cash", chequeNumber: ov.chequeNumber || "" }))
+          : [],
       status: emi.status || "Pending",
-      remarks: emi.remarks || "",
+      remarks: pendingData.remarks || emi.remarks || "",
     });
 
-    if (emi.paymentHistory && emi.paymentHistory.length > 0) {
+    if (pendingData.dateGroups && pendingData.dateGroups.length > 0) {
+      // Use pending data groups
+      setDateGroups(pendingData.dateGroups.map(g => ({
+        ...g,
+        id: Math.random(),
+        payments: (g.payments || []).map(p => ({ ...p, id: Math.random() }))
+      })));
+    } else if (emi.paymentHistory && emi.paymentHistory.length > 0) {
       // Group history by date
       const groups = {};
       emi.paymentHistory.forEach((p) => {

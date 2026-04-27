@@ -18,6 +18,7 @@ const contactRoutes = require("./routes/contactRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const interestLoanRoutes = require("./routes/interestLoanRoutes");
 const approvalRoutes = require("./routes/approvalRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 const { checkLoanNumberUniqueness } = require("./controllers/loanController");
 const compression = require("compression");
 
@@ -60,7 +61,11 @@ app.use(
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
       const normalizedOrigin = origin.replace(/\/$/, "");
-      if (allowedOrigins.includes(normalizedOrigin)) {
+      
+      // Always allow localhost for development convenience
+      const isLocalhost = normalizedOrigin.includes("localhost:") || normalizedOrigin.includes("127.0.0.1:");
+      
+      if (allowedOrigins.includes(normalizedOrigin) || isLocalhost) {
         return callback(null, true);
       } else {
         console.warn(`[CORS] Rejected Origin: ${origin}`);
@@ -162,6 +167,7 @@ app.use("/api/contact", contactRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/interest-loans", interestLoanRoutes);
 app.use("/api/approvals", approvalRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Error Middleware
 app.use(errorMiddleware);

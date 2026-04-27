@@ -8,6 +8,7 @@ const InterestLoan = require("../models/InterestLoan");
 const asyncHandler = require("../utils/asyncHandler");
 const ErrorHandler = require("../utils/ErrorHandler");
 const sendResponse = require("../utils/response");
+const { sendNotification } = require("./notificationController");
 
 // List all pending approvals (Super Admin only)
 const getPendingApprovals = asyncHandler(async (req, res, next) => {
@@ -49,6 +50,7 @@ const processApproval = asyncHandler(async (req, res, next) => {
       const emi = await EMI.findById(targetId);
       if (emi) {
         const { remarks, dateGroups, overdue } = requestedData;
+        const oldHistory = emi.paymentHistory ? JSON.parse(JSON.stringify(emi.paymentHistory)) : [];
         
         if (dateGroups && Array.isArray(dateGroups)) {
           emi.paymentHistory = [];
@@ -57,31 +59,45 @@ const processApproval = asyncHandler(async (req, res, next) => {
               for (const p of group.payments) {
                 const amount = parseFloat(p.amount);
                 if (amount > 0) {
+                  const paymentDate = new Date(group.date);
+                  
+                  // Check if this specific payment entry already exists in history to avoid duplicates in Payment collection
+                  const isAlreadyRecorded = oldHistory.some(oh => 
+                    oh.mode === p.mode && 
+                    parseFloat(oh.amount) === amount && 
+                    new Date(oh.date).toISOString().split('T')[0] === group.date
+                  );
+
                   emi.paymentHistory.push({
                     amount,
                     mode: p.mode || "Cash",
                     chequeNumber: p.chequeNumber || "",
-                    date: new Date(group.date),
+                    date: paymentDate,
                     addedBy: approval.requestedBy,
                   });
 
-                  let pType = "Monthly";
-                  if (emi.loanModel === "DailyLoan") pType = "Daily";
-                  else if (emi.loanModel === "WeeklyLoan") pType = "Weekly";
+                  // ONLY create a Payment record if it's new
+                  if (!isAlreadyRecorded) {
+                    let pType = "Monthly";
+                    if (emi.loanModel === "DailyLoan") pType = "Daily";
+                    else if (emi.loanModel === "WeeklyLoan") pType = "Weekly";
 
-                  await Payment.create({
-                    emiId: emi._id,
-                    loanId: emi.loanId,
-                    loanModel: emi.loanModel || "Loan",
-                    amount: amount,
-                    mode: p.mode || "Cash",
-                    chequeNumber: p.chequeNumber || "",
-                    paymentDate: new Date(group.date),
-                    paymentType: pType,
-                    status: "Success",
-                    remarks: remarks || "",
-                    collectedBy: approval.requestedBy,
-                  });
+                    await Payment.create({
+                      emiId: emi._id,
+                      loanId: emi.loanId,
+                      loanModel: emi.loanModel || "Loan",
+                      amount: amount,
+                      emiAmount: amount, // Categorize as EMI amount
+                      totalAmount: amount,
+                      mode: p.mode || "Cash",
+                      chequeNumber: p.chequeNumber || "",
+                      paymentDate: paymentDate,
+                      paymentType: pType,
+                      status: "Success",
+                      remarks: remarks || "",
+                      collectedBy: approval.requestedBy,
+                    });
+                  }
                 }
               }
             }
@@ -89,6 +105,38 @@ const processApproval = asyncHandler(async (req, res, next) => {
         }
 
         if (overdue !== undefined && Array.isArray(overdue)) {
+            const oldOverdue = emi.overdue ? JSON.parse(JSON.stringify(emi.overdue)) : [];
+            
+            // Create Payment records for new overdue entries
+            for (const ov of overdue) {
+              const amount = parseFloat(ov.amount);
+              if (amount > 0 && ov.date) {
+                const ovDateStr = new Date(ov.date).toISOString().split('T')[0];
+                const isAlreadyRecorded = oldOverdue.some(oov => 
+                   oov.mode === ov.mode && 
+                   parseFloat(oov.amount) === amount && 
+                   new Date(oov.date).toISOString().split('T')[0] === ovDateStr
+                );
+
+                if (!isAlreadyRecorded) {
+                   await Payment.create({
+                      emiId: emi._id,
+                      loanId: emi.loanId,
+                      loanModel: emi.loanModel || "Loan",
+                      amount: amount,
+                      overdueAmount: amount, // Categorize as Overdue amount
+                      totalAmount: amount,
+                      mode: ov.mode || "Cash",
+                      chequeNumber: ov.chequeNumber || "",
+                      paymentDate: new Date(ov.date),
+                      paymentType: "Overdue",
+                      status: "Success",
+                      remarks: "Overdue Payment Approved",
+                      collectedBy: approval.requestedBy,
+                   });
+                }
+              }
+            }
             emi.overdue = overdue;
         }
 
@@ -114,6 +162,7 @@ const processApproval = asyncHandler(async (req, res, next) => {
       const emi = await InterestEMI.findById(targetId);
       if (emi) {
         const { remarks, dateGroups, overdue } = requestedData;
+        const oldHistory = emi.paymentHistory ? JSON.parse(JSON.stringify(emi.paymentHistory)) : [];
 
         if (dateGroups && Array.isArray(dateGroups)) {
           emi.paymentHistory = [];
@@ -122,37 +171,84 @@ const processApproval = asyncHandler(async (req, res, next) => {
               for (const p of group.payments) {
                 const amount = parseFloat(p.amount);
                 if (amount > 0) {
+                  const paymentDate = new Date(group.date);
+
+                  // Check if this specific payment entry already exists in history to avoid duplicates in Payment collection
+                  const isAlreadyRecorded = oldHistory.some(oh => 
+                    oh.mode === p.mode && 
+                    parseFloat(oh.amount) === amount && 
+                    new Date(oh.date).toISOString().split('T')[0] === group.date
+                  );
+
                   emi.paymentHistory.push({
                     amount,
                     mode: p.mode || "Cash",
                     chequeNumber: p.chequeNumber || "",
-                    date: new Date(group.date),
+                    date: paymentDate,
                     addedBy: approval.requestedBy,
                   });
 
-                  await Payment.create({
-                    emiId: emi._id,
-                    loanId: emi.interestLoanId,
-                    loanModel: "InterestLoan",
-                    amount: amount,
-                    mode: p.mode || "Cash",
-                    chequeNumber: p.chequeNumber || "",
-                    paymentDate: new Date(group.date),
-                    paymentType: "Interest",
-                    status: "Success",
-                    remarks: remarks || "",
-                    collectedBy: approval.requestedBy,
-                  });
+                  if (!isAlreadyRecorded) {
+                    await Payment.create({
+                      emiId: emi._id,
+                      loanId: emi.interestLoanId,
+                      loanModel: "InterestLoan",
+                      amount: amount,
+                      emiAmount: amount, // Categorize as EMI amount (Interest)
+                      totalAmount: amount,
+                      mode: p.mode || "Cash",
+                      chequeNumber: p.chequeNumber || "",
+                      paymentDate: paymentDate,
+                      paymentType: "Interest",
+                      status: "Success",
+                      remarks: remarks || "",
+                      collectedBy: approval.requestedBy,
+                    });
+                  }
                 }
               }
             }
           }
         }
 
-        if (overdue !== undefined) emi.overdue = overdue;
+        if (overdue !== undefined && Array.isArray(overdue)) {
+            const oldOverdue = emi.overdue ? JSON.parse(JSON.stringify(emi.overdue)) : [];
+            
+            for (const ov of overdue) {
+              const amount = parseFloat(ov.amount);
+              if (amount > 0 && ov.date) {
+                const ovDateStr = new Date(ov.date).toISOString().split('T')[0];
+                const isAlreadyRecorded = oldOverdue.some(oov => 
+                   oov.mode === ov.mode && 
+                   parseFloat(oov.amount) === amount && 
+                   new Date(oov.date).toISOString().split('T')[0] === ovDateStr
+                );
+
+                if (!isAlreadyRecorded) {
+                   await Payment.create({
+                      emiId: emi._id,
+                      loanId: emi.interestLoanId,
+                      loanModel: "InterestLoan",
+                      amount: amount,
+                      overdueAmount: amount,
+                      totalAmount: amount,
+                      mode: ov.mode || "Cash",
+                      chequeNumber: ov.chequeNumber || "",
+                      paymentDate: new Date(ov.date),
+                      paymentType: "Overdue",
+                      status: "Success",
+                      remarks: "Overdue Interest Payment Approved",
+                      collectedBy: approval.requestedBy,
+                   });
+                }
+              }
+            }
+            emi.overdue = overdue;
+        }
+
         const newAmountPaid = emi.paymentHistory.reduce((acc, curr) => acc + curr.amount, 0);
-        emi.amountPaid = newAmountPaid;
         emi.paymentMode = [...new Set(emi.paymentHistory.map(ph => ph.mode))].filter(Boolean).join(", ");
+        emi.amountPaid = newAmountPaid;
 
         if (emi.amountPaid >= emi.interestAmount) {
           emi.status = "Paid";
@@ -224,47 +320,62 @@ const processApproval = asyncHandler(async (req, res, next) => {
         }
       }
     } else if (requestType === "PRINCIPAL_PAYMENT") {
-        const loan = await InterestLoan.findById(targetId);
-        if (loan) {
-          const { amount, paymentMode, paymentDate, remarks } = requestedData;
-          const pAmount = parseFloat(amount);
-  
-          loan.principalPayments.push({
-            amount: pAmount,
-            paymentMode: paymentMode || "Cash",
-            paymentDate: paymentDate || new Date(),
-            remarks,
-            addedBy: approval.requestedBy,
-          });
-  
-          loan.remainingPrincipalAmount -= pAmount;
-          if (loan.remainingPrincipalAmount <= 0) {
-            loan.status = "Closed";
-            loan.remainingPrincipalAmount = 0;
-          }
-  
-          loan.approvedBy = req.user._id;
-          loan.approvedAt = Date.now();
-          await loan.save();
-  
-          // Recalculate future EMIs
-          const pendingEmis = await InterestEMI.find({
-            interestLoanId: loan._id,
-            status: { $in: ["Pending", "Partially Paid"] },
-          });
-  
-          for (const emi of pendingEmis) {
-            const newInterestAmount = Math.ceil(
-              loan.remainingPrincipalAmount * (loan.interestRate / 100),
-            );
-            emi.interestAmount = newInterestAmount;
-            if (emi.amountPaid >= emi.interestAmount) emi.status = "Paid";
-            else if (emi.amountPaid > 0) emi.status = "Partially Paid";
-            else emi.status = "Pending";
-            await emi.save();
-          }
+      const loan = await InterestLoan.findById(targetId);
+      if (loan) {
+        const { amount, paymentMode, paymentDate, remarks } = requestedData;
+        const pAmount = parseFloat(amount);
+
+        const pDate = paymentDate ? new Date(paymentDate) : new Date();
+
+        loan.principalPayments.push({
+          amount: pAmount,
+          paymentMode: paymentMode || "Cash",
+          paymentDate: pDate,
+          remarks,
+          addedBy: approval.requestedBy,
+        });
+
+        // Add to collections
+        await Payment.create({
+          loanId: loan._id,
+          loanModel: "InterestLoan",
+          amount: pAmount,
+          mode: paymentMode || "Cash",
+          paymentDate: pDate,
+          paymentType: "Monthly", // Categorize as Monthly for collections summary to include it in standard loan repayments
+          status: "Success",
+          remarks: remarks || "Principal Payment Approved",
+          collectedBy: approval.requestedBy,
+        });
+
+        loan.remainingPrincipalAmount -= pAmount;
+        if (loan.remainingPrincipalAmount <= 0) {
+          loan.status = "Closed";
+          loan.remainingPrincipalAmount = 0;
+        }
+
+        loan.approvedBy = req.user._id;
+        loan.approvedAt = Date.now();
+        await loan.save();
+
+        // Recalculate future EMIs
+        const pendingEmis = await InterestEMI.find({
+          interestLoanId: loan._id,
+          status: { $in: ["Pending", "Partially Paid"] },
+        });
+
+        for (const emi of pendingEmis) {
+          const newInterestAmount = Math.ceil(
+            loan.remainingPrincipalAmount * (loan.interestRate / 100)
+          );
+          emi.interestAmount = newInterestAmount;
+          if (emi.amountPaid >= emi.interestAmount) emi.status = "Paid";
+          else if (emi.amountPaid > 0) emi.status = "Partially Paid";
+          else emi.status = "Pending";
+          await emi.save();
         }
       }
+    }
   } else {
     // If rejected, set the status back to Pending/Active
     const { targetId, targetModel } = approval;
@@ -278,6 +389,27 @@ const processApproval = asyncHandler(async (req, res, next) => {
   }
 
   await approval.save();
+
+  // Notify the employee who requested it
+  await sendNotification({
+    recipientId: approval.requestedBy,
+    senderId: req.user._id,
+    type: status === "Approved" ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED",
+    title: `Payment Request ${status}`,
+    message: `Payment of ₹${approval.requestedData.amount || approval.requestedData.addedAmount || 0} for loan ${approval.loanNumber} (${approval.customerName}) has been ${status.toLowerCase()} by ${req.user.name}.`,
+    data: {
+      loanNumber: approval.loanNumber,
+      customerName: approval.customerName,
+      amount: approval.requestedData.amount || approval.requestedData.addedAmount || 0,
+      employeeName: req.user.name,
+      loanId: approval.targetId,
+      loanType: approval.targetModel,
+      approvalId: approval._id
+    }
+  });
+
+  const { notifyApprovalCountChange } = require("./notificationController");
+  await notifyApprovalCountChange();
 
   sendResponse(res, 200, "success", `Request ${status} successfully`, null, approval);
 });
