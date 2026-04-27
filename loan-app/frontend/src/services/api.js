@@ -38,7 +38,10 @@ const apiHandler = async (endpoint, options = {}, isRetry = false) => {
     try {
       response = await fetch(url, config);
     } catch (fetchErr) {
-      console.error("Network Fetch Error:", fetchErr.message, "URL:", url);
+      if (!options.silent) {
+        console.error("Network Fetch Error:", fetchErr.message, "URL:", url);
+      }
+      
       if (url.includes("localhost") || url.includes("127.0.0.1")) {
         throw new Error(
           `Failed to connect to local server at ${url}. Please ensure the backend is running on the correct port.`,
