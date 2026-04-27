@@ -12,7 +12,6 @@ import { calculateEMI as fetchEMI } from "../../../services/loan.service";
 
 const CustomersPage = () => {
   const user = getUserFromToken();
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const { showToast } = useToast();
 
   const [customers, setCustomers] = useState([]);
@@ -42,7 +41,7 @@ const CustomersPage = () => {
     status: "",
   });
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getCustomers();
@@ -53,11 +52,11 @@ const CustomersPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [fetchCustomers]);
 
   useEffect(() => {
     const P = parseFloat(formData.principalAmount);

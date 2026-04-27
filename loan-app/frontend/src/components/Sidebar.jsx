@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { io } from "socket.io-client";
 import { usePathname } from "next/navigation";
 import { getUserFromToken } from "../utils/auth";
 import Logo from "./Logo";
@@ -104,7 +105,6 @@ const Sidebar = () => {
 
     // Socket implementation for real-time updates
     if (user?.role === "SUPER_ADMIN") {
-      const { io } = require("socket.io-client");
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL === "undefined" || !process.env.NEXT_PUBLIC_API_BASE_URL
         ? 'http://localhost:5000'
         : process.env.NEXT_PUBLIC_API_BASE_URL;

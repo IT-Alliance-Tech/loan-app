@@ -14,7 +14,7 @@ const ApprovalsPage = () => {
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState(null);
 
-    const fetchApprovals = async () => {
+    const fetchApprovals = useCallback(async () => {
         setLoading(true);
         try {
             const res = await getPendingApprovals();
@@ -24,7 +24,7 @@ const ApprovalsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
 
     const redirectToLoan = (app) => {
         const loanId = app.requestedData?.loanId || app.targetId;
@@ -48,7 +48,7 @@ const ApprovalsPage = () => {
         }, 30000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [fetchApprovals]);
 
     const handleAction = async (id, status) => {
         setProcessingId(id);
