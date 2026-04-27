@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
@@ -11,7 +11,6 @@ import { exportLoansToExcel } from "../../../utils/exportExcel";
 import { calculateEMI as fetchEMI } from "../../../services/loan.service";
 
 const CustomersPage = () => {
-  const user = getUserFromToken();
   const { showToast } = useToast();
 
   const [customers, setCustomers] = useState([]);

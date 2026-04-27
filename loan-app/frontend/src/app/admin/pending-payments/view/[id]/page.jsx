@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import AuthGuard from "../../../../../components/AuthGuard";
 import Navbar from "../../../../../components/Navbar";
@@ -43,9 +43,9 @@ const LoanPendingViewPage = () => {
 
   useEffect(() => {
     if (id) fetchLoanDetails();
-  }, [id]);
+  }, [id, fetchLoanDetails]);
 
-  const fetchLoanDetails = async () => {
+  const fetchLoanDetails = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getPendingEmiDetails(id);
@@ -65,7 +65,7 @@ const LoanPendingViewPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   const handleUpdateStatus = async () => {
     try {

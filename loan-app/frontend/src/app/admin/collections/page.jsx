@@ -8,7 +8,7 @@ import AddExpenseModal from "../../../components/AddExpenseModal";
 import { getCollectionTransactions, getLoansGivenSummary } from "../../../services/collection.service";
 import { getAllExpenses } from "../../../services/expenseService";
 import { useToast } from "../../../context/ToastContext";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import Pagination from "../../../components/Pagination";
 
 const CollectionsPage = () => {

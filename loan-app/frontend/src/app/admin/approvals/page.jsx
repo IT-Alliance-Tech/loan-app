@@ -121,19 +121,6 @@ const ApprovalsPage = () => {
                                                         return model || "N/A";
                                                     };
 
-                                                    const getPaymentModes = () => {
-                                                        const modes = new Set();
-                                                        if (app.requestedData.paymentMode) modes.add(app.requestedData.paymentMode);
-                                                        if (app.requestedData.dateGroups) {
-                                                            app.requestedData.dateGroups.forEach(g => {
-                                                                g.payments.forEach(p => {
-                                                                    if (p.mode) modes.add(p.mode);
-                                                                });
-                                                            });
-                                                        }
-                                                        return Array.from(modes).join(", ") || "N/A";
-                                                    };
-
                                                     const getModeSplits = () => {
                                                         const data = app.requestedData;
                                                         const splits = {};
