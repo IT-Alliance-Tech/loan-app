@@ -33,7 +33,8 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
           foreclosure: [{ $group: { _id: null, total: { $sum: { $ifNull: ["$foreclosureAmount", 0] } } } }],
           processingFees: [{ $group: { _id: null, total: { $sum: { $ifNull: ["$processingFee", 0] } } } }],
           sold: [{ $group: { _id: null, total: { $sum: { $ifNull: ["$soldDetails.totalAmount", "$soldDetails.sellAmount", 0] } } } }],
-          counts: [{ $group: { _id: null, active: { $sum: { $cond: [{ $and: [{ $ne: ["$status", "Closed"] }, { $ne: ["$seizedStatus", "Sold"] }] }, 1, 0] } }, closed: { $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] } } } }],
+          active: [{ $match: { status: { $ne: "Closed" }, seizedStatus: { $ne: "Sold" } } }, { $count: "count" }],
+          closed: [{ $match: { status: "Closed" } }, { $count: "count" }],
           vehicleStatus: [{ $match: { isSeized: true } }, { $group: { _id: { $switch: { branches: [{ case: { $eq: ["$seizedStatus", "Seized"] }, then: "Seized" }, { case: { $eq: ["$seizedStatus", "Sold"] }, then: "Sold" }], default: "For Seizing" } }, count: { $sum: 1 } } }],
         }
       }
@@ -44,7 +45,8 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
       {
         $facet: {
           disbursement: [{ $group: { _id: null, total: { $sum: "$disbursementAmount" }, collected: { $sum: "$totalCollected" } } }],
-          counts: [{ $group: { _id: null, active: { $sum: { $cond: [{ $ne: ["$status", "Closed"] }, 1, 0] } }, closed: { $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] } } } }],
+          active: [{ $match: { status: { $ne: "Closed" } } }, { $count: "count" }],
+          closed: [{ $match: { status: "Closed" } }, { $count: "count" }],
         }
       }
     ]),
@@ -54,7 +56,8 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
       {
         $facet: {
           disbursement: [{ $group: { _id: null, total: { $sum: "$disbursementAmount" }, collected: { $sum: "$totalCollected" } } }],
-          counts: [{ $group: { _id: null, active: { $sum: { $cond: [{ $ne: ["$status", "Closed"] }, 1, 0] } }, closed: { $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] } } } }],
+          active: [{ $match: { status: { $ne: "Closed" } } }, { $count: "count" }],
+          closed: [{ $match: { status: "Closed" } }, { $count: "count" }],
         }
       }
     ]),
@@ -64,8 +67,9 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
       {
         $facet: {
           disbursement: [{ $group: { _id: null, total: { $sum: "$initialPrincipalAmount" }, processingFees: { $sum: "$processingFee" } } }],
-          principalCollected: [{ $group: { _id: null, total: { $sum: { $sum: "$principalPayments.amount" } } } }],
-          counts: [{ $group: { _id: null, active: { $sum: { $cond: [{ $ne: ["$status", "Closed"] }, 1, 0] }, }, closed: { $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] } } } }],
+          principalCollected: [{ $group: { _id: null, total: { $sum: { $sum: { $ifNull: ["$principalPayments.amount", []] } } } } }],
+          active: [{ $match: { status: { $ne: "Closed" } } }, { $count: "count" }],
+          closed: [{ $match: { status: "Closed" } }, { $count: "count" }],
         }
       }
     ]),
@@ -74,10 +78,10 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     Promise.all([
       EMI.aggregate([
         { $match: { loanModel: "Loan" } },
-        { $group: { _id: null, total: { $sum: { $add: [{ $ifNull: ["$amountPaid", 0] }, { $ifNull: [{ $sum: "$overdue.amount" }, 0] }] } } } }
+        { $group: { _id: null, total: { $sum: { $add: [{ $ifNull: ["$amountPaid", 0] }, { $ifNull: [{ $sum: { $ifNull: ["$overdue.amount", []] } }, 0] }] } } } }
       ]),
       InterestEMI.aggregate([
-        { $group: { _id: null, total: { $sum: { $add: [{ $ifNull: ["$amountPaid", 0] }, { $ifNull: [{ $sum: "$overdue.amount" }, 0] }] } } } }
+        { $group: { _id: null, total: { $sum: { $add: [{ $ifNull: ["$amountPaid", 0] }, { $ifNull: [{ $sum: { $ifNull: ["$overdue.amount", []] } }, 0] }] } } } }
       ]),
       Expense.aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]),
     ]),
@@ -86,70 +90,74 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     User.aggregate([{ $group: { _id: "$role", count: { $sum: 1 } } }]),
 
     // 7. Pending Collections (Monthly + Daily + Weekly + Interest)
-    // We'll approximate this from existing collections or do separate counts
     EMI.aggregate([{ $match: { status: "Pending" } }, { $group: { _id: "$loanId" } }, { $count: "count" }]),
     
     // 8. Partial Counts
     EMI.aggregate([{ $match: { status: "Partially Paid", loanModel: "Loan" } }, { $group: { _id: "$loanId" } }, { $count: "count" }]),
   ]);
 
-  // Destructure with default empty objects
-  const mMain = loanMetrics[0] || {};
-  const mDaily = dailyMetrics[0] || {};
-  const mWeekly = weeklyMetrics[0] || {};
-  const mInterest = interestMetrics[0] || {};
-  const [emiMonthlyArr, emiInterestArr, expenseResultsArr] = expenseStats || [[], [], []];
-  
-  // Safe extraction helper
-  const getSum = (arr, field = "total") => arr && arr[0] ? (arr[0][field] || 0) : 0;
+  // Safe extraction helper for facet results
+  const getSum = (facetResult, facetName, field = "total") => {
+    const data = facetResult && facetResult[0] ? facetResult[0][facetName] : null;
+    return data && data[0] ? (data[0][field] || 0) : 0;
+  };
 
-  // Disbursement Breakdown
-  const monthlyDisbursed = Math.ceil(getSum(mMain.disbursement));
-  const dailyDisbursed = Math.ceil(getSum(mDaily.disbursement));
-  const weeklyDisbursed = Math.ceil(getSum(mWeekly.disbursement));
-  const interestDisbursed = Math.ceil(getSum(mInterest.disbursement));
+  const getCount = (facetResult, facetName) => {
+    const data = facetResult && facetResult[0] ? facetResult[0][facetName] : null;
+    return data && data[0] ? (data[0].count || 0) : 0;
+  };
+
+  // Safe extraction for individual aggregates (not facets)
+  const getAggSum = (arr, field = "total") => arr && arr[0] ? (arr[0][field] || 0) : 0;
+
+  // 1. Disbursement Breakdown
+  const monthlyDisbursed = Math.round(getSum(loanMetrics, "disbursement"));
+  const dailyDisbursed = Math.round(getSum(dailyMetrics, "disbursement"));
+  const weeklyDisbursed = Math.round(getSum(weeklyMetrics, "disbursement"));
+  const interestDisbursed = Math.round(getSum(interestMetrics, "disbursement"));
   const totalLoanAmount = monthlyDisbursed + dailyDisbursed + weeklyDisbursed + interestDisbursed;
 
-  // Collection Breakdown
-  const monthlyCollected = Math.ceil(
-    getSum(emiMonthlyArr) + 
-    getSum(mMain.foreclosure) + 
-    getSum(mMain.sold) + 
-    getSum(mMain.processingFees)
+  // 2. Collection Breakdown
+  const [emiMonthlyArr, emiInterestArr, expenseResultsArr] = expenseStats || [[], [], []];
+  
+  const monthlyCollected = Math.round(
+    getAggSum(emiMonthlyArr) + 
+    getSum(loanMetrics, "foreclosure") + 
+    getSum(loanMetrics, "sold") + 
+    getSum(loanMetrics, "processingFees")
   );
-  const dailyCollected = Math.ceil(getSum(mDaily.disbursement, "collected"));
-  const weeklyCollected = Math.ceil(getSum(mWeekly.disbursement, "collected"));
-  const interestCollected = Math.ceil(
-    getSum(emiInterestArr) + 
-    getSum(mInterest.principalCollected) + 
-    getSum(mInterest.disbursement, "processingFees")
+  const dailyCollected = Math.round(getSum(dailyMetrics, "disbursement", "collected"));
+  const weeklyCollected = Math.round(getSum(weeklyMetrics, "disbursement", "collected"));
+  const interestCollected = Math.round(
+    getAggSum(emiInterestArr) + 
+    getSum(interestMetrics, "principalCollected") + 
+    getSum(interestMetrics, "disbursement", "processingFees")
   );
   const totalCollectedAmount = monthlyCollected + dailyCollected + weeklyCollected + interestCollected;
 
-  // Global Counts
+  // 3. Global Counts
   const activeLoansCount = 
-    (getSum(mMain.counts, "active")) + 
-    (getSum(mDaily.counts, "active")) + 
-    (getSum(mWeekly.counts, "active")) + 
-    (getSum(mInterest.counts, "active"));
+    getCount(loanMetrics, "active") + 
+    getCount(dailyMetrics, "active") + 
+    getCount(weeklyMetrics, "active") + 
+    getCount(interestMetrics, "active");
 
   const closedLoansCount = 
-    (getSum(mMain.counts, "closed")) + 
-    (getSum(mDaily.counts, "closed")) + 
-    (getSum(mWeekly.counts, "closed")) + 
-    (getSum(mInterest.counts, "closed"));
+    getCount(loanMetrics, "closed") + 
+    getCount(dailyMetrics, "closed") + 
+    getCount(weeklyMetrics, "closed") + 
+    getCount(interestMetrics, "closed");
 
-  const totalExpenses = Math.ceil(getSum(expenseResultsArr));
+  const totalExpenses = Math.round(getAggSum(expenseResultsArr));
 
-  // Format Vehicle Data
+  // 4. Vehicle & User Stats
   const vehicleData = { "For Seizing": 0, Seized: 0, Sold: 0 };
-  if (mMain.vehicleStatus) {
-    mMain.vehicleStatus.forEach(s => { 
+  if (loanMetrics[0]?.vehicleStatus) {
+    loanMetrics[0].vehicleStatus.forEach(s => { 
       if (s._id) vehicleData[s._id] = s.count || 0; 
     });
   }
 
-  // Format User Data
   const userData = { SUPER_ADMIN: 0, ADMIN: 0, EMPLOYEE: 0 };
   if (userStats) {
     userStats.forEach(s => { 
@@ -157,63 +165,13 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     });
   }
 
-  // Disbursement Breakdown by Mode
-  const getDisbursementModes = (loanMetrics) => {
-    let cash = 0;
-    let account = 0;
-    
-    // Monthly
-    const mDisArr = loanMetrics[0]?.disbursement || [];
-    const mainMode = loanMetrics[0]?.paymentMode || "Cash";
-    if (mDisArr.length > 0) {
-      mDisArr.forEach(d => {
-        if ((d.mode || mainMode) === "Cash") cash += (d.amount || 0);
-        else account += (d.amount || 0);
-      });
-    } else {
-      const pAmt = loanMetrics[0]?.principalAmount || 0;
-      if (mainMode === "Cash") cash += pAmt;
-      else account += pAmt;
-    }
-
-    // Daily/Weekly/Interest
-    const processLoan = (loan) => {
-      const disb = loan.disbursement || [];
-      const mode = loan.paymentMode || "Cash";
-      if (disb.length > 0) {
-        disb.forEach(d => {
-          if ((d.mode || mode) === "Cash") cash += (d.amount || 0);
-          else account += (d.amount || 0);
-        });
-      } else {
-        const amt = loan.disbursementAmount || loan.initialPrincipalAmount || 0;
-        if (mode === "Cash") cash += amt;
-        else account += amt;
-      }
-    };
-
-    return { cash, account };
-  };
-
-  // We need more granular aggregation for modes. Let's do a direct aggregate on Payment
+  // 5. Payment Mode Stats (Granular)
   const [collectionModes] = await Promise.all([
     Payment.aggregate([
-      {
-        $group: {
-          _id: { 
-            $cond: [
-              { $eq: ["$mode", "Cash"] }, 
-              "cash", 
-              "account"
-            ]
-          },
-          total: { $sum: "$totalAmount" }
-        }
-      }
+      { $group: { _id: { $cond: [{ $eq: ["$mode", "Cash"] }, "cash", "account"] }, total: { $sum: "$totalAmount" } } }
     ])
   ]);
 
-  // Aggregate disbursement modes across all models
   const [dMonthly, dDaily, dWeekly, dInterest] = await Promise.all([
     Loan.find({}, "disbursement paymentMode principalAmount"),
     DailyLoan.find({}, "disbursement paymentMode disbursementAmount"),
@@ -226,8 +184,8 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     loans.forEach(l => {
       if (l.disbursement?.length > 0) {
         l.disbursement.forEach(d => {
-          if (d.mode === "Cash") c += d.amount;
-          else a += d.amount;
+          if (d.mode === "Cash") c += (d.amount || 0);
+          else a += (d.amount || 0);
         });
       } else {
         if (l.paymentMode === "Cash") c += (l[amtField] || 0);
@@ -242,20 +200,11 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
   const wD = calcD(dWeekly, "disbursementAmount");
   const iD = calcD(dInterest, "initialPrincipalAmount");
 
-  const disByMode = {
-    cash: Math.ceil(mD.c + dD.c + wD.c + iD.c),
-    account: Math.ceil(mD.a + dD.a + wD.a + iD.a)
-  };
-
   const collByMode = { cash: 0, account: 0 };
   collectionModes.forEach(m => {
-    if (m._id === "account") collByMode.account = Math.ceil(m.total);
-    else collByMode.cash += Math.ceil(m.total);
+    if (m._id === "account") collByMode.account = Math.round(m.total);
+    else collByMode.cash += Math.round(m.total);
   });
-
-  // Reconcile with totalCollectedAmount to ensure consistency with main cards
-  // Any amount not explicitly recorded as 'Account' in Payment model is treated as 'Cash'
-  const finalCollCash = Math.max(0, totalCollectedAmount - collByMode.account);
 
   const duration = (performance.now() - startTotal).toFixed(2);
 
@@ -277,14 +226,14 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
       },
       paymentModeStats: {
         disbursement: {
-          cash: disByMode.cash,
-          account: disByMode.account,
-          total: totalLoanAmount // Use totalLoanAmount for absolute consistency 
+          cash: Math.round(mD.c + dD.c + wD.c + iD.c),
+          account: Math.round(mD.a + dD.a + wD.a + iD.a),
+          total: totalLoanAmount 
         },
         collection: {
-          cash: finalCollCash,
+          cash: Math.max(0, totalCollectedAmount - collByMode.account),
           account: collByMode.account,
-          total: totalCollectedAmount // Match main cards exactly
+          total: totalCollectedAmount 
         }
       },
       pendingLoansCount: pendingMetrics[0]?.count || 0,
@@ -298,14 +247,7 @@ const getAnalyticsStats = asyncHandler(async (req, res, next) => {
     performance: { totalTime: `${duration}ms` },
   };
 
-  sendResponse(
-    res,
-    200,
-    "success",
-    "Analytics stats fetched successfully",
-    null,
-    statsResponse,
-  );
+  sendResponse(res, 200, "success", "Analytics stats fetched successfully", null, statsResponse);
 });
 
 const exportAllData = asyncHandler(async (req, res, next) => {
