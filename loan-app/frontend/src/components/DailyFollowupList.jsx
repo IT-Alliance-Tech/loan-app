@@ -14,7 +14,6 @@ const DailyFollowupList = () => {
   const router = useRouter();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeContactMenu, setActiveContactMenu] = useState(null);
 
@@ -38,7 +37,6 @@ const DailyFollowupList = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const { showToast } = useToast();
   const user = getUserFromToken();
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   // Load saved filters on mount
   useEffect(() => {
@@ -81,26 +79,13 @@ const DailyFollowupList = () => {
         setTotalPages(res.data.pagination.totalPages);
         setTotalRecords(res.data.pagination.total);
       }
-      setError("");
     } catch (err) {
-      setError(err.message);
       showToast(err.message, "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this daily loan?")) {
-      try {
-        await deleteDailyLoan(id);
-        showToast("Daily loan deleted", "success");
-        fetchFollowups();
-      } catch (err) {
-        showToast(err.message || "Failed to delete", "error");
-      }
-    }
-  };
 
   useEffect(() => {
     const timer = setTimeout(() => {

@@ -39,8 +39,42 @@ export const NotificationProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    let isMounted = true;
+
+    const loadNotifications = async () => {
+      const token = getToken();
+      if (!token || !isMounted) return;
+
+      const apiBase =
+        process.env.NEXT_PUBLIC_API_BASE_URL === "undefined" ||
+        !process.env.NEXT_PUBLIC_API_BASE_URL
+          ? "http://localhost:5000"
+          : process.env.NEXT_PUBLIC_API_BASE_URL;
+
+      try {
+        const response = await fetch(`${apiBase}/api/notifications?limit=5`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        if (data.success && isMounted) {
+          setNotifications(data.notifications);
+          setUnreadCount(data.unreadCount);
+        }
+      } catch (error) {
+        if (error.message !== "Failed to fetch") {
+          console.error("Error fetching notifications:", error);
+        }
+      }
+    };
+
+    loadNotifications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const token = getToken();
