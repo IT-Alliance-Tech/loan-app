@@ -15,7 +15,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "https://loan-app-dev-ofvk.onrender.com/api/:path*",
+        destination: "https://loan-app-03x1.onrender.com/api/:path*",
       },
     ];
   },
