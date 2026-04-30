@@ -109,6 +109,7 @@ const DisbursementModal = ({ isOpen, onClose, onApply, initialData = [] }) => {
         {groups.map((group, gIndex) => (
           <div key={gIndex} className="bg-slate-50/50 rounded-[2rem] p-5 border border-slate-100 relative transition-all hover:bg-slate-50">
             <button 
+              type="button"
               onClick={() => handleRemoveDateGroup(gIndex)}
               className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-50"
             >
@@ -128,6 +129,7 @@ const DisbursementModal = ({ isOpen, onClose, onApply, initialData = [] }) => {
                   />
                   {group.date && (
                     <button 
+                      type="button"
                       onClick={() => handleGroupDateChange(gIndex, "")}
                       className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 py-1.5 hover:text-red-500 transition-colors"
                     >
@@ -187,6 +189,7 @@ const DisbursementModal = ({ isOpen, onClose, onApply, initialData = [] }) => {
                   )}
                   <div className="md:col-span-2 flex justify-end">
                     <button 
+                      type="button"
                       onClick={() => handleRemoveItem(gIndex, iIndex)}
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"
                     >
@@ -199,6 +202,7 @@ const DisbursementModal = ({ isOpen, onClose, onApply, initialData = [] }) => {
               ))}
               
               <button 
+                type="button"
                 onClick={() => handleAddItem(gIndex)}
                 className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5 px-3 py-2 hover:text-primary/70 transition-all"
               >
@@ -209,6 +213,7 @@ const DisbursementModal = ({ isOpen, onClose, onApply, initialData = [] }) => {
         ))}
 
         <button 
+          type="button"
           onClick={handleAddDateGroup}
           className="w-full py-3 border-2 border-dashed border-slate-100 rounded-[1.5rem] text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
         >
@@ -227,12 +232,14 @@ const DisbursementModal = ({ isOpen, onClose, onApply, initialData = [] }) => {
           </div>
           <div className="flex gap-3 justify-end">
             <button 
+              type="button"
               onClick={onClose}
               className="px-6 py-2.5 bg-slate-100 text-slate-500 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all active:scale-95"
             >
               Cancel
             </button>
             <button 
+              type="button"
               onClick={handleApply}
               className="px-8 py-2.5 bg-primary text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 active:scale-95"
             >

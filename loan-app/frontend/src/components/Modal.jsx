@@ -31,6 +31,7 @@ const Modal = ({ isOpen, onClose, title, children, size = "md" }) => {
             </h2>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all font-bold"
           >
