@@ -253,8 +253,8 @@ const LoanForm = ({
       // Clean up rtoWorkPending: ensure it's an array and filter out empty strings
       const rtoWork = Array.isArray(values.vehicleInformation.rtoWorkPending)
         ? values.vehicleInformation.rtoWorkPending.filter(
-            (w) => w.trim() !== "",
-          )
+          (w) => w.trim() !== "",
+        )
         : [];
 
       // Save any new options to the backend
@@ -485,9 +485,9 @@ const LoanForm = ({
       total = emis.reduce((sum, emi) => {
         const overdueSum = Array.isArray(emi.overdue)
           ? emi.overdue.reduce(
-              (oSum, ov) => oSum + (parseFloat(ov.amount) || 0),
-              0,
-            )
+            (oSum, ov) => oSum + (parseFloat(ov.amount) || 0),
+            0,
+          )
           : parseFloat(emi.overdue) || 0;
         return sum + (parseFloat(emi.amountPaid) || 0) + overdueSum;
       }, 0);
@@ -1569,7 +1569,7 @@ const LoanForm = ({
                         {Array.isArray(
                           formik.values.vehicleInformation.rtoWorkPending,
                         ) &&
-                        formik.values.vehicleInformation.rtoWorkPending.length >
+                          formik.values.vehicleInformation.rtoWorkPending.length >
                           0 ? (
                           formik.values.vehicleInformation.rtoWorkPending.map(
                             (item) => (
@@ -1671,31 +1671,29 @@ const LoanForm = ({
                               rtoOptions.map((opt) => (
                                 <label
                                   key={opt}
-                                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer group transition-all ${
-                                    Array.isArray(
-                                      formik.values.vehicleInformation
-                                        .rtoWorkPending,
-                                    ) &&
-                                    formik.values.vehicleInformation.rtoWorkPending.includes(
-                                      opt,
-                                    )
-                                      ? "bg-primary/5 border border-primary/10"
-                                      : "hover:bg-slate-50 border border-transparent"
-                                  }`}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <div
-                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                      Array.isArray(
-                                        formik.values.vehicleInformation
-                                          .rtoWorkPending,
-                                      ) &&
+                                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer group transition-all ${Array.isArray(
+                                    formik.values.vehicleInformation
+                                      .rtoWorkPending,
+                                  ) &&
                                       formik.values.vehicleInformation.rtoWorkPending.includes(
                                         opt,
                                       )
+                                      ? "bg-primary/5 border border-primary/10"
+                                      : "hover:bg-slate-50 border border-transparent"
+                                    }`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div
+                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${Array.isArray(
+                                      formik.values.vehicleInformation
+                                        .rtoWorkPending,
+                                    ) &&
+                                        formik.values.vehicleInformation.rtoWorkPending.includes(
+                                          opt,
+                                        )
                                         ? "bg-primary border-primary"
                                         : "bg-white border-slate-300 group-hover:border-primary"
-                                    }`}
+                                      }`}
                                   >
                                     {Array.isArray(
                                       formik.values.vehicleInformation
@@ -1736,17 +1734,16 @@ const LoanForm = ({
                                     }
                                   />
                                   <span
-                                    className={`text-sm font-bold transition-colors ${
-                                      Array.isArray(
-                                        formik.values.vehicleInformation
-                                          .rtoWorkPending,
-                                      ) &&
-                                      formik.values.vehicleInformation.rtoWorkPending.includes(
-                                        opt,
-                                      )
+                                    className={`text-sm font-bold transition-colors ${Array.isArray(
+                                      formik.values.vehicleInformation
+                                        .rtoWorkPending,
+                                    ) &&
+                                        formik.values.vehicleInformation.rtoWorkPending.includes(
+                                          opt,
+                                        )
                                         ? "text-primary"
                                         : "text-slate-600 group-hover:text-primary"
-                                    }`}
+                                      }`}
                                   >
                                     {opt}
                                   </span>
@@ -1808,7 +1805,7 @@ const LoanForm = ({
                     {Array.isArray(
                       formik.values.vehicleInformation.rtoWorkPending,
                     ) &&
-                    formik.values.vehicleInformation.rtoWorkPending.length >
+                      formik.values.vehicleInformation.rtoWorkPending.length >
                       0 ? (
                       formik.values.vehicleInformation.rtoWorkPending.map(
                         (item) => (
@@ -1857,7 +1854,7 @@ const LoanForm = ({
                     }
                   />
                 </div>
-                <ErrorMsg name="loanTerms.principalAmount" />
+                <ErrorMsg name="loanTerms.principalAmount" formik={formik} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -1905,7 +1902,7 @@ const LoanForm = ({
                   readOnly={isViewOnly}
                   className={getFieldClass("loanTerms.tenureMonths")}
                 />
-                <ErrorMsg name="loanTerms.tenureMonths" />
+                <ErrorMsg name="loanTerms.tenureMonths" formik={formik} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -1921,7 +1918,7 @@ const LoanForm = ({
                   readOnly={isViewOnly}
                   className={getFieldClass("loanTerms.annualInterestRate")}
                 />
-                <ErrorMsg name="loanTerms.annualInterestRate" />
+                <ErrorMsg name="loanTerms.annualInterestRate" formik={formik} />
               </div>
             </div>
           </div>
@@ -2124,7 +2121,7 @@ const LoanForm = ({
                               ₹
                               {parseFloat(
                                 formik.values.status?.soldDetails?.sellAmount ||
-                                  0,
+                                0,
                               ).toLocaleString("en-IN")}
                             </p>
                           </div>
@@ -2159,12 +2156,12 @@ const LoanForm = ({
                             <p className="text-[12px] font-black text-emerald-800 uppercase tracking-tighter">
                               {formik.values.status?.soldDetails?.soldDate
                                 ? new Date(
-                                    formik.values.status.soldDetails.soldDate,
-                                  ).toLocaleDateString("en-IN", {
-                                    day: "2-digit",
-                                    month: "long",
-                                    year: "numeric",
-                                  })
+                                  formik.values.status.soldDetails.soldDate,
+                                ).toLocaleDateString("en-IN", {
+                                  day: "2-digit",
+                                  month: "long",
+                                  year: "numeric",
+                                })
                                 : "-"}
                             </p>
                           </div>
@@ -2177,7 +2174,7 @@ const LoanForm = ({
                                 ?.soldBy === "object"
                                 ? formik.values.status.soldDetails.soldBy.name
                                 : formik.values.status?.soldDetails?.soldBy ||
-                                  "AUTHORIZED SYSTEM OFFICER"}
+                                "AUTHORIZED SYSTEM OFFICER"}
                             </p>
                           </div>
                         </div>
@@ -2214,13 +2211,13 @@ const LoanForm = ({
                               {formik.values.status?.foreclosureDetails
                                 ?.foreclosureDate
                                 ? new Date(
-                                    formik.values.status.foreclosureDetails
-                                      .foreclosureDate,
-                                  ).toLocaleDateString("en-IN", {
-                                    day: "2-digit",
-                                    month: "long",
-                                    year: "numeric",
-                                  })
+                                  formik.values.status.foreclosureDetails
+                                    .foreclosureDate,
+                                ).toLocaleDateString("en-IN", {
+                                  day: "2-digit",
+                                  month: "long",
+                                  year: "numeric",
+                                })
                                 : "-"}
                             </p>
                           </div>
@@ -2232,10 +2229,10 @@ const LoanForm = ({
                               {typeof formik.values.status?.foreclosureDetails
                                 ?.foreclosedBy === "object"
                                 ? formik.values.status.foreclosureDetails
-                                    .foreclosedBy.name
+                                  .foreclosedBy.name
                                 : formik.values.status?.foreclosureDetails
-                                    ?.foreclosedBy ||
-                                  "AUTHORIZED SYSTEM OFFICER"}
+                                  ?.foreclosedBy ||
+                                "AUTHORIZED SYSTEM OFFICER"}
                             </p>
                           </div>
                         </div>
