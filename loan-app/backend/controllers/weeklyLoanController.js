@@ -581,19 +581,63 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     }).sort({ emiNumber: 1 });
 
     if (emis.length > 0) {
+      const oldTenure = emis.length;
+      const newTenure = parseInt(totalEmis || weeklyLoan.totalEmis);
+      const newEmiStartDate = new Date(weeklyLoan.emiStartDate);
+
+      // 1. Update existing EMIs
       const updatePromises = emis.map((emi, index) => {
-        const newDueDate = new Date(weeklyLoan.emiStartDate);
+        const newDueDate = new Date(newEmiStartDate);
         newDueDate.setDate(newDueDate.getDate() + index * 7);
 
-        return EMI.findByIdAndUpdate(emi._id, {
+        const updates = {
           dueDate: newDueDate,
-          emiAmount: Math.ceil(weeklyLoan.emiAmount),
           customerName: weeklyLoan.customerName,
           loanNumber: weeklyLoan.loanNumber,
-          // We don't change status/amountPaid here to preserve payment history
-        });
+        };
+
+        // Only update amount for non-paid EMIs to prevent historical data mismatch
+        if (emi.status !== "Paid") {
+          updates.emiAmount = Math.ceil(weeklyLoan.emiAmount);
+        }
+
+        return EMI.findByIdAndUpdate(emi._id, updates);
       });
       await Promise.all(updatePromises);
+
+      // 2. Handle Tenure Increase
+      if (newTenure > oldTenure) {
+        const extraEmis = [];
+        for (let i = oldTenure + 1; i <= newTenure; i++) {
+          const newDueDate = new Date(newEmiStartDate);
+          newDueDate.setDate(newDueDate.getDate() + (i - 1) * 7);
+
+          extraEmis.push({
+            loanId: weeklyLoan._id,
+            loanModel: "WeeklyLoan",
+            loanNumber: weeklyLoan.loanNumber,
+            customerName: weeklyLoan.customerName,
+            emiNumber: i,
+            dueDate: newDueDate,
+            emiAmount: Math.ceil(weeklyLoan.emiAmount),
+            status: "Pending",
+            overdue: [],
+          });
+        }
+        if (extraEmis.length > 0) {
+          await EMI.insertMany(extraEmis);
+        }
+      }
+      // 3. Handle Tenure Decrease
+      else if (newTenure < oldTenure) {
+        // Remove extra EMIs only if they are Pending
+        await EMI.deleteMany({
+          loanId: weeklyLoan._id,
+          loanModel: "WeeklyLoan",
+          emiNumber: { $gt: newTenure },
+          status: "Pending",
+        });
+      }
     }
   }
 

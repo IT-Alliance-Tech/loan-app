@@ -151,6 +151,30 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
       }
     },
     {
+      $lookup: {
+        from: "loans",
+        localField: "_id.loanId",
+        foreignField: "_id",
+        as: "monthlyLoanInfo"
+      }
+    },
+    {
+      $lookup: {
+        from: "weeklyloans",
+        localField: "_id.loanId",
+        foreignField: "_id",
+        as: "weeklyLoanInfo"
+      }
+    },
+    {
+      $lookup: {
+        from: "dailyloans",
+        localField: "_id.loanId",
+        foreignField: "_id",
+        as: "dailyLoanInfo"
+      }
+    },
+    {
       $addFields: {
         emiDetails: { 
           $ifNull: [
@@ -158,7 +182,18 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
             { $arrayElemAt: ["$interestEmiInfo", 0] }
           ] 
         },
-        collector: { $arrayElemAt: ["$collectorInfo", 0] }
+        collector: { $arrayElemAt: ["$collectorInfo", 0] },
+        loanFallback: {
+          $ifNull: [
+            { $arrayElemAt: ["$monthlyLoanInfo", 0] },
+            { 
+              $ifNull: [
+                { $arrayElemAt: ["$weeklyLoanInfo", 0] },
+                { $arrayElemAt: ["$dailyLoanInfo", 0] }
+              ]
+            }
+          ]
+        }
       }
     }
   ]);
@@ -172,9 +207,9 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
       _id: txn._id,
       loanId: txn._id.loanId,
       loanModel: txn.loanModel,
-      loanNumber: txn.emiDetails ? txn.emiDetails.loanNumber : "Unknown",
-      emiNo: txn.emiDetails ? txn.emiDetails.emiNumber : (txn.emiDetails?.emiNo || "-"),
-      customerName: txn.emiDetails ? txn.emiDetails.customerName : "Unknown",
+      loanNumber: txn.emiDetails?.loanNumber || txn.loanFallback?.loanNumber || "Unknown",
+      emiNo: txn.emiDetails?.emiNumber || (txn.emiDetails?.emiNo || "-"),
+      customerName: txn.emiDetails?.customerName || txn.loanFallback?.customerName || "Unknown",
       emiAmount: emiAmt,
       overdueAmount: txn.overdueAmount || 0,
       totalAmount: totalAmt,

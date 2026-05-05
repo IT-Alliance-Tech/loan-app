@@ -52,22 +52,23 @@ const formatLoanResponse = (loanDoc) => {
             status: loan.status,
             paymentStatus: loan.paymentStatus,
             remarks: loan.remarks,
-            foreclosureDetails: {
-              foreclosedBy: loan.foreclosedBy || null,
-              foreclosureDate: loan.foreclosureDate || null,
-              foreclosureAmount:
-                loan.foreclosureAmount !== undefined &&
-                loan.foreclosureAmount !== null
-                  ? loan.foreclosureAmount
-                  : null,
-              // Detailed Breakdown
-              foreclosureChargeAmount: loan.foreclosureChargeAmount || 0,
-              foreclosureChargePercent: loan.foreclosureChargePercent || 0,
-              miscellaneousFee: loan.miscellaneousFee || 0,
-              odAmount: loan.odAmount || 0,
-              remainingPrincipal: loan.remainingPrincipal || 0,
-              createdBy: loan.createdBy || null,
-            },
+            ...(loan.foreclosureAmount !== undefined && loan.foreclosureAmount !== null
+              ? {
+                  foreclosureDetails: {
+                    foreclosedBy: loan.foreclosedBy || null,
+                    foreclosureDate: loan.foreclosureDate || null,
+                    foreclosureAmount: loan.foreclosureAmount,
+                    // Detailed Breakdown
+                    foreclosureChargeAmount: loan.foreclosureChargeAmount || 0,
+                    foreclosureChargePercent:
+                      loan.foreclosureChargePercent || 0,
+                    miscellaneousFee: loan.miscellaneousFee || 0,
+                    odAmount: loan.odAmount || 0,
+                    remainingPrincipal: loan.remainingPrincipal || 0,
+                    createdBy: loan.createdBy || null,
+                  },
+                }
+              : {}),
             seizedStatus: loan.seizedStatus,
             seizedDate: loan.seizedDate,
             soldDetails: loan.soldDetails

@@ -538,6 +538,7 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
     loan.status?.toLowerCase() === "closed" &&
+    remainingPrincipalAmount > 0 && // Only recover if it wasn't a standard 'Full Pay'
     !loan.foreclosureAmount && // Trigger if 0, null, or undefined
     !loan.soldDetails?.sellAmount // Don't trigger if it's a sold vehicle
   ) {
@@ -685,6 +686,7 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   // Aggressive recovery logic for foreclosureDetails for older loans
   if (
     loan.status?.toLowerCase() === "closed" &&
+    remainingPrincipalAmount > 0 && // Only recover if it wasn't a standard 'Full Pay'
     !loan.foreclosureAmount && // Trigger if 0, null, or undefined
     !loan.soldDetails?.sellAmount // Don't trigger if it's a sold vehicle
   ) {
@@ -2098,26 +2100,31 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
   );
 
   // 3. Create Payment Records for each mode in breakdown
-  const firstPendingEmi = await EMI.findOne({
+  let targetEmiId = null;
+  const firstJustPaidEmi = await EMI.findOne({
     loanId: id,
     status: "Paid",
     paymentDate: pDate,
   }).sort({ emiNumber: 1 });
 
+  if (firstJustPaidEmi) {
+    targetEmiId = firstJustPaidEmi._id;
+  } else {
+    // Fallback: Get the absolute last EMI for this loan if no pending ones were found to mark as paid
+    const lastEmi = await EMI.findOne({ loanId: id }).sort({ emiNumber: -1 });
+    if (lastEmi) targetEmiId = lastEmi._id;
+  }
+
   const Payment = require("../models/Payment");
   const paymentRecords = (paymentBreakdown || []).map((p) => ({
-    emiId: firstPendingEmi?._id || new mongoose.Types.ObjectId(),
+    emiId: targetEmiId,
     loanId: id,
     loanModel: loan.loanModel || "Loan",
     amount: parseFloat(p.amount),
+    totalAmount: parseFloat(p.amount),
     mode: p.mode,
     paymentDate: pDate,
-    paymentType:
-      loan.loanModel === "DailyLoan"
-        ? "Daily"
-        : loan.loanModel === "WeeklyLoan"
-          ? "Weekly"
-          : "Monthly",
+    paymentType: "Foreclosure",
     status: "Success",
     remarks: `Foreclosure Split-Payment (${p.mode}) for Loan ${loan.loanNumber}`,
     collectedBy: req.user._id,

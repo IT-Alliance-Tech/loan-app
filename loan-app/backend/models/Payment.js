@@ -55,6 +55,7 @@ const paymentSchema = new mongoose.Schema(
         "Processing Fee",
         "Overdue",
         "Interest",
+        "Foreclosure",
       ],
       required: true,
     },
