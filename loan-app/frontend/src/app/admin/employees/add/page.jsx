@@ -22,6 +22,7 @@ const AddEmployeePage = () => {
       loans: { view: false, create: false, edit: false, delete: false },
       weeklyLoans: { view: false, create: false, edit: false, delete: false },
       dailyLoans: { view: false, create: false, edit: false, delete: false },
+      interestLoans: { view: false, create: false, edit: false, delete: false },
       emis: { view: false, create: false, edit: false, delete: false },
       vehicles: { view: false, create: false, edit: false, delete: false },
       payments: { view: false, create: false, edit: false, delete: false },
@@ -291,6 +292,7 @@ const AddEmployeePage = () => {
                         module="weeklyLoans"
                       />
                       <PermissionRow label="Daily Loans" module="dailyLoans" />
+                      <PermissionRow label="Interest Loans" module="interestLoans" />
                       <PermissionRow label="EMIs" module="emis" />
                       <PermissionRow
                         label="Seized Vehicles"

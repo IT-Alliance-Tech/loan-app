@@ -390,17 +390,37 @@ const processApproval = asyncHandler(async (req, res, next) => {
 
   await approval.save();
 
+  let totalApprovedAmount = parseFloat(approval.requestedData.amount) || parseFloat(approval.requestedData.totalAmount) || parseFloat(approval.requestedData.addedAmount) || 0;
+
+  if (totalApprovedAmount === 0 && approval.requestedData) {
+    const { dateGroups, overdue } = approval.requestedData;
+    if (dateGroups && Array.isArray(dateGroups)) {
+      dateGroups.forEach(group => {
+        if (group.payments && Array.isArray(group.payments)) {
+          group.payments.forEach(p => {
+            totalApprovedAmount += parseFloat(p.amount) || 0;
+          });
+        }
+      });
+    }
+    if (overdue && Array.isArray(overdue)) {
+      overdue.forEach(ov => {
+        totalApprovedAmount += parseFloat(ov.amount) || 0;
+      });
+    }
+  }
+
   // Notify the employee who requested it
   await sendNotification({
     recipientId: approval.requestedBy,
     senderId: req.user._id,
     type: status === "Approved" ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED",
     title: `Payment Request ${status}`,
-    message: `Payment of ₹${approval.requestedData.amount || approval.requestedData.addedAmount || 0} for loan ${approval.loanNumber} (${approval.customerName}) has been ${status.toLowerCase()} by ${req.user.name}.`,
+    message: `Payment of ₹${totalApprovedAmount} for loan ${approval.loanNumber} (${approval.customerName}) has been ${status.toLowerCase()} by ${req.user.name}.`,
     data: {
       loanNumber: approval.loanNumber,
       customerName: approval.customerName,
-      amount: approval.requestedData.amount || approval.requestedData.addedAmount || 0,
+      amount: totalApprovedAmount,
       employeeName: req.user.name,
       loanId: approval.targetId,
       loanType: approval.targetModel,

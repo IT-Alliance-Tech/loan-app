@@ -49,6 +49,12 @@ const userSchema = new mongoose.Schema(
         edit: { type: Boolean, default: false },
         delete: { type: Boolean, default: false },
       },
+      interestLoans: {
+        view: { type: Boolean, default: false },
+        create: { type: Boolean, default: false },
+        edit: { type: Boolean, default: false },
+        delete: { type: Boolean, default: false },
+      },
       emis: {
         view: { type: Boolean, default: false },
         create: { type: Boolean, default: false },

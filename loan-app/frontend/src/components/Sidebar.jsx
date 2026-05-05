@@ -170,6 +170,7 @@ const Sidebar = () => {
         Expired: "documents",
         "Weekly Loans": "weeklyLoans",
         "Daily Loans": "dailyLoans",
+        "Interest Loans": "interestLoans",
         "Seized Vehicles": "vehicles",
         Payments: "payments",
         Expenses: "expenses",
