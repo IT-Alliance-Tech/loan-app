@@ -51,13 +51,14 @@ const emiSchema = new mongoose.Schema(
           date: { type: Date, required: true },
           amount: { type: Number, required: true },
           mode: { type: String, default: "CASH" },
+          chequeNumber: { type: String, default: "" },
         },
       ],
       default: [],
     },
     status: {
       type: String,
-      enum: ["Pending", "Paid", "Partially Paid", "Overdue"],
+      enum: ["Pending", "Paid", "Partially Paid", "Overdue", "Waiting for Approval"],
       default: "Pending",
     },
     remarks: {
@@ -68,10 +69,18 @@ const emiSchema = new mongoose.Schema(
       {
         amount: { type: Number, required: true },
         mode: { type: String, required: true },
+        chequeNumber: { type: String, default: "" },
         date: { type: Date, required: true },
         addedAt: { type: Date, default: Date.now },
       },
     ],
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

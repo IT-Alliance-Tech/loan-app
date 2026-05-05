@@ -234,14 +234,12 @@ const WeeklyLoansList = ({ type, title }) => {
                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                     MOBILE
                   </th>
-                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    GUARANTOR
-                  </th>
-                  <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                    GUAR. MOBILE
+
+                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                    EMI
                   </th>
                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                    EMI
+                    DISBURSEMENT
                   </th>
                   <th className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                     TENURE
@@ -261,7 +259,7 @@ const WeeklyLoansList = ({ type, title }) => {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan="10"
+                      colSpan="8"
                       className="px-4 py-12 text-center text-slate-400 font-bold text-[10px] uppercase tracking-widest"
                     >
                       Loading...
@@ -270,7 +268,7 @@ const WeeklyLoansList = ({ type, title }) => {
                 ) : loans.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="10"
+                      colSpan="8"
                       className="px-4 py-12 text-center text-slate-400 font-bold text-[10px] uppercase tracking-widest"
                     >
                       No records
@@ -328,41 +326,18 @@ const WeeklyLoansList = ({ type, title }) => {
                           ))}
                         </div>
                       </td>
-                      <td className="px-4 py-5 whitespace-nowrap">
-                        <span className="font-black text-slate-900 text-xs uppercase tracking-tighter">
-                          {loan.guarantorName || "—"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-5 whitespace-nowrap">
-                        <div className="flex flex-col gap-0.5">
-                          {(loan.guarantorMobileNumbers || [loan.guarantorMobile]).map((num, idx) => 
-                            num ? (
-                              <button
-                                key={idx}
-                                onClick={(e) => {
-                                  const rect = e.currentTarget.getBoundingClientRect();
-                                  setActiveContactMenu({
-                                    number: num,
-                                    name: loan.guarantorName,
-                                    type: "Guarantor",
-                                    x: rect.left,
-                                    y: rect.bottom,
-                                  });
-                                }}
-                                className="text-[10px] font-bold text-primary hover:underline transition-colors text-left"
-                              >
-                                {num}
-                              </button>
-                            ) : idx === 0 ? "—" : null
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-5 text-center whitespace-nowrap">
+
+                       <td className="px-4 py-5 text-center whitespace-nowrap">
                         <div className="flex flex-col items-center">
                           <span className="font-black text-primary text-[11px]">
                             ₹{loan.emiAmount?.toLocaleString()}
                           </span>
                         </div>
+                      </td>
+                      <td className="px-4 py-5 text-center whitespace-nowrap">
+                        <span className="font-bold text-slate-900 text-[10px]">
+                          ₹{loan.principalAmount?.toLocaleString()}
+                        </span>
                       </td>
                       <td className="px-4 py-5 text-center whitespace-nowrap">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-black">
@@ -481,17 +456,15 @@ const WeeklyLoansList = ({ type, title }) => {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                   Mobile
                 </th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                  Guarantor
-                </th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+
+                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   EMI
                 </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
-                  Tenure
+                  Disbursement
                 </th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap text-green-600">
-                  Total Collected
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                  Tenure
                 </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Status
@@ -508,7 +481,7 @@ const WeeklyLoansList = ({ type, title }) => {
               {loading ? (
                 <tr>
                   <td
-                    colSpan="10"
+                    colSpan="8"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
                     Loading records...
@@ -517,7 +490,7 @@ const WeeklyLoansList = ({ type, title }) => {
               ) : loans.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="10"
+                    colSpan="8"
                     className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                   >
                     No records found
@@ -575,40 +548,17 @@ const WeeklyLoansList = ({ type, title }) => {
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col gap-1 items-start">
-                        {(loan.guarantorMobileNumbers || [loan.guarantorMobile]).map((num, idx) => 
-                          num ? (
-                            <button
-                              key={idx}
-                              onClick={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setActiveContactMenu({
-                                  number: num,
-                                  name: loan.guarantorName,
-                                  type: "Guarantor",
-                                  x: rect.left,
-                                  y: rect.bottom,
-                                });
-                              }}
-                              className="text-slate-600 font-bold text-xs tracking-widest hover:text-primary transition-colors text-left"
-                            >
-                              {num}
-                            </button>
-                          ) : idx === 0 ? "—" : null
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-center whitespace-nowrap font-black text-primary text-xs">
+
+                     <td className="px-6 py-5 text-center whitespace-nowrap font-black text-primary text-xs">
                       ₹{loan.emiAmount?.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-5 text-center whitespace-nowrap font-bold text-slate-900 text-xs">
+                      ₹{loan.principalAmount?.toLocaleString()}
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-black">
                         {loan.totalEmis}W
                       </span>
-                    </td>
-                    <td className="px-6 py-5 text-center whitespace-nowrap font-black text-green-600 text-xs">
-                      ₹{loan.totalCollected?.toLocaleString()}
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span

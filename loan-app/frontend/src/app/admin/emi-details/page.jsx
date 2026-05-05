@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
 import Sidebar from "../../../components/Sidebar";
@@ -28,6 +28,27 @@ const EMIDetailsPage = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
 
+  const fetchEMIs = useCallback(
+    async (params = {}) => {
+      try {
+        setLoading(true);
+        const response = await getAllEMIs({ ...params, limit });
+        if (response.data && response.data.emis) {
+          setEmis(response.data.emis || []);
+          setTotalPages(response.data.pagination.totalPages);
+          setTotalRecords(response.data.pagination.total);
+        } else {
+          setEmis(response.data || []);
+        }
+      } catch (err) {
+        setError(err.message || "Failed to fetch EMI details");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [limit],
+  );
+
   useEffect(() => {
     const timer = setTimeout(() => {
       const params = { page: currentPage, limit };
@@ -38,25 +59,7 @@ const EMIDetailsPage = () => {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, currentPage]);
-
-  const fetchEMIs = async (params = {}) => {
-    try {
-      setLoading(true);
-      const response = await getAllEMIs({ ...params, limit });
-      if (response.data && response.data.emis) {
-        setEmis(response.data.emis || []);
-        setTotalPages(response.data.pagination.totalPages);
-        setTotalRecords(response.data.pagination.total);
-      } else {
-        setEmis(response.data || []);
-      }
-    } catch (err) {
-      setError(err.message || "Failed to fetch EMI details");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [searchQuery, currentPage, fetchEMIs, filters, limit]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -357,12 +360,7 @@ const EMIDetailsPage = () => {
                             <th className="w-[120px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400">
                               MOBILE
                             </th>
-                            <th className="px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400">
-                              GUARANTOR
-                            </th>
-                            <th className="w-[120px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400">
-                              GUAR. MOBILE
-                            </th>
+
                             <th className="w-[100px] px-4 py-4 text-[9px] font-black uppercase tracking-wider text-slate-400 text-center">
                               MILESTONE
                             </th>
@@ -427,37 +425,7 @@ const EMIDetailsPage = () => {
                                   ))}
                                 </div>
                               </td>
-                              <td className="px-4 py-5">
-                                <p className="text-[11px] font-black text-slate-900 uppercase tracking-tighter truncate">
-                                  {group.guarantorName || "—"}
-                                </p>
-                              </td>
-                              <td className="px-4 py-5 font-bold text-slate-500 text-[10px] whitespace-nowrap">
-                                <div className="flex flex-col gap-0.5">
-                                  {(group.guarantorMobileNumbers || []).map(
-                                    (num, idx) => (
-                                      <button
-                                        key={idx}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const rect =
-                                            e.currentTarget.getBoundingClientRect();
-                                          setActiveContactMenu({
-                                            number: num,
-                                            name: group.guarantorName,
-                                            type: "Guarantor",
-                                            x: rect.left,
-                                            y: rect.bottom,
-                                          });
-                                        }}
-                                        className="text-[9px] font-bold text-slate-400 hover:text-primary transition-colors text-left"
-                                      >
-                                        {num}
-                                      </button>
-                                    ),
-                                  )}
-                                </div>
-                              </td>
+
                               <td className="px-4 py-5 text-center">
                                 <span className="text-[10px] font-black text-slate-900">
                                   {group.paidEMIs}/{group.totalEMIs}

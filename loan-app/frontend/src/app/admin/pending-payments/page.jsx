@@ -228,15 +228,16 @@ const PendingPaymentsPage = () => {
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                           Applicant Name
                         </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                           Applicant Mobile
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                          Guarantor Name
+                          Vehicle Number
                         </th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                          Guarantor Mobile
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                          Disbursement
                         </th>
+
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                           Months
                         </th>
@@ -301,7 +302,7 @@ const PendingPaymentsPage = () => {
                               </span>
                             </td>
                             <td className="px-6 py-5 whitespace-nowrap">
-                              <div className="flex flex-col gap-0.5 mt-1">
+                               <div className="flex flex-col gap-0.5 mt-1">
                                 {(item.mobileNumbers || []).map((num, idx) => (
                                   <button
                                     key={idx}
@@ -314,45 +315,26 @@ const PendingPaymentsPage = () => {
                                         type: "Applicant",
                                         x: rect.left,
                                         y: rect.bottom,
-                                      });
-                                    }}
-                                    className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
-                                  >
-                                    {num}
-                                  </button>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-6 py-5 whitespace-nowrap">
-                              <span className="font-black text-slate-900 text-xs uppercase tracking-tight">
-                                {item.guarantorName || "—"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-5 whitespace-nowrap">
-                              <div className="flex flex-col gap-0.5 mt-1">
-                                {(item.guarantorMobileNumbers || []).map(
-                                  (num, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={(e) => {
-                                        const rect =
-                                          e.currentTarget.getBoundingClientRect();
-                                        setActiveContactMenu({
-                                          number: num,
-                                          name: item.guarantorName,
-                                          type: "Guarantor",
-                                          x: rect.left,
-                                          y: rect.bottom,
                                         });
                                       }}
                                       className="text-[11px] font-bold text-primary hover:underline transition-colors text-left"
                                     >
                                       {num}
                                     </button>
-                                  ),
-                                )}
-                              </div>
-                            </td>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-6 py-5 whitespace-nowrap">
+                                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                                  {item.vehicleNumber || "—"}
+                                </span>
+                              </td>
+                              <td className="px-6 py-5 text-center whitespace-nowrap">
+                                <span className="text-[11px] font-black text-slate-900 tracking-tight">
+                                  ₹{item.principalAmount?.toLocaleString() || "—"}
+                                </span>
+                              </td>
+
                             <td className="px-6 py-5 text-center whitespace-nowrap">
                               <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-md">
                                 {item.unpaidMonths}{" "}

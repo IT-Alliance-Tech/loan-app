@@ -9,7 +9,13 @@ const ContactActionMenu = ({ contact, onClose }) => {
         className="absolute bg-white rounded-full shadow-2xl border border-slate-100 p-1.5 flex items-center gap-1.5 animate-scale-up"
         style={{
           top: contact.y - 65, // Positioned above the click point
-          left: Math.max(15, Math.min(contact.x - 60, window.innerWidth - 175)),
+          left: Math.max(
+            15,
+            Math.min(
+              contact.x - 60,
+              (typeof window !== "undefined" ? window.innerWidth : 1200) - 175,
+            ),
+          ),
         }}
         onClick={(e) => e.stopPropagation()}
       >

@@ -1,10 +1,12 @@
-import React, { useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { getUserFromToken } from "../utils/auth";
 import ClientResponseSection from "./ClientResponseSection";
 import { checkLoanNumberUniqueness } from "../services/loan.service";
+import DisbursementModal from "./DisbursementModal";
+import DisbursementList from "./DisbursementList";
 
 const ErrorMsg = ({ name, touched, errors }) => {
   const [section, field] = name.includes(".") ? name.split(".") : [null, name];
@@ -29,6 +31,7 @@ const WeeklyLoanForm = ({
 }) => {
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const [isDisbursementModalOpen, setIsDisbursementModalOpen] = useState(false);
 
   const validationSchema = Yup.object().shape({
     loanNumber: Yup.string()
@@ -98,6 +101,10 @@ const WeeklyLoanForm = ({
     dateLoanDisbursed: formatDateForInput(
       initialData?.dateLoanDisbursed || initialData?.startDate,
     ),
+    processingFeeRate: initialData?.processingFeeRate ?? 10,
+    paymentMode: initialData?.paymentMode || "Cash",
+    chequeNumber: initialData?.chequeNumber || "",
+    disbursement: Array.isArray(initialData?.disbursement) ? initialData.disbursement : [],
   };
 
   const formik = useFormik({
@@ -120,6 +127,12 @@ const WeeklyLoanForm = ({
       });
     },
   });
+
+  const handleDisbursementApply = (disbursements) => {
+    setFieldValue("disbursement", disbursements);
+    const total = disbursements.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+    setFieldValue("disbursementAmount", total);
+  };
 
   const { values, setFieldValue, errors, touched, handleBlur } = formik;
 
@@ -461,29 +474,37 @@ const WeeklyLoanForm = ({
 
       {/* Loan Terms */}
       <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-        <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-3 uppercase tracking-tight text-primary">
-          LOAN TERMS (WEEKLY)
-        </h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-black text-slate-900 flex items-center gap-3 uppercase tracking-tight text-primary">
+            LOAN TERMS (WEEKLY)
+          </h2>
+          {!isViewOnly && (
+            <button
+              type="button"
+              onClick={() => setIsDisbursementModalOpen(true)}
+              className="px-4 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
+            >
+              Update Payment
+            </button>
+          )}
+        </div>
+
+        <DisbursementList disbursements={values.disbursement} />
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Total Principal Summary */}
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-              Amount
+              Disbursement Amount
             </label>
-            <input
-              type="number"
-              name="disbursementAmount"
-              value={values.disbursementAmount || ""}
-              onChange={formik.handleChange}
-              onBlur={handleBlur}
-              disabled={isViewOnly}
-              className={getFieldClass("disbursementAmount")}
-            />
-            <ErrorMsg
-              touched={touched}
-              errors={errors}
-              name="disbursementAmount"
-            />
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-black text-slate-700 flex justify-between items-center group shadow-sm min-h-[56px]">
+              <span>₹{(parseFloat(values.disbursementAmount) || 0).toLocaleString("en-IN")}</span>
+              <span className="text-[9px] font-black text-primary/40 uppercase tracking-widest px-2 py-0.5 bg-primary/5 rounded-md group-hover:bg-primary/10 transition-colors">
+                Calculated
+              </span>
+            </div>
           </div>
+
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
               Processing Fee Rate (%)
@@ -491,7 +512,7 @@ const WeeklyLoanForm = ({
             <input
               type="number"
               name="processingFeeRate"
-              value={values.processingFeeRate ?? 10}
+              value={values.processingFeeRate ?? ""}
               onChange={formik.handleChange}
               onBlur={handleBlur}
               disabled={isViewOnly}
@@ -547,6 +568,7 @@ const WeeklyLoanForm = ({
               <ErrorMsg touched={touched} errors={errors} name="paidEmis" />
             </div>
           )}
+
         </div>
       </div>
 
@@ -708,6 +730,13 @@ const WeeklyLoanForm = ({
           </button>
         </div>
       )}
+
+      <DisbursementModal
+        isOpen={isDisbursementModalOpen}
+        onClose={() => setIsDisbursementModalOpen(false)}
+        initialData={values.disbursement}
+        onApply={handleDisbursementApply}
+      />
     </form>
   );
 };

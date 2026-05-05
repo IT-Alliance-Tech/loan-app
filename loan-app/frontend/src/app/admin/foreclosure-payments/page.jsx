@@ -28,10 +28,12 @@ const ForeclosurePage = () => {
     od: 0,
     miscellaneousFee: 0,
     remarks: "",
+    paymentMode: "Cash",
+    chequeNumber: "",
   });
 
   const [paymentData, setPaymentData] = useState({
-    paymentBreakdown: [{ mode: "CASH", amount: 0 }],
+    paymentBreakdown: [{ mode: "CASH", amount: 0, chequeNumber: "" }],
     paymentDate: new Date().toISOString().split("T")[0],
   });
 
@@ -72,6 +74,20 @@ const ForeclosurePage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    // Handle text fields (remarks, paymentMode, chequeNumber)
+    if (e.target.type === "textarea" || name === "paymentMode") {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+      return;
+    }
+
+    // Handle chequeNumber: digits only, max 6
+    if (name === "chequeNumber") {
+      const digits = value.replace(/\D/g, "").slice(0, 6);
+      setFormData((prev) => ({ ...prev, chequeNumber: digits }));
+      return;
+    }
+
     let numValue = parseFloat(value) || 0;
 
     setFormData((prev) => {
@@ -83,11 +99,6 @@ const ForeclosurePage = () => {
         updated.foreclosureChargeAmount = Math.ceil((principal * numValue) / 100);
       }
 
-      // Update remarks if text
-      if (e.target.type === "textarea") {
-        updated[name] = value;
-      }
-
       return updated;
     });
   };
@@ -95,9 +106,15 @@ const ForeclosurePage = () => {
   const handlePaymentChange = (index, field, value) => {
     setPaymentData((prev) => {
       const newBreakdown = [...prev.paymentBreakdown];
+      let finalValue = value;
+      if (field === "amount") {
+        finalValue = parseFloat(value) || 0;
+      } else if (field === "chequeNumber") {
+        finalValue = value.replace(/\D/g, "");
+      }
       newBreakdown[index] = {
         ...newBreakdown[index],
-        [field]: field === "amount" ? parseFloat(value) || 0 : value,
+        [field]: finalValue,
       };
       return { ...prev, paymentBreakdown: newBreakdown };
     });
@@ -106,7 +123,7 @@ const ForeclosurePage = () => {
   const addPaymentRow = () => {
     setPaymentData((prev) => ({
       ...prev,
-      paymentBreakdown: [...prev.paymentBreakdown, { mode: "CASH", amount: 0 }],
+      paymentBreakdown: [...prev.paymentBreakdown, { mode: "CASH", amount: 0, chequeNumber: "" }],
     }));
   };
 
@@ -127,13 +144,33 @@ const ForeclosurePage = () => {
 
   const handleProceed = async () => {
     setLoading(true);
+
+    // Validate payment mode cheque number
+    if (formData.paymentMode === "Cheque" && formData.chequeNumber.length !== 6) {
+      showToast("Cheque number must be exactly 6 digits", "error");
+      setLoading(false);
+      return;
+    }
+
     const totalReceived = paymentData.paymentBreakdown.reduce(
       (acc, curr) => acc + curr.amount,
       0,
     );
     if (totalReceived < totalAmount - 0.1) {
       showToast("Received amount is less than total amount", "error");
+      setLoading(false);
       return;
+    }
+
+    // Validation for Cheque Numbers in breakdown
+    for (const p of paymentData.paymentBreakdown) {
+      if (p.mode === "CHEQUE") {
+        if (!p.chequeNumber || p.chequeNumber.length !== 6) {
+          showToast("Cheque number must be exactly 6 digits", "error");
+          setLoading(false);
+          return;
+        }
+      }
     }
 
     try {
@@ -154,6 +191,8 @@ const ForeclosurePage = () => {
         od: 0,
         miscellaneousFee: 0,
         remarks: "",
+        paymentMode: "Cash",
+        chequeNumber: "",
       });
       setPaymentData({
         paymentBreakdown: [{ mode: "CASH", amount: 0 }],
@@ -386,6 +425,55 @@ const ForeclosurePage = () => {
                 </table>
               </div>
 
+              {/* Payment Mode Section */}
+              <div className="p-6 bg-white border-t border-slate-100">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4">
+                  Payment Mode
+                </label>
+                <div className="flex flex-wrap gap-4 items-start">
+                  <div className="flex gap-2">
+                    {["Cash", "Online", "Cheque"].map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            paymentMode: mode,
+                            chequeNumber: mode !== "Cheque" ? "" : prev.chequeNumber,
+                          }))
+                        }
+                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all ${
+                          formData.paymentMode === mode
+                            ? "bg-primary text-white border-primary shadow-lg shadow-blue-100"
+                            : "bg-white text-slate-400 border-slate-100 hover:border-primary/30 hover:text-primary"
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                  {formData.paymentMode === "Cheque" && (
+                    <div className="flex flex-col gap-1 min-w-[200px]">
+                      <input
+                        type="text"
+                        name="chequeNumber"
+                        value={formData.chequeNumber}
+                        onChange={handleInputChange}
+                        maxLength={6}
+                        placeholder="6-digit cheque number"
+                        className="px-5 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-black text-slate-700 focus:outline-none focus:border-primary/20 transition-all font-mono tracking-widest"
+                      />
+                      {formData.chequeNumber && formData.chequeNumber.length !== 6 && (
+                        <p className="text-[9px] font-bold text-red-500 uppercase tracking-wider ml-1">
+                          Cheque number must be 6 digits
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Remarks Section */}
               <div className="p-6 bg-white">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4">
@@ -593,8 +681,6 @@ const ForeclosurePage = () => {
                                 >
                                   <option value="CASH">CASH</option>
                                   <option value="BANK">BANK</option>
-                                  <option value="GPAY">GPAY</option>
-                                  <option value="PHONEPE">PHONEPE</option>
                                   <option value="PAYTM">PAYTM</option>
                                   <option value="CHEQUE">CHEQUE</option>
                                   <option value="OTHERS">OTHERS</option>
@@ -617,6 +703,25 @@ const ForeclosurePage = () => {
                                     placeholder="0.00"
                                   />
                                 </div>
+                                {row.mode === "CHEQUE" && (
+                                  <div className="flex-1">
+                                    <input
+                                      type="text"
+                                      maxLength="6"
+                                      value={row.chequeNumber || ""}
+                                      onChange={(e) =>
+                                        handlePaymentChange(
+                                          index,
+                                          "chequeNumber",
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="w-full px-3 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-black text-slate-700 focus:outline-none focus:border-primary/20 font-mono"
+                                      placeholder="Cheque No."
+                                      required
+                                    />
+                                  </div>
+                                )}
                                 {paymentData.paymentBreakdown.length > 1 && (
                                   <button
                                     onClick={() => removePaymentRow(index)}

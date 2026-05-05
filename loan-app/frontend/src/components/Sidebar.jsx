@@ -1,10 +1,12 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { io } from "socket.io-client";
 import { usePathname } from "next/navigation";
 import { getUserFromToken } from "../utils/auth";
 import Logo from "./Logo";
 import { useUI } from "../context/UIContext";
+import { getPendingApprovals } from "../services/approvalService";
 
 const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: "📊" },
@@ -33,6 +35,15 @@ const navItems = [
     ],
   },
   {
+    name: "Interest Loans",
+    href: "/admin/interest-loan",
+    icon: "📈",
+    subItems: [
+      { name: "Pending", href: "/admin/interest-loan/pending" },
+      { name: "Followups", href: "/admin/interest-loan/followups" },
+    ],
+  },
+  {
     name: "Employees",
     href: "/admin/employees",
     icon: "👥",
@@ -49,6 +60,12 @@ const navItems = [
       { name: "Followup", href: "/admin/followup-payments" },
       { name: "Foreclosure", href: "/admin/foreclosure-payments" },
     ],
+  },
+  {
+    name: "Approvals",
+    href: "/admin/approvals",
+    icon: "✅",
+    roles: ["SUPER_ADMIN"],
   },
   { name: "Expenses", href: "/admin/expenses", icon: "🧾" },
 
@@ -70,6 +87,49 @@ const Sidebar = () => {
   const user = getUserFromToken();
   const { isSidebarOpen, closeSidebar } = useUI();
   const [expandedMenus, setExpandedMenus] = useState({});
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    let interval;
+    let socket;
+    
+    const fetchCount = () => {
+      if (user?.role === "SUPER_ADMIN") {
+        getPendingApprovals({ silent: true })
+          .then((res) => setPendingCount(res.data?.length || 0))
+          .catch(() => {});
+      }
+    };
+
+    fetchCount();
+
+    // Socket implementation for real-time updates
+    if (user?.role === "SUPER_ADMIN") {
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL === "undefined" || !process.env.NEXT_PUBLIC_API_BASE_URL
+        ? 'http://localhost:5000'
+        : process.env.NEXT_PUBLIC_API_BASE_URL;
+
+      socket = io(apiBase, {
+        transports: ['websocket', 'polling']
+      });
+
+      socket.on("connect", () => {
+        socket.emit("join", user._id);
+      });
+
+      socket.on("pending_approvals_count", (count) => {
+        setPendingCount(count);
+      });
+    }
+    
+    // Poll every 10 seconds as a reliable fallback
+    interval = setInterval(fetchCount, 10000);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      if (socket) socket.close();
+    };
+  }, [pathname, user?.id]);
 
   useEffect(() => {
     // Auto-expand menu if sub-item is active
@@ -220,8 +280,13 @@ const Sidebar = () => {
                       : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
                   }`}
                 >
-                  <span className="text-base">{item.icon}</span>
+                  {item.icon && <span className="text-base">{item.icon}</span>}
                   {item.name}
+                  {item.name === "Approvals" && pendingCount > 0 && (
+                    <span className="ml-auto bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -356,6 +421,11 @@ const Sidebar = () => {
                   >
                     <span className="text-base">{item.icon}</span>
                     {item.name}
+                    {item.name === "Approvals" && pendingCount > 0 && (
+                      <span className="ml-auto bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">
+                        {pendingCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

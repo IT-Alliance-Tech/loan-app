@@ -172,8 +172,11 @@ const DailyPendingList = () => {
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                   Customer Name
                 </th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                   Mobile Number
+                </th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                  Disbursement
                 </th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                   Days Pending
@@ -198,21 +201,21 @@ const DailyPendingList = () => {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td
-                    colSpan="8"
-                    className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
-                  >
-                    Loading records...
-                  </td>
+                     <td
+                      colSpan="9"
+                      className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
+                    >
+                      Loading records...
+                    </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="8"
-                    className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
-                  >
-                    No pending payments found
-                  </td>
+                     <td
+                      colSpan="9"
+                      className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
+                    >
+                      No pending payments found
+                    </td>
                 </tr>
               ) : (
                 data.map((item) => (
@@ -251,7 +254,10 @@ const DailyPendingList = () => {
                             {num}
                           </button>
                         ))}
-                      </div>
+                       </div>
+                    </td>
+                    <td className="px-6 py-5 text-center whitespace-nowrap font-black text-slate-900 text-xs tracking-tight">
+                      ₹{item.principalAmount?.toLocaleString() || "—"}
                     </td>
                     <td className="px-6 py-5 text-center whitespace-nowrap">
                       <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-md">

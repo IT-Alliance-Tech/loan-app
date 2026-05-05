@@ -80,6 +80,28 @@ const loanSchema = new mongoose.Schema(
     totalInterestAmount: {
       type: Number,
     },
+    paymentMode: {
+      type: String,
+      enum: ["Cash", "Online", "Cheque"],
+      default: "Cash",
+    },
+    chequeNumber: {
+      type: String,
+      trim: true,
+    },
+    disbursement: [
+      {
+        amount: { type: Number, required: true },
+        mode: {
+          type: String,
+          enum: ["Cash", "Online", "Cheque"],
+          default: "Cash",
+        },
+        chequeNumber: { type: String, trim: true },
+        date: { type: Date, required: true },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
     vehicleNumber: {
       type: String,
       trim: true,
@@ -159,7 +181,7 @@ const loanSchema = new mongoose.Schema(
       type: String,
       required: [true, "Status is required"],
       enum: {
-        values: ["Active", "Closed", "Seized", "Pending"],
+        values: ["Active", "Closed", "Seized", "Pending", "Waiting for Approval"],
         message: "Please select a valid status",
       },
       default: "Active",
@@ -209,6 +231,13 @@ const loanSchema = new mongoose.Schema(
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
     },
     soldDetails: {
       sellAmount: {

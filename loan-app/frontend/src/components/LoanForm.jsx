@@ -7,6 +7,8 @@ import { useToast } from "../context/ToastContext";
 import { addMonths, format } from "date-fns";
 import { getUserFromToken } from "../utils/auth";
 import ClientResponseSection from "./ClientResponseSection";
+import DisbursementModal from "./DisbursementModal";
+import DisbursementList from "./DisbursementList";
 import {
   calculateEMI as fetchEMI,
   getRtoWorks,
@@ -16,6 +18,15 @@ import {
 import { getLoanExpensesTotal } from "../services/expenseService";
 
 const _monthlyLoanUniquenessCache = new Map();
+
+const ErrorMsg = ({ name, formik }) => {
+  const meta = formik.getFieldMeta(name);
+  return meta.touched && meta.error ? (
+    <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
+      {meta.error}
+    </p>
+  ) : null;
+};
 
 const LoanForm = ({
   initialData,
@@ -113,6 +124,7 @@ const LoanForm = ({
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [isRtoDropdownOpen, setIsRtoDropdownOpen] = useState(false);
   const [activeContactMenu, setActiveContactMenu] = useState(null); // { number, name, type, x, y }
+  const [isDisbursementModalOpen, setIsDisbursementModalOpen] = useState(false);
 
   const [remainingPrincipalAmount, setRemainingPrincipalAmount] = useState(0);
   const [totalCollectedAmount, setTotalCollectedAmount] = useState(0);
@@ -184,6 +196,11 @@ const LoanForm = ({
         emiEndDate: initialData?.loanTerms?.emiEndDate || "",
         monthlyEMI: initialData?.loanTerms?.monthlyEMI || 0,
         totalInterestAmount: initialData?.loanTerms?.totalInterestAmount || 0,
+        paymentMode: initialData?.loanTerms?.paymentMode || "Cash",
+        chequeNumber: initialData?.loanTerms?.chequeNumber || "",
+        disbursement: Array.isArray(initialData?.loanTerms?.disbursement)
+          ? initialData.loanTerms.disbursement
+          : [],
       },
       vehicleInformation: {
         vehicleNumber: initialData?.vehicleInformation?.vehicleNumber || "",
@@ -261,6 +278,12 @@ const LoanForm = ({
     },
   });
 
+  const handleDisbursementApply = (disbursements) => {
+    formik.setFieldValue("loanTerms.disbursement", disbursements);
+    const total = disbursements.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+    formik.setFieldValue("loanTerms.principalAmount", total);
+  };
+
   const handleRtoCheckboxChange = (option) => {
     const current = Array.isArray(
       formik.values.vehicleInformation.rtoWorkPending,
@@ -326,18 +349,24 @@ const LoanForm = ({
   const handleProcessingFeeRateChange = (rate) => {
     formik.setFieldValue("loanTerms.processingFeeRate", rate);
     const principal = parseFloat(formik.values.loanTerms.principalAmount) || 0;
-    if (principal && !isNaN(rate)) {
-      const fee = Math.ceil((principal * parseFloat(rate)) / 100);
+    const rateVal = parseFloat(rate);
+    if (principal && !isNaN(rateVal)) {
+      const fee = Math.ceil((principal * rateVal) / 100);
       formik.setFieldValue("loanTerms.processingFee", fee);
+    } else if (principal) {
+      formik.setFieldValue("loanTerms.processingFee", 0);
     }
   };
 
   const handleProcessingFeeChange = (fee) => {
     formik.setFieldValue("loanTerms.processingFee", fee);
     const principal = parseFloat(formik.values.loanTerms.principalAmount) || 0;
-    if (principal && !isNaN(fee)) {
-      const rate = ((parseFloat(fee) / principal) * 100).toFixed(2);
+    const feeVal = parseFloat(fee);
+    if (principal && !isNaN(feeVal)) {
+      const rate = ((feeVal / principal) * 100).toFixed(2);
       formik.setFieldValue("loanTerms.processingFeeRate", rate);
+    } else if (principal) {
+      formik.setFieldValue("loanTerms.processingFeeRate", 0);
     }
   };
 
@@ -497,14 +526,6 @@ const LoanForm = ({
     formik.values.loanTerms.processingFee,
   ]);
 
-  const ErrorMsg = ({ name }) => {
-    const meta = formik.getFieldMeta(name);
-    return meta.touched && meta.error ? (
-      <p className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
-        {meta.error}
-      </p>
-    ) : null;
-  };
 
   const getFieldClass = (name) => {
     const meta = formik.getFieldMeta(name);
@@ -624,7 +645,7 @@ const LoanForm = ({
                   }
                   placeholder="LN-001"
                 />
-                <ErrorMsg name="loanTerms.loanNumber" />
+                <ErrorMsg name="loanTerms.loanNumber" formik={formik} />
                 {formik.touched.loanTerms?.loanNumber && !formik.errors.loanTerms?.loanNumber && formik.values.loanTerms.loanNumber && !isViewOnly && (
                   <p className="text-[9px] font-bold text-emerald-500 mt-1 uppercase tracking-wider">
                     Loan number is available
@@ -645,7 +666,7 @@ const LoanForm = ({
                   className={getFieldClass("customerDetails.customerName")}
                   placeholder="Full Name"
                 />
-                <ErrorMsg name="customerDetails.customerName" />
+                <ErrorMsg name="customerDetails.customerName" formik={formik} />
               </div>
 
               <div className="space-y-1 md:col-span-2">
@@ -661,7 +682,7 @@ const LoanForm = ({
                   rows="2"
                   className={getFieldClass("customerDetails.address")}
                 ></textarea>
-                <ErrorMsg name="customerDetails.address" />
+                <ErrorMsg name="customerDetails.address" formik={formik} />
               </div>
               {/* Left Column: Own/Rent & PAN */}
               <div className="space-y-6">
@@ -680,7 +701,7 @@ const LoanForm = ({
                     <option value="Own">Own</option>
                     <option value="Rent">Rent</option>
                   </select>
-                  <ErrorMsg name="customerDetails.ownRent" />
+                  <ErrorMsg name="customerDetails.ownRent" formik={formik} />
                 </div>
 
                 <div className="space-y-1">
@@ -705,7 +726,7 @@ const LoanForm = ({
                     }
                     placeholder="ABCDE1234F"
                   />
-                  <ErrorMsg name="customerDetails.panNumber" />
+                  <ErrorMsg name="customerDetails.panNumber" formik={formik} />
                 </div>
               </div>
 
@@ -818,6 +839,7 @@ const LoanForm = ({
                             </div>
                             <ErrorMsg
                               name={`customerDetails.mobileNumbers.${idx}`}
+                              formik={formik}
                             />
                           </div>
                         ),
@@ -878,7 +900,7 @@ const LoanForm = ({
                     className={getFieldClass("customerDetails.aadharNumber")}
                     placeholder="12 digit number"
                   />
-                  <ErrorMsg name="customerDetails.aadharNumber" />
+                  <ErrorMsg name="customerDetails.aadharNumber" formik={formik} />
                 </div>
               </div>
 
@@ -900,7 +922,7 @@ const LoanForm = ({
                       className={getFieldClass("customerDetails.guarantorName")}
                       placeholder="Enter Guarantor Name"
                     />
-                    <ErrorMsg name="customerDetails.guarantorName" />
+                    <ErrorMsg name="customerDetails.guarantorName" formik={formik} />
                   </div>
 
                   {/* Guarantor Mobile Numbers */}
@@ -1010,6 +1032,7 @@ const LoanForm = ({
                             </div>
                             <ErrorMsg
                               name={`customerDetails.guarantorMobileNumbers.${idx}`}
+                              formik={formik}
                             />
                           </div>
                         ),
@@ -1052,7 +1075,285 @@ const LoanForm = ({
             </div>
           </div>
 
-          {/* 2. Vehicle Info */}
+          {/* Loan Terms */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-primary/10 pb-2 mb-4">
+              <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em]">
+                Loan Terms (monthly)
+              </h3>
+              {!isViewOnly && (
+                <button
+                  type="button"
+                  onClick={() => setIsDisbursementModalOpen(true)}
+                  className="px-4 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
+                >
+                  Update Payment
+                </button>
+              )}
+            </div>
+
+            <DisbursementList disbursements={formik.values.loanTerms.disbursement} />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Total Principal Summary */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Total Principal Amount
+                </label>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-black text-slate-700 flex justify-between items-center group shadow-sm">
+                  <span>₹{(parseFloat(formik.values.loanTerms.principalAmount) || 0).toLocaleString("en-IN")}</span>
+                  <span className="text-[9px] font-black text-primary/40 uppercase tracking-widest px-2 py-0.5 bg-primary/5 rounded-md group-hover:bg-primary/10 transition-colors">
+                    Calculated
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Processing Fee Rate (%)
+                </label>
+                <input
+                  type="number"
+                  name="loanTerms.processingFeeRate"
+                  value={formik.values.loanTerms.processingFeeRate || ""}
+                  onChange={(e) =>
+                    handleProcessingFeeRateChange(e.target.value)
+                  }
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.processingFeeRate")}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Processing Fee
+                </label>
+                <input
+                  type="number"
+                  name="loanTerms.processingFee"
+                  value={formik.values.loanTerms.processingFee || ""}
+                  onChange={(e) => handleProcessingFeeChange(e.target.value)}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={
+                    getFieldClass("loanTerms.processingFee") +
+                    (isViewOnly ? " bg-slate-100 italic" : "")
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Tenure (Months)
+                </label>
+                <input
+                  type="number"
+                  name="loanTerms.tenureMonths"
+                  value={formik.values.loanTerms.tenureMonths || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.tenureMonths")}
+                />
+                <ErrorMsg name="loanTerms.tenureMonths" formik={formik} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Interest Rate (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="loanTerms.annualInterestRate"
+                  value={formik.values.loanTerms.annualInterestRate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.annualInterestRate")}
+                />
+                <ErrorMsg name="loanTerms.annualInterestRate" formik={formik} />
+              </div>
+
+            </div>
+          </div>
+
+          {/* Dates & EMI */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
+              Dates & EMI
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Date Loan Disbursed
+                </label>
+                <input
+                  type="date"
+                  name="loanTerms.dateLoanDisbursed"
+                  value={formik.values.loanTerms.dateLoanDisbursed || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.dateLoanDisbursed")}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  EMI Start Date
+                </label>
+                <input
+                  type="date"
+                  name="loanTerms.emiStartDate"
+                  value={formik.values.loanTerms.emiStartDate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.emiStartDate")}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  EMI End Date
+                </label>
+                <input
+                  type="date"
+                  name="loanTerms.emiEndDate"
+                  value={formik.values.loanTerms.emiEndDate || ""}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  readOnly={isViewOnly}
+                  className={getFieldClass("loanTerms.emiEndDate")}
+                />
+              </div>
+              <div className="md:col-span-3">
+                {/* MOBILE VIEW SUMMARY */}
+                <div className="md:hidden space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Monthly EMI */}
+                    <div className="bg-primary/5 p-3 rounded-2xl border border-primary/10">
+                      <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">
+                        Monthly EMI
+                      </span>
+                      <p className="text-lg font-black text-primary">
+                        ₹{formik.values.loanTerms.monthlyEMI || 0}
+                      </p>
+                    </div>
+                    {/* Total Collected */}
+                    <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
+                      <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block mb-1">
+                        Collected
+                      </span>
+                      <p className="text-lg font-black text-emerald-600">
+                        ₹{totalCollectedAmount || 0}
+                      </p>
+                    </div>
+                    {/* Total Expenses */}
+                    <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100">
+                      <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest block mb-1">
+                        Expenses
+                      </span>
+                      <p className="text-lg font-black text-orange-600">
+                        ₹{totalExpenses.toLocaleString("en-IN") || 0}
+                      </p>
+                    </div>
+                    {/* Total Interest */}
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Total Interest
+                      </span>
+                      <p className="text-lg font-black text-slate-700">
+                        ₹{formik.values.loanTerms.totalInterestAmount || 0}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Remaining Principal */}
+                  <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex justify-between items-center group active:scale-[0.98] transition-all">
+                    <div>
+                      <span className="text-[10px] font-black text-primary uppercase tracking-widest block mb-1">
+                        Remaining Principal Amount
+                      </span>
+                      <p className="text-xl font-black text-primary">
+                        ₹{remainingPrincipalAmount || 0}
+                      </p>
+                    </div>
+                    <div className="bg-primary/10 p-2.5 rounded-full">
+                      <svg
+                        className="w-5 h-5 text-primary"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2.5"
+                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DESKTOP VIEW SUMMARY */}
+                <div className="hidden md:flex bg-primary/5 p-4 rounded-2xl border border-primary/10 justify-between items-center">
+                  <div>
+                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                      Monthly EMI
+                    </span>
+                    <p className="text-xl font-black text-primary">
+                      ₹{formik.values.loanTerms.monthlyEMI || 0}
+                    </p>
+                  </div>
+                  <div className="text-center px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col justify-center items-center">
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                      Total Collected Amount
+                    </span>
+                    <p className="text-xl font-black text-emerald-600">
+                      ₹{totalCollectedAmount || 0}
+                    </p>
+                  </div>
+                  <div className="text-center px-4 py-2 bg-orange-50 rounded-xl border border-orange-100 flex flex-col justify-center items-center">
+                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">
+                      Total Expenses
+                    </span>
+                    <p className="text-xl font-black text-orange-600">
+                      ₹{totalExpenses.toLocaleString("en-IN") || 0}
+                    </p>
+                  </div>
+                  <div className="text-right flex flex-col items-end gap-2">
+                    <div className="flex flex-col items-end">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Total Interest Amount
+                      </label>
+                      <input
+                        type="number"
+                        name="loanTerms.totalInterestAmount"
+                        value={
+                          formik.values.loanTerms.totalInterestAmount || ""
+                        }
+                        readOnly
+                        className="bg-transparent border-b border-slate-200 text-sm font-bold text-slate-700 focus:outline-none focus:border-primary text-right w-32"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <label className="text-[10px] font-black text-primary uppercase tracking-widest block mb-1">
+                        Remaining Principal Amount
+                      </label>
+                      <input
+                        type="text"
+                        value={`₹${remainingPrincipalAmount || 0}`}
+                        readOnly
+                        className="bg-transparent border-b border-primary/20 text-sm font-black text-primary focus:outline-none text-right w-40"
+                        placeholder="₹0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Vehicle Info */}
           <div className="space-y-4">
             <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] border-b border-primary/10 pb-2">
               Vehicle Information
@@ -1080,7 +1381,7 @@ const LoanForm = ({
                   }
                   placeholder="KA-01-AB-1234"
                 />
-                <ErrorMsg name="vehicleInformation.vehicleNumber" />
+                <ErrorMsg name="vehicleInformation.vehicleNumber" formik={formik} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -1143,7 +1444,7 @@ const LoanForm = ({
                   className={getFieldClass("vehicleInformation.modelYear")}
                   placeholder="e.g. 2024"
                 />
-                <ErrorMsg name="vehicleInformation.modelYear" />
+                <ErrorMsg name="vehicleInformation.modelYear" formik={formik} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -2098,6 +2399,13 @@ const LoanForm = ({
           </div>
         </div>
       )}
+
+      <DisbursementModal
+        isOpen={isDisbursementModalOpen}
+        onClose={() => setIsDisbursementModalOpen(false)}
+        initialData={formik.values.loanTerms.disbursement}
+        onApply={handleDisbursementApply}
+      />
     </div>
   );
 };

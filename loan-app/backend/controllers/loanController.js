@@ -7,11 +7,13 @@ const Followup = require("../models/Followup");
 const DailyLoan = require("../models/DailyLoan");
 const WeeklyLoan = require("../models/WeeklyLoan");
 const Payment = require("../models/Payment");
+const InterestLoan = require("../models/InterestLoan");
 const ErrorHandler = require("../utils/ErrorHandler");
 const { addMonths } = require("date-fns");
 const asyncHandler = require("../utils/asyncHandler");
 const sendResponse = require("../utils/response");
 const { formatLoanResponse } = require("../utils/loanFormatter");
+const { notifyAdmins } = require("./notificationController");
 
 const extractId = (val) => {
   if (!val) return null;
@@ -99,7 +101,9 @@ const createLoan = asyncHandler(async (req, res, next) => {
 
     // loanTerms
     loanNumber: loanTerms.loanNumber,
-    principalAmount: parseFloat(loanTerms?.principalAmount) || 0,
+    principalAmount: loanTerms.disbursement?.length > 0
+      ? loanTerms.disbursement.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+      : parseFloat(loanTerms?.principalAmount) || 0,
     processingFeeRate: parseFloat(loanTerms?.processingFeeRate) || 0,
     processingFee: Math.ceil(parseFloat(loanTerms?.processingFee)) || 0,
     tenureMonths: parseInt(loanTerms?.tenureMonths) || 0,
@@ -109,6 +113,9 @@ const createLoan = asyncHandler(async (req, res, next) => {
     emiEndDate: loanTerms.emiEndDate,
     monthlyEMI,
     totalInterestAmount: calculatedTotalInterest,
+    paymentMode: loanTerms.paymentMode || "Cash",
+    chequeNumber: loanTerms.chequeNumber,
+    disbursement: loanTerms.disbursement || [],
 
     // vehicleInformation
     vehicleNumber: vehicleInformation?.vehicleNumber,
@@ -245,11 +252,19 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
 
   let loans;
   const dbStart = performance.now();
+  let sortConfig = { createdAt: -1 };
+  let collationConfig = null;
+
+  if (loanNumber) {
+    sortConfig = { loanNumber: 1 };
+    collationConfig = { locale: "en", numericOrdering: true };
+  }
+
   if (forExport) {
     // Advanced aggregation for export with repayment stats
-    loans = await Loan.aggregate([
+    const pipeline = [
       { $match: query },
-      { $sort: { createdAt: -1 } },
+      { $sort: sortConfig },
       {
         $lookup: {
           from: "emis",
@@ -345,16 +360,28 @@ const getAllLoans = asyncHandler(async (req, res, next) => {
         },
       },
       { $project: { emis: 0 } },
-    ]);
+    ];
+
+    if (collationConfig) {
+      loans = await Loan.aggregate(pipeline).collation(collationConfig);
+    } else {
+      loans = await Loan.aggregate(pipeline);
+    }
   } else {
-    loans = await Loan.find(query)
+    const findQuery = Loan.find(query)
       .select(
-        "loanNumber customerName mobileNumbers guarantorName guarantorMobileNumbers monthlyEMI tenureMonths status isSeized clientResponse createdBy updatedBy createdAt",
+        "loanNumber customerName mobileNumbers guarantorName guarantorMobileNumbers monthlyEMI tenureMonths status isSeized clientResponse createdBy updatedBy createdAt principalAmount vehicleNumber chassisNumber engineNumber typeOfVehicle modelYear ywBoard dealerName dealerNumber hpEntry fcDate insuranceDate rtoWorkPending annualInterestRate processingFee emiStartDate emiEndDate",
       )
-      .sort({ createdAt: -1 })
+      .sort(sortConfig)
       .skip(skip)
       .limit(limit)
       .lean();
+
+    if (collationConfig) {
+      loans = await findQuery.collation(collationConfig);
+    } else {
+      loans = await findQuery;
+    }
   }
   const dbTime = (performance.now() - dbStart).toFixed(2);
 
@@ -449,6 +476,7 @@ const populateLoanDetails = (query) => {
     .populate("createdBy", "name")
     .populate("foreclosedBy", "name")
     .populate("updatedBy", "name")
+    .populate("approvedBy", "name")
     .populate("soldDetails.soldBy", "name")
     .populate("seizedDetails")
     .populate("closureDetails")
@@ -465,7 +493,23 @@ const getLoanByLoanNumber = asyncHandler(async (req, res, next) => {
   }
 
   // Calculate remaining principal accurately including partial payments
-  const emis = await EMI.find({ loanId: loan._id });
+  const emisData = await EMI.find({ loanId: loan._id }).sort({ emiNumber: 1 });
+  const Approval = require("../models/Approval");
+
+  const emis = await Promise.all(
+    emisData.map(async (emi) => {
+      const pendingApproval = await Approval.findOne({
+        targetId: emi._id,
+        status: "Pending",
+      });
+      const emiObj = emi.toObject();
+      if (pendingApproval) {
+        emiObj.pendingApproval = pendingApproval.requestedData;
+      }
+      return emiObj;
+    })
+  );
+
   let remainingTenureCount = 0;
 
   if (emis && emis.length > 0) {
@@ -597,7 +641,23 @@ const getLoanById = asyncHandler(async (req, res, next) => {
   }
 
   // Calculate remaining principal accurately including partial payments
-  const emis = await EMI.find({ loanId: loan._id });
+  const emisData = await EMI.find({ loanId: loan._id }).sort({ emiNumber: 1 });
+  const Approval = require("../models/Approval");
+
+  const emis = await Promise.all(
+    emisData.map(async (emi) => {
+      const pendingApproval = await Approval.findOne({
+        targetId: emi._id,
+        status: "Pending",
+      });
+      const emiObj = emi.toObject();
+      if (pendingApproval) {
+        emiObj.pendingApproval = pendingApproval.requestedData;
+      }
+      return emiObj;
+    })
+  );
+
   let remainingTenureCount = 0;
 
   if (emis && emis.length > 0) {
@@ -788,7 +848,9 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     // Flatten loanTerms
     ...(loanTerms && {
       loanNumber: loanTerms.loanNumber,
-      principalAmount: loanTerms.principalAmount,
+      principalAmount: loanTerms.disbursement?.length > 0 
+        ? loanTerms.disbursement.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+        : loanTerms.principalAmount,
       processingFeeRate: loanTerms.processingFeeRate,
       processingFee: loanTerms.processingFee,
       tenureMonths: loanTerms.tenureMonths,
@@ -796,6 +858,9 @@ const updateLoan = asyncHandler(async (req, res, next) => {
       dateLoanDisbursed: loanTerms.dateLoanDisbursed,
       emiStartDate: loanTerms.emiStartDate,
       emiEndDate: loanTerms.emiEndDate,
+      paymentMode: loanTerms.paymentMode,
+      chequeNumber: loanTerms.chequeNumber,
+      disbursement: loanTerms.disbursement || loan.disbursement,
     }),
     // Flatten vehicleInformation
     ...(vehicleInformation && {
@@ -932,23 +997,46 @@ const updateLoan = asyncHandler(async (req, res, next) => {
     const updatePromises = emis.map((emi, index) => {
       const emiNum = index + 1;
       const updates = {};
+      let hasChanges = false;
 
-      // Update denormalized info
-      updates.customerName = loan.customerName;
-      updates.loanNumber = loan.loanNumber;
+      // Update denormalized info only if different
+      if (emi.customerName !== loan.customerName) {
+        updates.customerName = loan.customerName;
+        hasChanges = true;
+      }
+      if (emi.loanNumber !== loan.loanNumber) {
+        updates.loanNumber = loan.loanNumber;
+        hasChanges = true;
+      }
 
       // Update EMI amount for pending/partially paid EMIs
       if (emi.status !== "Paid") {
-        updates.emiAmount = monthlyEMI;
+        if (emi.emiAmount !== monthlyEMI) {
+          updates.emiAmount = monthlyEMI;
+          hasChanges = true;
+        }
       }
 
       // Update due dates based on new emiStartDate
-      updates.dueDate = addMonths(new Date(newEmiStartDate), emiNum - 1);
+      const newDueDate = addMonths(new Date(newEmiStartDate), emiNum - 1);
+      if (
+        !emi.dueDate ||
+        new Date(emi.dueDate).getTime() !== new Date(newDueDate).getTime()
+      ) {
+        updates.dueDate = newDueDate;
+        hasChanges = true;
+      }
 
-      return EMI.findByIdAndUpdate(emi._id, updates);
+      if (hasChanges) {
+        // Maintain audit trail
+        updates.updatedBy = req.user._id;
+        return EMI.findByIdAndUpdate(emi._id, updates);
+      }
+
+      return null;
     });
 
-    await Promise.all(updatePromises);
+    await Promise.all(updatePromises.filter((p) => p !== null));
 
     // 2. Handle Tenure Increase
     if (newTenure > oldTenure) {
@@ -1098,7 +1186,7 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
       }
     }
 
-    return [
+    let pipeline = [
       { $match: matchQuery },
       {
         $lookup: {
@@ -1166,6 +1254,12 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
           guarantorMobileNumbers: modelName === "Loan" ? 1 : { $literal: [] },
           vehicleNumber: 1,
           model: 1,
+          principalAmount: {
+            $ifNull: [
+              "$principalAmount",
+              { $ifNull: ["$disbursementAmount", "$initialPrincipalAmount"] },
+            ],
+          },
           unpaidMonths: { $size: "$pendingEmisList" },
           totalDueAmount: {
             $reduce: {
@@ -1215,23 +1309,34 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
         },
       },
     ];
+    pipeline.push({
+      $sort: loanNumber ? { loanNumber: 1 } : { createdAt: -1 }
+    });
+    return pipeline;
+  };
+
+  const getResultsWithCollation = async (model, pipeline) => {
+    if (loanNumber) {
+      return await model.aggregate(pipeline).collation({ locale: "en", numericOrdering: true });
+    }
+    return await model.aggregate(pipeline);
   };
 
   const promises = [];
   if (!queryLoanType || queryLoanType.toLowerCase() === "monthly") {
-    promises.push(Loan.aggregate(getPipeline("Loan", "Monthly")));
+    promises.push(getResultsWithCollation(Loan, getPipeline("Loan", "Monthly")));
   } else {
     promises.push(Promise.resolve([]));
   }
 
   if (!queryLoanType || queryLoanType.toLowerCase() === "daily") {
-    promises.push(DailyLoan.aggregate(getPipeline("DailyLoan", "Daily")));
+    promises.push(getResultsWithCollation(DailyLoan, getPipeline("DailyLoan", "Daily")));
   } else {
     promises.push(Promise.resolve([]));
   }
 
   if (!queryLoanType || queryLoanType.toLowerCase() === "weekly") {
-    promises.push(WeeklyLoan.aggregate(getPipeline("WeeklyLoan", "Weekly")));
+    promises.push(getResultsWithCollation(WeeklyLoan, getPipeline("WeeklyLoan", "Weekly")));
   } else {
     promises.push(Promise.resolve([]));
   }
@@ -1241,6 +1346,10 @@ const getPendingPayments = asyncHandler(async (req, res, next) => {
 
   let allResults = [...monthlyResult, ...dailyResult, ...weeklyResult].sort(
     (a, b) => {
+      if (loanNumber) {
+        // Numeric sort by loanNumber
+        return a.loanNumber.localeCompare(b.loanNumber, undefined, { numeric: true, sensitivity: 'base' });
+      }
       if (!a.earliestDueDate) return 1;
       if (!b.earliestDueDate) return -1;
       return new Date(a.earliestDueDate) - new Date(b.earliestDueDate);
@@ -1593,31 +1702,48 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
         },
       },
     );
+    pipeline.push({
+      $sort: loanNumber ? { loanNumber: 1 } : { createdAt: -1 }
+    });
+
     return pipeline;
+  };
+
+  const getResultsWithCollation = async (model, pipeline) => {
+    if (loanNumber) {
+      return await model.aggregate(pipeline).collation({ locale: "en", numericOrdering: true });
+    }
+    return await model.aggregate(pipeline);
   };
 
   // Run aggregations for models based on loanType filter
   const promises = [];
 
   if (!queryLoanType || queryLoanType.toLowerCase() === "monthly") {
-    promises.push(Loan.aggregate(getPipeline("Loan", "Monthly")));
+    promises.push(getResultsWithCollation(Loan, getPipeline("Loan", "Monthly")));
   } else {
     promises.push(Promise.resolve([]));
   }
 
   if (!queryLoanType || queryLoanType.toLowerCase() === "daily") {
-    promises.push(DailyLoan.aggregate(getPipeline("DailyLoan", "Daily")));
+    promises.push(getResultsWithCollation(DailyLoan, getPipeline("DailyLoan", "Daily")));
   } else {
     promises.push(Promise.resolve([]));
   }
 
   if (!queryLoanType || queryLoanType.toLowerCase() === "weekly") {
-    promises.push(WeeklyLoan.aggregate(getPipeline("WeeklyLoan", "Weekly")));
+    promises.push(getResultsWithCollation(WeeklyLoan, getPipeline("WeeklyLoan", "Weekly")));
   } else {
     promises.push(Promise.resolve([]));
   }
 
-  const [monthlyFollowups, dailyFollowups, weeklyFollowups] =
+  if (!queryLoanType || queryLoanType.toLowerCase() === "interest") {
+    promises.push(getResultsWithCollation(InterestLoan, getPipeline("InterestLoan", "Interest")));
+  } else {
+    promises.push(Promise.resolve([]));
+  }
+
+  const [monthlyFollowups, dailyFollowups, weeklyFollowups, interestFollowups] =
     await Promise.all(promises);
 
   // Combine and sort
@@ -1625,7 +1751,12 @@ const getFollowupLoans = asyncHandler(async (req, res, next) => {
     ...monthlyFollowups,
     ...dailyFollowups,
     ...weeklyFollowups,
+    ...interestFollowups,
   ].sort((a, b) => {
+    if (loanNumber) {
+      // Numeric sort by loanNumber
+      return a.loanNumber.localeCompare(b.loanNumber, undefined, { numeric: true, sensitivity: 'base' });
+    }
     // Sort by earliestDueDate ascending
     if (!a.earliestDueDate) return 1;
     if (!b.earliestDueDate) return -1;
@@ -1661,6 +1792,7 @@ const updateFollowup = asyncHandler(async (req, res, next) => {
   if (loanModel === "Loan") Model = Loan;
   else if (loanModel === "DailyLoan") Model = DailyLoan;
   else if (loanModel === "WeeklyLoan") Model = WeeklyLoan;
+  else if (loanModel === "InterestLoan") Model = InterestLoan;
   else {
     return next(new ErrorHandler("Invalid loan model provided", 400));
   }
@@ -1845,15 +1977,67 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
     paymentBreakdown, // Array of { mode, amount }
     paymentDate,
     remarks,
+    paymentMode,
+    chequeNumber,
   } = req.body;
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return next(new ErrorHandler("Invalid Loan ID", 400));
-  }
 
   const loan = await Loan.findById(id);
   if (!loan) {
     return next(new ErrorHandler("Loan not found", 404));
+  }
+
+  // Check for Payment Approval Authority
+  const isSuperAdmin = req.user.role === "SUPER_ADMIN";
+  const hasApprovalAuthority = req.user.permissions?.paymentApproval;
+
+  if (!isSuperAdmin && !hasApprovalAuthority) {
+    const Approval = require("../models/Approval");
+    const existingApproval = await Approval.findOne({
+      targetId: loan._id,
+      status: "Pending",
+    });
+
+    if (existingApproval) {
+      return next(new ErrorHandler("This foreclosure is already waiting for approval", 400));
+    }
+
+    await Approval.create({
+      requestType: "FORECLOSURE",
+      targetId: loan._id,
+      targetModel: "Loan",
+      loanNumber: loan.loanNumber,
+      customerName: loan.customerName || "Customer",
+      requestedData: { ...req.body, loanId: loan._id },
+      requestedBy: req.user._id,
+      status: "Pending",
+    });
+
+    // Notify Admins
+    const { notifyApprovalCountChange, notifyAdmins } = require("./notificationController");
+    await notifyAdmins({
+      senderId: req.user._id,
+      type: "PAYMENT_REQUEST",
+      title: "New Foreclosure Approval Request",
+      message: `Employee ${req.user.name} requested approval for Foreclosure of ₹${req.body.totalAmount || 0} for loan ${loan.loanNumber} (${loan.customerName}).`,
+      data: {
+        loanNumber: loan.loanNumber,
+        customerName: loan.customerName,
+        amount: req.body.totalAmount || 0,
+        employeeName: req.user.name,
+        loanId: loan._id,
+        loanType: "Loan",
+        targetId: loan._id,
+      },
+    });
+
+    // Notify count change for real-time badge updates
+    await notifyApprovalCountChange();
+
+    loan.status = "Waiting for Approval";
+    loan.updatedBy = req.user._id;
+    await loan.save();
+
+    return sendResponse(res, 200, "success", "Foreclosure submitted for approval", null, loan);
   }
 
   if (loan.status === "Closed") {
@@ -1890,6 +2074,8 @@ const forecloseLoan = asyncHandler(async (req, res, next) => {
       foreclosureDate: pDate,
       foreclosureAmount: totalAmount,
       remainingPrincipal,
+      paymentMode: paymentMode || "Cash",
+      chequeNumber: paymentMode === "Cheque" ? chequeNumber : undefined,
     },
     { new: true },
   )

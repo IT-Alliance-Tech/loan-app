@@ -98,6 +98,22 @@ const EditLoanPage = () => {
     }
   }, [id]);
 
+  // Smart Polling: Refresh data automatically if any EMI is waiting for approval
+  useEffect(() => {
+    let interval;
+    const hasWaitingApprovals = emis.some(emi => emi.status === "Waiting for Approval");
+    
+    if (hasWaitingApprovals) {
+      interval = setInterval(() => {
+        fetchLoanData();
+      }, 10000); // Check every 10 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [emis, id]);
+
   const handleSubmit = async (formData) => {
     setSubmitting(true);
     try {
@@ -170,9 +186,21 @@ const EditLoanPage = () => {
                   <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
                     Modify Loan Parameters
                   </h1>
-                  <p className="text-slate-500 font-medium text-sm">
-                    Updating loan record: {loan?.loanTerms?.loanNumber}
-                  </p>
+                   <div className="flex flex-col sm:flex-row sm:items-center gap-x-6 gap-y-2 mt-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Loan Number</span>
+                      <span className="text-[13px] font-black text-primary uppercase tracking-tight bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                        {loan?.loanTerms?.loanNumber || loan?.loanNumber}
+                      </span>
+                    </div>
+                    <span className="hidden sm:inline text-slate-200">|</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vehicle Number</span>
+                      <span className="text-[13px] font-black text-slate-900 uppercase tracking-tight bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                        {loan?.vehicleInformation?.vehicleNumber || "—"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <LoanStatusBadge

@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect, use } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, use, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import AuthGuard from "../../../../../../components/AuthGuard";
 import Navbar from "../../../../../../components/Navbar";
 import Sidebar from "../../../../../../components/Sidebar";
@@ -21,7 +21,6 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
   const fromPage = searchParams.get("from");
   const [loan, setLoan] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [newFollowUpDate, setNewFollowUpDate] = useState("");
   const [updating, setUpdating] = useState(false);
@@ -39,9 +38,9 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
 
   useEffect(() => {
     if (params.id) fetchLoanDetails();
-  }, [params.id]);
+  }, [params.id, fetchLoanDetails]);
 
-  const fetchLoanDetails = async () => {
+  const fetchLoanDetails = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getWeeklyPendingEmiDetails(params.id);
@@ -58,11 +57,11 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
         );
       }
     } catch (err) {
-      setError(err.message);
+      console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
   const handleUpdateStatus = async () => {
     try {
@@ -95,7 +94,7 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
       {
         id: Date.now(),
         date: new Date().toISOString().split("T")[0],
-        payments: [{ id: Date.now() + 1, mode: "", amount: "" }],
+        payments: [{ id: Date.now() + 1, mode: "CASH", amount: "", chequeNumber: "" }],
       },
     ]);
   };
@@ -108,7 +107,7 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
             ...group,
             payments: [
               ...group.payments,
-              { id: Date.now(), mode: "", amount: "" },
+              { id: Date.now(), mode: "CASH", amount: "", chequeNumber: "" },
             ],
           };
         }
@@ -193,6 +192,19 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
         ...editData,
         dateGroups: sanitizedDateGroups,
       };
+
+      // Validation for Cheque Numbers
+      for (const group of sanitizedDateGroups) {
+        for (const p of group.payments) {
+          if (p.mode === "Cheque") {
+            if (!p.chequeNumber || p.chequeNumber.length !== 6) {
+              showToast("Cheque number must be exactly 6 digits", "error");
+              setUpdating(false);
+              return;
+            }
+          }
+        }
+      }
 
       await updateEMI(selectedEmi._id, payload);
       showToast("EMI updated successfully", "success");
@@ -319,27 +331,29 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
                   </div>
 
                   {/* Status Update Section */}
-                  <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200 relative">
-                    {loan.updatedBy && (
-                      <div className="absolute top-4 right-4 flex flex-col items-end pointer-events-none">
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
-                          Last Updated By
-                        </span>
-                        <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
-                          <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
-                            {loan.updatedBy}
+                  <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                        Status Update (Client Response)
+                      </h3>
+                      {loan.updatedBy && (
+                        <div className="flex flex-col items-start md:items-end pointer-events-none">
+                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">
+                            Last Updated By
                           </span>
-                          <span className="w-1 h-1 rounded-full bg-red-500/40" />
-                          <span className="text-[9px] font-bold text-slate-400 font-mono">
-                            {loan.updatedAt &&
-                              format(new Date(loan.updatedAt), "dd/MM/yy HH:mm")}
-                          </span>
+                          <div className="flex items-center gap-2 px-2 py-1 bg-red-500/10 border border-red-500/20 rounded-lg">
+                            <span className="text-[10px] font-black text-red-500 uppercase tracking-tight">
+                              {loan.updatedBy}
+                            </span>
+                            <span className="w-1 h-1 rounded-full bg-red-500/40" />
+                            <span className="text-[9px] font-bold text-slate-400 font-mono">
+                              {loan.updatedAt &&
+                                format(new Date(loan.updatedAt), "dd/MM/yy HH:mm")}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">
-                      Status Update (Client Response)
-                    </h3>
+                      )}
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                       <div className="space-y-2">
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">
@@ -499,6 +513,7 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
                                       id: Math.random(),
                                       mode: p.mode,
                                       amount: p.amount,
+                                      chequeNumber: p.chequeNumber || "",
                                     });
                                   });
                                   setDateGroups(Object.values(groups));
@@ -521,6 +536,7 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
                                               ", ",
                                             )[0] || "CASH",
                                           amount: emi.amountPaid,
+                                          chequeNumber: emi.chequeNumber || "",
                                         },
                                       ],
                                     },
@@ -537,6 +553,7 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
                                           id: Date.now() + 1,
                                           mode: "CASH",
                                           amount: "",
+                                          chequeNumber: "",
                                         },
                                       ],
                                     },
@@ -668,6 +685,30 @@ const WeeklyLoanPendingViewPage = ({ params: paramsPromise }) => {
                                       )
                                     }
                                   />
+                                  {payment.mode === "Cheque" && (
+                                    <div className="md:col-span-2">
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                        Cheque Number (6 Digits)
+                                      </label>
+                                      <input
+                                        type="text"
+                                        maxLength="6"
+                                        value={payment.chequeNumber || ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value.replace(/\D/g, "");
+                                          handlePaymentChange(
+                                            group.id,
+                                            payment.id,
+                                            "chequeNumber",
+                                            val,
+                                          );
+                                        }}
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all font-mono"
+                                        placeholder="123456"
+                                        required
+                                      />
+                                    </div>
+                                  )}
                                   <div className="flex gap-2 items-end">
                                     <div className="flex-1">
                                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">

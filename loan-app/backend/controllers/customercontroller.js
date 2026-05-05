@@ -7,6 +7,7 @@ const { formatLoanResponse } = require("../utils/loanFormatter");
 const asyncHandler = require("../utils/asyncHandler");
 const { parseDateInLocalFormat, normalizeToMidnight } = require('../utils/dateUtils');
 const sendResponse = require("../utils/response");
+const { notifyAdmins } = require("./notificationController");
 
 const calculateEMI = (principal, roi, tenureMonths) => {
   const p = parseFloat(principal);
@@ -148,7 +149,10 @@ const getCustomerByLoanNumber = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler("Customer not found", 404));
   }
 
-  const emis = await EMI.find({ loanId: customer._id }).sort({ emiNumber: 1 });
+  const emis = await EMI.find({ loanId: customer._id })
+    .sort({ emiNumber: 1 })
+    .populate("updatedBy", "name")
+    .populate("approvedBy", "name");
 
   sendResponse(res, 200, "success", "Customer found", null, {
     customer: formatLoanResponse(customer),
@@ -195,13 +199,109 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     dateGroups,
   } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(id) || id === "undefined") {
-    return next(new ErrorHandler("Invalid EMI ID provided", 400));
-  }
-
   let emi = await EMI.findById(id);
   if (!emi) {
     return next(new ErrorHandler("EMI record not found", 404));
+  }
+
+  // Check for Payment Approval Authority
+  const isSuperAdmin = req.user.role === "SUPER_ADMIN";
+  const hasApprovalAuthority = req.user.permissions?.paymentApproval;
+
+  if (!isSuperAdmin && !hasApprovalAuthority) {
+    // Identify NEW payments (not present in current emi.paymentHistory)
+    const currentHistory = emi.paymentHistory || [];
+    const newPayments = [];
+    
+    if (req.body.dateGroups && Array.isArray(req.body.dateGroups)) {
+      req.body.dateGroups.forEach(group => {
+        (group.payments || []).forEach(p => {
+          const match = currentHistory.find(hp => 
+            hp.amount === parseFloat(p.amount) && 
+            hp.mode === (p.mode || "CASH") && 
+            new Date(hp.date).toDateString() === new Date(group.date).toDateString()
+          );
+          if (!match) {
+            newPayments.push({ mode: p.mode || "CASH", amount: parseFloat(p.amount) });
+          }
+        });
+      });
+    } else if (req.body.addedAmount) {
+       newPayments.push({ mode: req.body.paymentMode || "CASH", amount: parseFloat(req.body.addedAmount) });
+    }
+
+    // Check if there's already a pending approval for this EMI
+    const Approval = require("../models/Approval");
+    const existingApproval = await Approval.findOne({
+      targetId: emi._id,
+      status: "Pending",
+    });
+
+    if (existingApproval) {
+      existingApproval.requestedData = { 
+        ...req.body, 
+        emiNumber: emi.emiNumber, 
+        loanId: emi.loanId,
+        newPayments: newPayments.length > 0 ? newPayments : null
+      };
+      existingApproval.requestedBy = req.user._id;
+      existingApproval.createdAt = Date.now();
+      await existingApproval.save();
+      return sendResponse(res, 200, "success", "Pending approval request has been updated with new data", null, existingApproval);
+    }
+
+    // Create Approval Request
+    await Approval.create({
+      requestType: "EMI_PAYMENT",
+      targetId: emi._id,
+      targetModel: "EMI",
+      loanNumber: emi.loanNumber,
+      customerName: emi.customerName || "Customer",
+      requestedData: { 
+        ...req.body, 
+        emiNumber: emi.emiNumber, 
+        loanId: emi.loanId,
+        newPayments: newPayments.length > 0 ? newPayments : null
+      },
+      requestedBy: req.user._id,
+      status: "Pending",
+    });
+
+    // Calculate total amount if dateGroups is present
+    let displayAmount = req.body.addedAmount || req.body.amountPaid || 0;
+    if (req.body.dateGroups && Array.isArray(req.body.dateGroups)) {
+      displayAmount = req.body.dateGroups.reduce((total, group) => {
+        return total + (group.payments || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+      }, 0);
+    }
+
+    // Notify Admins
+    const { notifyApprovalCountChange } = require("./notificationController");
+    await notifyAdmins({
+      senderId: req.user._id,
+      type: "PAYMENT_REQUEST",
+      title: "New EMI Payment Approval Request",
+      message: `Employee ${req.user.name} requested approval for EMI payment of ₹${displayAmount} for loan ${emi.loanNumber} (${emi.customerName}).`,
+      data: {
+        loanNumber: emi.loanNumber,
+        customerName: emi.customerName,
+        amount: displayAmount,
+        employeeName: req.user.name,
+        loanId: emi.loanId,
+        loanType: emi.loanModel || "Loan",
+        targetId: emi._id,
+      },
+    });
+
+    // Notify count change for real-time badge updates
+    await notifyApprovalCountChange();
+
+    // Update EMI status to 'Waiting for Approval'
+    emi.status = "Waiting for Approval";
+    emi.updatedBy = req.user._id;
+    await emi.save();
+
+    return sendResponse(res, 200, "success", "Payment submitted for approval", null, emi);
   }
 
   // CALCULATE DELTAS FOR IMMUTABLE TRANSACTION RECORDING
@@ -224,6 +324,7 @@ const updateEMI = asyncHandler(async (req, res, next) => {
             emi.paymentHistory.push({
               amount: amount,
               mode: p.mode || "CASH",
+              chequeNumber: p.chequeNumber || "",
               date: new Date(group.date),
             });
           }
@@ -259,12 +360,13 @@ const updateEMI = asyncHandler(async (req, res, next) => {
 
   // Strategy: Group everything by (date, mode) and calculate deltas for each bucket.
   const buckets = {};
-  const addToBucket = (date, mode, type, amount, isNew) => {
+  const addToBucket = (date, mode, chequeNumber, type, amount, isNew) => {
     const key = getGroupKey(date);
     if (!buckets[key]) {
       buckets[key] = {
         date: normalizeToMidnight(new Date(date)),
         modes: new Set(),
+        chequeNumbers: new Set(),
         emiDelta: 0,
         overdueDelta: 0,
       };
@@ -273,8 +375,9 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     if (type === "EMI") buckets[key].emiDelta += isNew ? val : -val;
     else buckets[key].overdueDelta += isNew ? val : -val;
 
-    if (isNew && val > 0 && mode) {
-      buckets[key].modes.add(mode.toUpperCase());
+    if (isNew && val > 0) {
+      if (mode) buckets[key].modes.add(mode.toUpperCase());
+      if (chequeNumber) buckets[key].chequeNumbers.add(chequeNumber);
     }
   };
 
@@ -286,20 +389,20 @@ const updateEMI = asyncHandler(async (req, res, next) => {
   const originalEmi = await EMI.findById(id).lean();
   
   if (Array.isArray(originalEmi.paymentHistory)) {
-    originalEmi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, false));
+    originalEmi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, p.chequeNumber, 'EMI', p.amount, false));
   }
   
   if (Array.isArray(originalEmi.overdue)) {
-    originalEmi.overdue.forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, false));
+    originalEmi.overdue.forEach(p => addToBucket(p.date, p.mode, p.chequeNumber, 'Overdue', p.amount, false));
   }
 
   // Process New state (add to buckets)
   if (Array.isArray(emi.paymentHistory)) {
-    emi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, 'EMI', p.amount, true));
+    emi.paymentHistory.forEach(p => addToBucket(p.date, p.mode, p.chequeNumber, 'EMI', p.amount, true));
   }
   
   if (Array.isArray(emi.overdue)) {
-    emi.overdue.forEach(p => addToBucket(p.date, p.mode, 'Overdue', p.amount, true));
+    emi.overdue.forEach(p => addToBucket(p.date, p.mode, p.chequeNumber, 'Overdue', p.amount, true));
   }
 
   // Create Payment records for each bucket with a non-zero delta
@@ -308,7 +411,10 @@ const updateEMI = asyncHandler(async (req, res, next) => {
     const totalDelta = emiDelta + overdueDelta;
 
     if (totalDelta !== 0 || emiDelta !== 0 || overdueDelta !== 0) {
+      const { date, modes, chequeNumbers } = buckets[key];
       const combinedMode = modes.size > 0 ? Array.from(modes).join(", ") : "CASH";
+      const combinedChequeNo = chequeNumbers.size > 0 ? Array.from(chequeNumbers).join(", ") : "";
+
       await Payment.create({
         emiId: emi._id,
         loanId: emi.loanId,
@@ -318,6 +424,7 @@ const updateEMI = asyncHandler(async (req, res, next) => {
         totalAmount: totalDelta,
         amount: totalDelta, // Legacy fallback
         mode: combinedMode,
+        chequeNumber: combinedChequeNo,
         paymentDate: date,
         paymentType:
           emi.loanModel === "DailyLoan"
@@ -532,9 +639,17 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
 
   const total = await EMI.countDocuments(query);
 
-  const emis = await EMI.aggregate([
+  let sortConfig = { updatedAt: -1 };
+  let collationConfig = null;
+
+  if (loanNumber) {
+    sortConfig = { loanNumber: 1 };
+    collationConfig = { locale: "en", numericOrdering: true };
+  }
+
+  const aggregatePipeline = [
     { $match: query },
-    { $sort: { updatedAt: -1 } },
+    { $sort: sortConfig },
     { $skip: skip },
     { $limit: limit },
     {
@@ -574,6 +689,8 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
         guarantorMobileNumbers: "$loan.guarantorMobileNumbers",
         guarantorName: "$loan.guarantorName",
         updatedBy: 1,
+        approvedBy: 1,
+        approvedAt: 1,
         paymentRecords: 1,
         paymentHistory: 1,
       },
@@ -593,8 +710,24 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
       },
     },
     {
+      $lookup: {
+        from: "users",
+        localField: "approvedBy",
+        foreignField: "_id",
+        as: "approvedBy",
+      },
+    },
+    {
+      $unwind: {
+        path: "$approvedBy",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
       $project: {
         updatedBy: { $ifNull: ["$updatedBy.name", null] },
+        approvedBy: { $ifNull: ["$approvedBy.name", null] },
+        approvedAt: 1,
         _id: 1,
         loanId: 1,
         loanNumber: 1,
@@ -616,7 +749,14 @@ const getAllEMIDetails = asyncHandler(async (req, res, next) => {
         paymentHistory: 1,
       },
     },
-  ]);
+  ];
+
+  let emis;
+  if (collationConfig) {
+    emis = await EMI.aggregate(aggregatePipeline).collation(collationConfig);
+  } else {
+    emis = await EMI.aggregate(aggregatePipeline);
+  }
 
   sendResponse(res, 200, "success", "EMI details fetched successfully", null, {
     emis,
@@ -634,12 +774,29 @@ const getEMIsByLoanId = asyncHandler(async (req, res, next) => {
   if (!mongoose.Types.ObjectId.isValid(loanId) || loanId === "undefined") {
     return next(new ErrorHandler("Invalid Loan ID provided", 400));
   }
-  const emis = await EMI.find({ loanId })
-    .sort({
-      emiNumber: 1,
-    })
+  const emis = await EMI.find({ loanId }).sort({ emiNumber: 1 }).lean()
     .populate("updatedBy", "name")
+    .populate("approvedBy", "name")
     .populate("paymentRecords");
+
+  const Approval = require("../models/Approval");
+  const emiIds = emis.map((e) => e._id);
+  const pendingApprovals = await Approval.find({
+    targetId: { $in: emiIds },
+    status: "Pending",
+  });
+
+  const pendingMap = {};
+  pendingApprovals.forEach((a) => {
+    pendingMap[a.targetId.toString()] = a.requestedData;
+  });
+
+  emis.forEach((emi) => {
+    if (pendingMap[emi._id.toString()]) {
+      emi.pendingApproval = pendingMap[emi._id.toString()];
+    }
+  });
+
   sendResponse(res, 200, "success", "EMIs fetched successfully", null, emis);
 });
 

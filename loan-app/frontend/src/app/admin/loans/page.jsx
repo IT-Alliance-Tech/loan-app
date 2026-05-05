@@ -269,17 +269,18 @@ const LoansPage = () => {
                           <th className="w-[80px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                             LOAN NO
                           </th>
-                          <th className="px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
+                           <th className="px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
                             CUSTOMER NAME
+                          </th>
+                          <th className="px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
+                            VEHICLE NO
                           </th>
                           <th className="w-[120px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
                             MOBILE
                           </th>
-                          <th className="px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
-                            GUARANTOR
-                          </th>
-                          <th className="w-[120px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] whitespace-nowrap">
-                            GUAR. MOBILE
+
+                           <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
+                            DISBURSEMENT
                           </th>
                           <th className="w-[100px] px-4 py-4 text-[9px] font-bold text-slate-400 tracking-[0.1em] text-center whitespace-nowrap">
                             EMI
@@ -302,7 +303,7 @@ const LoansPage = () => {
                         {loading ? (
                           <tr>
                             <td
-                              colSpan="10"
+                              colSpan="8"
                               className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase"
                             >
                               Loading records...
@@ -311,7 +312,7 @@ const LoansPage = () => {
                         ) : loans.length === 0 ? (
                           <tr>
                             <td
-                              colSpan="10"
+                              colSpan="8"
                               className="px-6 py-12 text-center text-slate-300 font-bold text-xs uppercase"
                             >
                               No records
@@ -342,9 +343,14 @@ const LoansPage = () => {
                                   {loan.loanTerms?.loanNumber}
                                 </Link>
                               </td>
-                              <td className="px-4 py-6">
+                               <td className="px-4 py-6">
                                 <span className="font-bold text-slate-700 text-base leading-tight">
                                   {loan.customerDetails?.customerName}
+                                </span>
+                              </td>
+                              <td className="px-4 py-6">
+                                <span className="font-bold text-slate-700 text-xs uppercase">
+                                  {loan.vehicleInformation?.vehicleNumber || "—"}
                                 </span>
                               </td>
                               <td className="px-4 py-6">
@@ -373,37 +379,9 @@ const LoansPage = () => {
                                   ))}
                                 </div>
                               </td>
-                              <td className="px-4 py-6">
-                                <span className="text-sm font-bold text-slate-700 whitespace-nowrap">
-                                  {loan.customerDetails?.guarantorName || "—"}
-                                </span>
-                              </td>
-                              <td className="px-4 py-6">
-                                <div className="flex flex-col gap-0.5">
-                                  {(
-                                    loan.customerDetails
-                                      ?.guarantorMobileNumbers || []
-                                  ).map((num, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={(e) => {
-                                        const rect =
-                                          e.currentTarget.getBoundingClientRect();
-                                        setActiveContactMenu({
-                                          number: num,
-                                          name: loan.customerDetails
-                                            ?.guarantorName,
-                                          type: "Guarantor",
-                                          x: rect.left,
-                                          y: rect.bottom,
-                                        });
-                                      }}
-                                      className="text-[10px] font-bold text-slate-400 opacity-70 hover:opacity-100 hover:text-primary transition-all text-left"
-                                    >
-                                      {num}
-                                    </button>
-                                  ))}
-                                </div>
+
+                               <td className="px-4 py-6 text-center whitespace-nowrap text-slate-900 font-bold text-xs">
+                                ₹{loan.loanTerms?.principalAmount?.toLocaleString() || "0"}
                               </td>
                               <td className="px-4 py-6 text-center whitespace-nowrap text-[#2463EB] font-black text-base">
                                 ₹
@@ -559,17 +537,18 @@ const LoansPage = () => {
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap sticky left-0 bg-slate-50 z-20 shadow-[10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                             Loan Number
                           </th>
-                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                             Customer Name
+                          </th>
+                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                            Vehicle Number
                           </th>
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                             Mobile
                           </th>
-                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                            Guarantor
-                          </th>
-                          <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                            Guar. Mobile
+
+                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
+                            Disbursement
                           </th>
                           <th className="px-6 py-3.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">
                             EMI
@@ -592,7 +571,7 @@ const LoansPage = () => {
                         {loading ? (
                           <tr>
                             <td
-                              colSpan="7"
+                              colSpan="8"
                               className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                             >
                               Loading...
@@ -601,7 +580,7 @@ const LoansPage = () => {
                         ) : loans.length === 0 ? (
                           <tr>
                             <td
-                              colSpan="7"
+                              colSpan="8"
                               className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase"
                             >
                               Empty
@@ -636,8 +615,11 @@ const LoansPage = () => {
                                   {loan.loanTerms?.loanNumber}
                                 </Link>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap font-extrabold text-slate-800 text-xs uppercase">
+                               <td className="px-6 py-4 whitespace-nowrap font-extrabold text-slate-800 text-xs uppercase">
                                 {loan.customerDetails?.customerName}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-600 text-[10px] uppercase">
+                                {loan.vehicleInformation?.vehicleNumber || "—"}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex flex-col gap-1 items-start">
@@ -665,35 +647,9 @@ const LoansPage = () => {
                                   ))}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap font-extrabold text-slate-800 text-xs uppercase">
-                                {loan.customerDetails?.guarantorName || "—"}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex flex-col gap-1 items-start">
-                                  {(
-                                    loan.customerDetails
-                                      ?.guarantorMobileNumbers || []
-                                  ).map((num, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={(e) => {
-                                        const rect =
-                                          e.currentTarget.getBoundingClientRect();
-                                        setActiveContactMenu({
-                                          number: num,
-                                          name: loan.customerDetails
-                                            ?.guarantorName,
-                                          type: "Guarantor",
-                                          x: rect.left,
-                                          y: rect.bottom,
-                                        });
-                                      }}
-                                      className="text-slate-600 font-bold text-xs tracking-widest hover:text-primary transition-colors text-left"
-                                    >
-                                      {num}
-                                    </button>
-                                  ))}
-                                </div>
+
+                               <td className="px-6 py-4 whitespace-nowrap text-center font-bold text-slate-900 text-xs">
+                                ₹{loan.loanTerms?.principalAmount?.toLocaleString()}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center font-black text-primary text-xs">
                                 ₹{loan.loanTerms?.monthlyEMI?.toLocaleString()}

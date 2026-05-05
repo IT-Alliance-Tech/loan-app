@@ -88,16 +88,23 @@ const getAllExpenses = asyncHandler(async (req, res, next) => {
     }
   }
 
-  const [expenses, total] = await Promise.all([
+  const [expenses, total, summaryTotal] = await Promise.all([
     Expense.find(match)
       .sort({ date: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit),
     Expense.countDocuments(match),
+    Expense.aggregate([
+      { $match: match },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ])
   ]);
 
   sendResponse(res, 200, "success", "Expenses fetched successfully", null, {
     expenses,
+    summary: {
+      totalAmount: summaryTotal[0]?.total || 0
+    },
     pagination: {
       total,
       page,

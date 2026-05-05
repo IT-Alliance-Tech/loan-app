@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { updateEMI } from "../services/customer";
+import interestLoanService from "../services/interestLoanService";
 import { useToast } from "../context/ToastContext";
 import PaymentModeSelector from "./PaymentModeSelector";
 
-const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
+const EMITable = ({ emis, isEditMode = false, onUpdateSuccess, loanType = "standard" }) => {
   const [editingEmi, setEditingEmi] = useState(null);
   const [editData, setEditData] = useState({});
   const [loading, setLoading] = useState(false);
@@ -29,15 +30,28 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
 
   const handleEditClick = (emi) => {
     setEditingEmi(emi);
+    
+    // Priority: 1. Pending Approval Data, 2. Confirmed EMI Data, 3. Defaults
+    const pendingData = emi.pendingApproval || {};
+    
     setEditData({
-      overdue: (emi.overdue && emi.overdue.length > 0)
-        ? emi.overdue.map(ov => ({ ...ov, id: Math.random(), mode: ov.mode || "CASH" }))
-        : [],
+      overdue: (pendingData.overdue && pendingData.overdue.length > 0)
+        ? pendingData.overdue.map(ov => ({ ...ov, id: Math.random(), mode: ov.mode || "Cash", chequeNumber: ov.chequeNumber || "" }))
+        : (emi.overdue && Array.isArray(emi.overdue) && emi.overdue.length > 0)
+          ? emi.overdue.map(ov => ({ ...ov, id: Math.random(), mode: ov.mode || "Cash", chequeNumber: ov.chequeNumber || "" }))
+          : [],
       status: emi.status || "Pending",
-      remarks: emi.remarks || "",
+      remarks: pendingData.remarks || emi.remarks || "",
     });
 
-    if (emi.paymentHistory && emi.paymentHistory.length > 0) {
+    if (pendingData.dateGroups && pendingData.dateGroups.length > 0) {
+      // Use pending data groups
+      setDateGroups(pendingData.dateGroups.map(g => ({
+        ...g,
+        id: Math.random(),
+        payments: (g.payments || []).map(p => ({ ...p, id: Math.random() }))
+      })));
+    } else if (emi.paymentHistory && emi.paymentHistory.length > 0) {
       // Group history by date
       const groups = {};
       emi.paymentHistory.forEach((p) => {
@@ -53,6 +67,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
           id: Math.random(),
           mode: p.mode,
           amount: p.amount,
+          chequeNumber: p.chequeNumber || "",
         });
       });
       setDateGroups(Object.values(groups));
@@ -67,8 +82,9 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
           payments: [
             {
               id: Date.now() + 1,
-              mode: (emi.paymentMode || "").split(", ")[0] || "CASH",
+              mode: (emi.paymentMode || "").split(", ")[0] || "Cash",
               amount: emi.amountPaid,
+              chequeNumber: "",
             },
           ],
         },
@@ -78,7 +94,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
         {
           id: Date.now(),
           date: new Date().toISOString().split("T")[0],
-          payments: [{ id: Date.now() + 1, mode: "CASH", amount: "" }],
+          payments: [{ id: Date.now() + 1, mode: "Cash", amount: "", chequeNumber: "" }],
         },
       ]);
     }
@@ -91,7 +107,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
       {
         id: Date.now(),
         date: new Date().toISOString().split("T")[0],
-        payments: [{ id: Date.now() + 1, mode: "", amount: "" }],
+        payments: [{ id: Date.now() + 1, mode: "Cash", amount: "", chequeNumber: "" }],
       },
     ]);
   };
@@ -104,7 +120,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
             ...group,
             payments: [
               ...group.payments,
-              { id: Date.now(), mode: "", amount: "" },
+              { id: Date.now(), mode: "Cash", amount: "", chequeNumber: "" },
             ],
           };
         }
@@ -188,23 +204,54 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
         }))
         .filter((group) => group.payments.length > 0);
 
+      // Validation for Cheque Numbers
+      for (const group of sanitizedDateGroups) {
+        for (const p of group.payments) {
+          if (p.mode === "Cheque") {
+            if (!p.chequeNumber || p.chequeNumber.length !== 6) {
+              showToast("Cheque number must be exactly 6 digits", "error");
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      }
+
       const sanitizedOverdue = editData.overdue
         .filter(ov => ov.amount && parseFloat(ov.amount) > 0)
-        .map(({ date, amount, mode }) => ({ date, amount, mode }));
+        .map(({ date, amount, mode, chequeNumber }) => ({ date, amount, mode, chequeNumber }));
 
-      await updateEMI(editingEmi._id, {
-        ...editData,
-        overdue: sanitizedOverdue,
-        dateGroups: sanitizedDateGroups, // Send the full date groups to backend
-      });
+      for (const ov of sanitizedOverdue) {
+        if (ov.mode === "Cheque") {
+          if (!ov.chequeNumber || ov.chequeNumber.length !== 6) {
+            showToast("Overdue Cheque number must be exactly 6 digits", "error");
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      if (loanType === "interest") {
+        await interestLoanService.payInterestEMI(editingEmi._id, {
+          ...editData,
+          overdue: sanitizedOverdue,
+          dateGroups: sanitizedDateGroups,
+        });
+      } else {
+        await updateEMI(editingEmi._id, {
+          ...editData,
+          overdue: sanitizedOverdue,
+          dateGroups: sanitizedDateGroups,
+        });
+      }
       setShowModal(false);
       setEditingEmi(null);
-      showToast("EMI updated successfully", "success");
+      showToast(`${loanType === "interest" ? "Interest" : "EMI"} updated successfully`, "success");
       if (onUpdateSuccess) onUpdateSuccess();
     } catch (error) {
       console.error("Error updating EMI:", error);
       showToast(
-        error.message || "An error occurred while updating EMI",
+        error.message || `An error occurred while updating ${loanType === "interest" ? "Interest" : "EMI"}`,
         "error",
       );
     } finally {
@@ -222,7 +269,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
       ...prev,
       overdue: [
         ...prev.overdue,
-        { id: Date.now(), date: new Date().toISOString().split("T")[0], amount: "", mode: "CASH" },
+        { id: Date.now(), date: new Date().toISOString().split("T")[0], amount: "", mode: "Cash", chequeNumber: "" },
       ],
     }));
   };
@@ -266,46 +313,59 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
         <table className="w-full text-left border-collapse">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap min-w-[60px]">
                 No.
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap min-w-[120px]">
                 Due Date
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
-                EMI Amount
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
+                {loanType === "interest" ? "Interest Amount" : "EMI Amount"}
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
                 Amount Paid
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
                 Payment Date
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[100px]">
                 Mode
               </th>
-
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[100px]">
                 Overdue
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[120px]">
                 Payment
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[150px]">
                 Remarks
               </th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center">
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[150px]">
+                Approved By
+              </th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center min-w-[150px]">
                 Last Updated
               </th>
               {isEditMode && (
-                <th className="sticky right-0 bg-slate-50 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
+                <th className="sticky right-0 bg-slate-50 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap text-center z-20 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] min-w-[100px]">
                   Actions
                 </th>
               )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {emis.map((emi, index) => (
+            {emis.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={isEditMode ? 11 : 10}
+                  className="px-6 py-12 text-center text-sm font-bold text-slate-400 italic"
+                >
+                  No payment records found. The schedule will be initialized
+                  automatically.
+                </td>
+              </tr>
+            ) : (
+              emis.map((emi, index) => (
               <tr
                 key={emi._id}
                 onClick={(e) => toggleHighlight(e, emi._id)}
@@ -364,7 +424,9 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                           ? "bg-green-100 text-green-700"
                           : emi.status === "Partially Paid"
                             ? "bg-orange-100 text-orange-700"
-                            : "bg-red-100 text-red-700"
+                            : emi.status === "Waiting for Approval"
+                              ? "bg-blue-100 text-blue-700 animate-pulse"
+                              : "bg-red-100 text-red-700"
                       }`}
                     >
                       {emi.status}
@@ -376,6 +438,31 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                   title={emi.remarks}
                 >
                   {emi.remarks || "-"}
+                </td>
+                <td className="px-6 py-4 text-xs font-medium text-slate-500 text-center whitespace-nowrap">
+                  {emi.approvedBy ? (
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-700">
+                        {typeof emi.approvedBy === "string"
+                          ? emi.approvedBy
+                          : emi.approvedBy.name}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(emi.approvedAt).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}{" "}
+                        {new Date(emi.approvedAt).toLocaleTimeString("en-IN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
+                      </span>
+                    </div>
+                  ) : (
+                    "-"
+                  )}
                 </td>
                 <td className="px-6 py-4 text-xs font-medium text-slate-500 text-center whitespace-nowrap">
                   {emi.updatedBy ? (
@@ -420,8 +507,9 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                     </div>
                   </td>
                 )}
-              </tr>
-            ))}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -433,7 +521,7 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                  Update EMI #{editingEmi?.emiNumber}
+                  Update {loanType === "interest" ? "Interest" : "EMI"} #{editingEmi?.emiNumber}
                 </h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                   Due Date: {formatDate(editingEmi?.dueDate)} | Amount: ₹
@@ -529,6 +617,30 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                                 }
                               />
                             </div>
+                            {payment.mode === "Cheque" && (
+                              <div className="md:col-span-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                  Cheque Number (6 Digits)
+                                </label>
+                                <input
+                                  type="text"
+                                  maxLength="6"
+                                  value={payment.chequeNumber || ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "");
+                                    handlePaymentChange(
+                                      group.id,
+                                      payment.id,
+                                      "chequeNumber",
+                                      val,
+                                    );
+                                  }}
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-slate-300 font-mono"
+                                  placeholder="123456"
+                                  required
+                                />
+                              </div>
+                            )}
                             <div className="flex gap-2 items-end">
                               <div className="flex-1">
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
@@ -598,11 +710,13 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                           : "bg-red-50 border-red-200 text-red-600"
                     }`}
                   >
-                    {remainingBalance === 0
-                      ? "Paid"
-                      : remainingBalance < (editingEmi?.emiAmount || 0)
-                        ? "Partially Paid"
-                        : "Pending"}
+                    {editingEmi?.status === "Waiting for Approval"
+                      ? "Waiting for Approval"
+                      : remainingBalance === 0
+                        ? "Paid"
+                        : remainingBalance < (editingEmi?.emiAmount || 0)
+                          ? "Partially Paid"
+                          : "Pending"}
                   </div>
                 </div>
 
@@ -660,6 +774,25 @@ const EMITable = ({ emis, isEditMode = false, onUpdateSuccess }) => {
                               onChange={(val) => handleOverdueChange(ov.id, "mode", val)}
                             />
                           </div>
+                          {ov.mode === "Cheque" && (
+                            <div className="md:col-span-2">
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                Cheque Number (6 Digits)
+                              </label>
+                              <input
+                                type="text"
+                                maxLength="6"
+                                value={ov.chequeNumber || ""}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, "");
+                                  handleOverdueChange(ov.id, "chequeNumber", val);
+                                }}
+                                className="w-full px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm font-bold text-red-600 focus:outline-none focus:ring-4 focus:ring-red-500/10 transition-all font-mono"
+                                placeholder="123456"
+                                required
+                              />
+                            </div>
+                          )}
                           <div className="flex-1">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
                               Amount

@@ -21,6 +21,7 @@ const WeeklyFollowupList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeContactMenu, setActiveContactMenu] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Get today's date in YYYY-MM-DD format for default filter
   const today = new Date().toISOString().split("T")[0];
@@ -41,6 +42,27 @@ const WeeklyFollowupList = () => {
   const { showToast } = useToast();
   const user = getUserFromToken();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  // Load saved filters on mount
+  useEffect(() => {
+    const savedFilters = localStorage.getItem("weeklyFollowupFilters");
+    if (savedFilters) {
+      try {
+        const parsed = JSON.parse(savedFilters);
+        setFilters((prev) => ({ ...prev, ...parsed }));
+      } catch (e) {
+        console.error("Failed to parse saved filters", e);
+      }
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // Save filters on change
+  useEffect(() => {
+    if (isInitialized) {
+      localStorage.setItem("weeklyFollowupFilters", JSON.stringify(filters));
+    }
+  }, [filters, isInitialized]);
 
   const fetchFollowups = async () => {
     try {
@@ -107,6 +129,7 @@ const WeeklyFollowupList = () => {
       startDate: today,
       endDate: today,
     });
+    localStorage.removeItem("weeklyFollowupFilters");
     setSearchQuery("");
     setCurrentPage(1);
   };

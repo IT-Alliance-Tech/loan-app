@@ -15,7 +15,7 @@ const paymentSchema = new mongoose.Schema(
     loanModel: {
       type: String,
       required: true,
-      enum: ["Loan", "WeeklyLoan", "DailyLoan"],
+      enum: ["Loan", "WeeklyLoan", "DailyLoan", "InterestLoan"],
     },
     amount: {
       type: Number,
@@ -36,7 +36,11 @@ const paymentSchema = new mongoose.Schema(
     mode: {
       type: String,
       required: true,
-      default: "CASH",
+      default: "Cash",
+    },
+    chequeNumber: {
+      type: String,
+      default: "",
     },
     paymentDate: {
       type: Date,
@@ -44,7 +48,15 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentType: {
       type: String,
-      enum: ["Monthly", "Daily", "Weekly", "Processing Fee", "Overdue", "Foreclosure"],
+      enum: [
+        "Monthly",
+        "Daily",
+        "Weekly",
+        "Processing Fee",
+        "Overdue",
+        "Interest",
+        "Foreclosure",
+      ],
       required: true,
     },
     status: {

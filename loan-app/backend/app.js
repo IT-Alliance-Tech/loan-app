@@ -16,6 +16,9 @@ const todoRoutes = require("./routes/todoRoutes");
 const collectionRoutes = require("./routes/collectionRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const interestLoanRoutes = require("./routes/interestLoanRoutes");
+const approvalRoutes = require("./routes/approvalRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 const { checkLoanNumberUniqueness } = require("./controllers/loanController");
 const compression = require("compression");
 
@@ -56,22 +59,16 @@ const allowedOrigins = rawAllowedOrigins
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-
-      // Normalize incoming origin for robust comparison
       const normalizedOrigin = origin.replace(/\/$/, "");
-
-      // Log origin for debugging on the server
-      console.log(
-        `[CORS] Request from Origin: ${origin} (normalized as: ${normalizedOrigin})`,
-      );
-
-      if (allowedOrigins.includes(normalizedOrigin)) {
+      
+      // Always allow localhost for development convenience
+      const isLocalhost = normalizedOrigin.includes("localhost:") || normalizedOrigin.includes("127.0.0.1:");
+      
+      if (allowedOrigins.includes(normalizedOrigin) || isLocalhost) {
         return callback(null, true);
       } else {
         console.warn(`[CORS] Rejected Origin: ${origin}`);
-        // Return false instead of an Error to avoid 500 response
         return callback(null, false);
       }
     },
@@ -89,7 +86,6 @@ app.use(
 );
 
 const User = require("./models/User");
-// Secured seeding route for establishing the first Admin remotely
 app.get("/api/seed-admin", async (req, res) => {
   try {
     const { key } = req.query;
@@ -118,6 +114,7 @@ app.get("/api/seed-admin", async (req, res) => {
         analytics: { view: true, create: true, edit: true, delete: true },
         dashboard: { view: true, create: true, edit: true, delete: true },
         expenses: { view: true, create: true, edit: true, delete: true },
+        paymentApproval: true,
       };
       await user.save();
       return res.status(200).send("Admin updated successfully");
@@ -140,6 +137,7 @@ app.get("/api/seed-admin", async (req, res) => {
           analytics: { view: true, create: true, edit: true, delete: true },
           dashboard: { view: true, create: true, edit: true, delete: true },
           expenses: { view: true, create: true, edit: true, delete: true },
+          paymentApproval: true,
         },
       });
       return res.status(200).send("Admin created successfully");
@@ -148,6 +146,7 @@ app.get("/api/seed-admin", async (req, res) => {
     res.status(500).send(error.message);
   }
 });
+
 app.use(cookieParser());
 app.use(express.json());
 
@@ -166,6 +165,9 @@ app.use("/api/todos", todoRoutes);
 app.use("/api/collections", collectionRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/interest-loans", interestLoanRoutes);
+app.use("/api/approvals", approvalRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Error Middleware
 app.use(errorMiddleware);

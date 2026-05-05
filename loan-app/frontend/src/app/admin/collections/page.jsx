@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import AuthGuard from "../../../components/AuthGuard";
 import Navbar from "../../../components/Navbar";
@@ -8,7 +8,7 @@ import AddExpenseModal from "../../../components/AddExpenseModal";
 import { getCollectionTransactions, getLoansGivenSummary } from "../../../services/collection.service";
 import { getAllExpenses } from "../../../services/expenseService";
 import { useToast } from "../../../context/ToastContext";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import Pagination from "../../../components/Pagination";
 
 const CollectionsPage = () => {
@@ -32,33 +32,31 @@ const CollectionsPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [summaryTotals, setSummaryTotals] = useState({
+    collections: 0,
+    loans: 0,
+    expenses: 0
+  });
+
   // Filters State - Default to last 7 days
   const [filters, setFilters] = useState({
-    startDate: format(subDays(new Date(), 7), "yyyy-MM-dd"),
+    startDate: format(new Date(), "yyyy-MM-dd"),
     endDate: format(new Date(), "yyyy-MM-dd"),
   });
 
   // Modal State for Expenses
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
-  // Fetch Logic based on active tab and page
-  useEffect(() => {
-    if (activeTab === "collections") {
-      fetchCollections(pagination.collections.page);
-    } else if (activeTab === "loans") {
-      fetchLoansGiven(pagination.loans.page);
-    } else if (activeTab === "expenses") {
-      fetchExpenses();
-    }
-  }, [activeTab, pagination.collections.page, pagination.loans.page]);
-
-  const fetchCollections = async (page = 1) => {
+  const fetchCollections = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       setError("");
       const res = await getCollectionTransactions({ ...filters, page, limit: 25 });
       if (res.data) {
         setCollections(res.data.transactions || []);
+        if (res.data.summary) {
+          setSummaryTotals(prev => ({ ...prev, collections: res.data.summary.totalAmount }));
+        }
         if (res.data.pagination) {
           setPagination(prev => ({
             ...prev,
@@ -72,15 +70,18 @@ const CollectionsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, showToast]);
 
-  const fetchLoansGiven = async (page = 1) => {
+  const fetchLoansGiven = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       setError("");
       const res = await getLoansGivenSummary({ ...filters, page, limit: 25 });
       if (res.data) {
         setLoansGiven(res.data.loans || []);
+        if (res.data.summary) {
+          setSummaryTotals(prev => ({ ...prev, loans: res.data.summary.totalAmount }));
+        }
         if (res.data.pagination) {
           setPagination(prev => ({
             ...prev,
@@ -94,22 +95,35 @@ const CollectionsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, showToast]);
 
-  const fetchExpenses = async () => {
+  const fetchExpenses = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
       const res = await getAllExpenses(filters);
       const data = res.data;
       setExpenses(Array.isArray(data) ? data : (data?.expenses || data?.data || []));
+      if (data?.summary) {
+        setSummaryTotals(prev => ({ ...prev, expenses: data.summary.totalAmount }));
+      }
     } catch (err) {
       setError(err.message);
       showToast("Failed to fetch expenses", "error");
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, showToast]);
+
+  const fetchAllData = useCallback(() => {
+    fetchCollections(pagination.collections.page);
+    fetchLoansGiven(pagination.loans.page);
+    fetchExpenses();
+  }, [fetchCollections, fetchLoansGiven, fetchExpenses, pagination.collections.page, pagination.loans.page]);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData, activeTab]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -117,19 +131,15 @@ const CollectionsPage = () => {
   };
 
   const handleSearchSubmit = () => {
-    // Reset to page 1 on filter submit
+    // Reset to page 1 on filter submit and fetch all
     setPagination(prev => ({
       ...prev,
-      [activeTab]: { ...prev[activeTab], page: 1 }
+      collections: { ...prev.collections, page: 1 },
+      loans: { ...prev.loans, page: 1 },
+      expenses: { ...prev.expenses, page: 1 }
     }));
     
-    if (activeTab === "collections") {
-      fetchCollections(1);
-    } else if (activeTab === "loans") {
-      fetchLoansGiven(1);
-    } else if (activeTab === "expenses") {
-      fetchExpenses();
-    }
+    fetchAllData();
   };
 
   const handlePageChange = (newPage) => {
@@ -337,6 +347,27 @@ const CollectionsPage = () => {
                     COLLECTIONS, DISBURSEMENTS & EXPENSES
                   </p>
                 </div>
+
+                <div className="flex flex-wrap gap-4 mt-6 md:mt-0">
+                  {activeTab === "collections" && (
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-w-[160px]">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Collection</span>
+                      <span className="text-2xl font-black text-emerald-600 tracking-tighter">₹{summaryTotals.collections.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {activeTab === "loans" && (
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-w-[160px]">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Loans Given</span>
+                      <span className="text-2xl font-black text-emerald-600 tracking-tighter">₹{summaryTotals.loans.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {activeTab === "expenses" && (
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col min-w-[160px]">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Expenses</span>
+                      <span className="text-2xl font-black text-emerald-600 tracking-tighter">₹{summaryTotals.expenses.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* TABS */}
@@ -363,33 +394,68 @@ const CollectionsPage = () => {
 
               {/* Filters */}
               {(activeTab === "collections" || activeTab === "loans" || activeTab === "expenses") && (
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm mb-8 flex flex-wrap gap-6 items-end">
-                   <div className="flex flex-col gap-1.5">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Start Date</label>
-                     <input 
-                      type="date" 
-                      name="startDate"
-                      value={filters.startDate}
-                      onChange={handleFilterChange}
-                      className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer"
-                    />
-                   </div>
-                   <div className="flex flex-col gap-1.5">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">End Date</label>
-                     <input 
-                      type="date" 
-                      name="endDate"
-                      value={filters.endDate}
-                      onChange={handleFilterChange}
-                      className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer"
-                    />
-                   </div>
-                   <button
-                    onClick={handleSearchSubmit}
-                    className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md shadow-slate-200"
-                   >
-                     Submit
-                   </button>
+                <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm mb-8">
+                  {/* MOBILE FILTERS (Row on mobile) */}
+                  <div className="md:hidden">
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Start Date</label>
+                        <input 
+                          type="date" 
+                          name="startDate"
+                          value={filters.startDate}
+                          onChange={handleFilterChange}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">End Date</label>
+                        <input 
+                          type="date" 
+                          name="endDate"
+                          value={filters.endDate}
+                          onChange={handleFilterChange}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSearchSubmit}
+                      className="w-full bg-slate-900 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md"
+                    >
+                      Submit
+                    </button>
+                  </div>
+
+                  {/* DESKTOP FILTERS (Standard inline) */}
+                  <div className="hidden md:flex flex-wrap gap-6 items-end">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Start Date</label>
+                      <input 
+                        type="date" 
+                        name="startDate"
+                        value={filters.startDate}
+                        onChange={handleFilterChange}
+                        className="w-[180px] px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">End Date</label>
+                      <input 
+                        type="date" 
+                        name="endDate"
+                        value={filters.endDate}
+                        onChange={handleFilterChange}
+                        className="w-[180px] px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSearchSubmit}
+                      className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md shadow-slate-200"
+                    >
+                      Submit
+                    </button>
+                  </div>
                 </div>
               )}
 

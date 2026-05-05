@@ -30,6 +30,8 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     status,
     guarantorName,
     guarantorMobileNumbers,
+    paymentMode,
+    chequeNumber,
   } = req.body;
 
   if (!loanNumber) {
@@ -47,7 +49,9 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
   }
 
   // Calculations
-  const amount = parseFloat(disbursementAmount) || 0;
+  const disbursementArray = req.body.disbursement || [];
+  const disbursementSum = disbursementArray.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+  const amount = disbursementSum > 0 ? disbursementSum : (parseFloat(disbursementAmount) || 0);
   const totalDays = parseInt(totalEmis) || 0;
   const feeRate = parseFloat(processingFeeRate) || 10;
   const currentPaidEmis = parseInt(paidEmis) || 0;
@@ -99,6 +103,9 @@ exports.createDailyLoan = asyncHandler(async (req, res, next) => {
     clientResponse,
     guarantorName,
     guarantorMobileNumbers,
+    paymentMode: paymentMode || "Cash",
+    chequeNumber,
+    disbursement: req.body.disbursement || [],
     status: status || "Active",
     createdBy: req.user._id,
   });
@@ -169,7 +176,8 @@ exports.getDailyLoanEMIs = asyncHandler(async (req, res, next) => {
     .sort({
       emiNumber: 1,
     })
-    .populate("updatedBy", "name");
+    .populate("updatedBy", "name")
+    .populate("approvedBy", "name");
 
   // Lazy generation for existing records that don't have EMIs
   if (emis.length === 0) {
@@ -230,9 +238,18 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
 
   const skip = (page - 1) * limit;
   const total = await DailyLoan.countDocuments(query);
-  const dailyLoans = await DailyLoan.aggregate([
+
+  let sortConfig = { createdAt: -1 };
+  let collationConfig = null;
+
+  if (searchQuery) {
+    sortConfig = { loanNumber: 1 };
+    collationConfig = { locale: "en", numericOrdering: true };
+  }
+
+  const aggregatePipeline = [
     { $match: query },
-    { $sort: { createdAt: -1 } },
+    { $sort: sortConfig },
     { $skip: skip },
     { $limit: Number(limit) },
     {
@@ -341,8 +358,15 @@ exports.getAllDailyLoans = asyncHandler(async (req, res, next) => {
         },
       },
     },
+    { $addFields: { principalAmount: "$disbursementAmount" } },
     { $project: { emis: 0 } },
-  ]);
+  ];
+  let dailyLoans;
+  if (collationConfig) {
+    dailyLoans = await DailyLoan.aggregate(aggregatePipeline).collation(collationConfig);
+  } else {
+    dailyLoans = await DailyLoan.aggregate(aggregatePipeline);
+  }
 
   sendResponse(res, 200, "success", "Daily loans fetched successfully", null, {
     dailyLoans,
@@ -396,6 +420,8 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     emiStartDate,
     guarantorName,
     guarantorMobileNumbers,
+    paymentMode,
+    chequeNumber,
   } = req.body;
 
   // Global Loan Number Uniqueness Check
@@ -417,10 +443,9 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers: mobileNumbers || dailyLoan.mobileNumbers,
     guarantorName: guarantorName !== undefined ? guarantorName : dailyLoan.guarantorName,
     guarantorMobileNumbers: guarantorMobileNumbers || dailyLoan.guarantorMobileNumbers,
-    disbursementAmount:
-      disbursementAmount !== undefined
-        ? parseFloat(disbursementAmount)
-        : dailyLoan.disbursementAmount,
+    disbursementAmount: req.body.disbursement?.length > 0
+        ? req.body.disbursement.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
+        : (disbursementAmount !== undefined ? parseFloat(disbursementAmount) : dailyLoan.disbursementAmount),
     startDate: startDate || dailyLoan.startDate,
     dateLoanDisbursed: dateLoanDisbursed || dailyLoan.dateLoanDisbursed || startDate || dailyLoan.startDate,
     emiStartDate:
@@ -443,6 +468,9 @@ exports.updateDailyLoan = asyncHandler(async (req, res, next) => {
     clientResponse:
       clientResponse !== undefined ? clientResponse : dailyLoan.clientResponse,
     status: status || dailyLoan.status,
+    paymentMode: paymentMode || dailyLoan.paymentMode,
+    chequeNumber: chequeNumber !== undefined ? chequeNumber : dailyLoan.chequeNumber,
+    disbursement: req.body.disbursement || dailyLoan.disbursement,
     updatedBy: req.user._id,
   };
 

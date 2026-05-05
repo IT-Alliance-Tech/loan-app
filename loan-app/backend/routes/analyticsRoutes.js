@@ -15,4 +15,18 @@ router.get(
   analyticsController.getAnalyticsStats
 );
 
+router.get(
+  "/export-data",
+  isAuthenticated,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  analyticsController.exportAllData
+);
+
+router.get(
+  "/trend-stats",
+  isAuthenticated,
+  authorizeRoles("SUPER_ADMIN", "ADMIN", "EMPLOYEE"),
+  analyticsController.getTrendStats
+);
+
 module.exports = router;

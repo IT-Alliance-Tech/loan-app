@@ -2,15 +2,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Bell } from "lucide-react";
 import { removeToken, getUserFromToken } from "../utils/auth";
 import Logo from "./Logo";
 import { useUI } from "../context/UIContext";
+import { useNotifications } from "../context/NotificationContext";
+import NotificationDropdown from "./NotificationDropdown";
 
 const Navbar = () => {
   const router = useRouter();
   const user = getUserFromToken();
   const { toggleSidebar } = useUI();
+  const { unreadCount } = useNotifications();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const handleLogout = () => {
     removeToken();
@@ -53,7 +58,26 @@ const Navbar = () => {
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* Notification Bell */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative p-2 text-slate-500 hover:text-primary hover:bg-blue-50 rounded-full transition-all group active:scale-95"
+            >
+              <Bell className="w-5 h-5 transition-transform group-hover:rotate-12" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-red-500 border-2 border-white rounded-full text-[8px] font-black text-white">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </button>
+            
+            {showNotifications && (
+              <NotificationDropdown onClose={() => setShowNotifications(false)} />
+            )}
+          </div>
+
           <div className="relative">
             <button
               onClick={() => setShowDropdown(!showDropdown)}
