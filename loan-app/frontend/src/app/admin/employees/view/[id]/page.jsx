@@ -23,7 +23,26 @@ const ViewEmployeePage = () => {
     try {
       setLoading(true);
       const res = await getEmployeeById(id);
-      setEmployee(res.data);
+      const fetchedPermissions = res.data.permissions || {};
+      const completePermissions = {
+        loans: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.loans || {}) },
+        weeklyLoans: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.weeklyLoans || {}) },
+        dailyLoans: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.dailyLoans || {}) },
+        interestLoans: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.interestLoans || {}) },
+        emis: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.emis || {}) },
+        vehicles: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.vehicles || {}) },
+        payments: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.payments || {}) },
+        documents: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.documents || {}) },
+        analytics: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.analytics || {}) },
+        dashboard: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.dashboard || {}) },
+        expenses: { view: false, create: false, edit: false, delete: false, ...(fetchedPermissions.expenses || {}) },
+        paymentApproval: fetchedPermissions.paymentApproval || false,
+      };
+      
+      setEmployee({
+        ...res.data,
+        permissions: completePermissions
+      });
     } catch (err) {
       showToast("Failed to fetch employee details", "error");
       router.push("/admin/employees");

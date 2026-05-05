@@ -26,6 +26,7 @@ const EditEmployeePage = () => {
       loans: { view: false, create: false, edit: false, delete: false },
       weeklyLoans: { view: false, create: false, edit: false, delete: false },
       dailyLoans: { view: false, create: false, edit: false, delete: false },
+      interestLoans: { view: false, create: false, edit: false, delete: false },
       emis: { view: false, create: false, edit: false, delete: false },
       vehicles: { view: false, create: false, edit: false, delete: false },
       payments: { view: false, create: false, edit: false, delete: false },
@@ -48,58 +49,19 @@ const EditEmployeePage = () => {
           role,
           accessKey,
           password: "",
-          permissions: permissions || {
-            loans: { view: false, create: false, edit: false, delete: false },
-            weeklyLoans: {
-              view: false,
-              create: false,
-              edit: false,
-              delete: false,
-            },
-            dailyLoans: {
-              view: false,
-              create: false,
-              edit: false,
-              delete: false,
-            },
-            emis: { view: false, create: false, edit: false, delete: false },
-            vehicles: {
-              view: false,
-              create: false,
-              edit: false,
-              delete: false,
-            },
-            payments: {
-              view: false,
-              create: false,
-              edit: false,
-              delete: false,
-            },
-            documents: {
-              view: false,
-              create: false,
-              edit: false,
-              delete: false,
-            },
-            analytics: {
-              view: false,
-              create: false,
-              edit: false,
-              delete: false,
-            },
-            dashboard: {
-              view: false,
-              create: false,
-              edit: false,
-              delete: false,
-            },
-            expenses: {
-              view: false,
-              create: false,
-              edit: false,
-              delete: false,
-            },
-            paymentApproval: false,
+          permissions: {
+            loans: { view: false, create: false, edit: false, delete: false, ...(permissions?.loans || {}) },
+            weeklyLoans: { view: false, create: false, edit: false, delete: false, ...(permissions?.weeklyLoans || {}) },
+            dailyLoans: { view: false, create: false, edit: false, delete: false, ...(permissions?.dailyLoans || {}) },
+            interestLoans: { view: false, create: false, edit: false, delete: false, ...(permissions?.interestLoans || {}) },
+            emis: { view: false, create: false, edit: false, delete: false, ...(permissions?.emis || {}) },
+            vehicles: { view: false, create: false, edit: false, delete: false, ...(permissions?.vehicles || {}) },
+            payments: { view: false, create: false, edit: false, delete: false, ...(permissions?.payments || {}) },
+            documents: { view: false, create: false, edit: false, delete: false, ...(permissions?.documents || {}) },
+            analytics: { view: false, create: false, edit: false, delete: false, ...(permissions?.analytics || {}) },
+            dashboard: { view: false, create: false, edit: false, delete: false, ...(permissions?.dashboard || {}) },
+            expenses: { view: false, create: false, edit: false, delete: false, ...(permissions?.expenses || {}) },
+            paymentApproval: permissions?.paymentApproval || false,
           },
         });
       } catch (err) {
@@ -176,18 +138,16 @@ const EditEmployeePage = () => {
               }
             />
             <div
-              className={`w-6 h-6 border-2 rounded-full flex items-center justify-center transition-all peer-focus:ring-4 peer-focus:ring-primary/10 ${
-                formData.permissions[module][action]
-                  ? "bg-primary border-primary shadow-lg shadow-blue-200"
-                  : "border-slate-200 bg-white hover:border-primary/50"
-              } ${
-                action === "view" &&
-                (formData.permissions[module].create ||
-                  formData.permissions[module].edit ||
-                  formData.permissions[module].delete)
+              className={`w-6 h-6 border-2 rounded-full flex items-center justify-center transition-all peer-focus:ring-4 peer-focus:ring-primary/10 ${formData.permissions[module][action]
+                ? "bg-primary border-primary shadow-lg shadow-blue-200"
+                : "border-slate-200 bg-white hover:border-primary/50"
+                } ${action === "view" &&
+                  (formData.permissions[module].create ||
+                    formData.permissions[module].edit ||
+                    formData.permissions[module].delete)
                   ? "opacity-60 cursor-not-allowed"
                   : "cursor-pointer"
-              }`}
+                }`}
             >
               {formData.permissions[module][action] && (
                 <svg
@@ -361,6 +321,7 @@ const EditEmployeePage = () => {
                         module="weeklyLoans"
                       />
                       <PermissionRow label="Daily Loans" module="dailyLoans" />
+                      <PermissionRow label="Interest Loans" module="interestLoans" />
                       <PermissionRow label="EMIs" module="emis" />
                       <PermissionRow
                         label="Seized Vehicles"
