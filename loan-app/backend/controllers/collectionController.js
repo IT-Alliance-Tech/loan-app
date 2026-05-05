@@ -112,18 +112,6 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
         createdAt: { $max: "$createdAt" }
       }
     },
-    { $sort: { "_id.paymentDate": -1, createdAt: -1 } }
-  ];
-
-  // For total count after grouping
-  const allGroups = await Payment.aggregate([...aggregation, { $count: "total" }]);
-  const total = allGroups[0]?.total || 0;
-
-  // Get paginated results
-  const transactions = await Payment.aggregate([
-    ...aggregation,
-    { $skip: skip },
-    { $limit: limitNum },
     // Standard EMI Lookup
     {
       $lookup: {
@@ -142,6 +130,54 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
         as: "interestEmiInfo"
       }
     },
+    {
+      $addFields: {
+        emiDetails: { 
+          $ifNull: [
+            { $arrayElemAt: ["$standardEmiInfo", 0] },
+            { $arrayElemAt: ["$interestEmiInfo", 0] }
+          ] 
+        }
+      }
+    },
+    // Filter out transactions if the linked EMI has amountPaid == 0
+    {
+      $match: {
+        $or: [
+          { "_id.emiId": { $exists: false } },
+          { "_id.emiId": null },
+          {
+            $and: [
+              { "emiDetails": { $ne: null } },
+              { "emiDetails.amountPaid": { $nin: [0, "0", null, ""] } }
+            ]
+          }
+        ]
+      }
+    },
+    { $sort: { "_id.paymentDate": -1, createdAt: -1 } }
+  ];
+
+  // Get total count and grand total amount
+  const summaryAgg = await Payment.aggregate([
+    ...aggregation,
+    {
+      $group: {
+        _id: null,
+        totalCount: { $sum: 1 },
+        grandTotalAmount: { $sum: "$totalAmountSum" }
+      }
+    }
+  ]);
+
+  const total = summaryAgg[0]?.totalCount || 0;
+  const grandTotalAmount = summaryAgg[0]?.grandTotalAmount || 0;
+
+  // Get paginated results
+  const transactions = await Payment.aggregate([
+    ...aggregation,
+    { $skip: skip },
+    { $limit: limitNum },
     {
       $lookup: {
         from: "users",
@@ -176,12 +212,6 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
     },
     {
       $addFields: {
-        emiDetails: { 
-          $ifNull: [
-            { $arrayElemAt: ["$standardEmiInfo", 0] },
-            { $arrayElemAt: ["$interestEmiInfo", 0] }
-          ] 
-        },
         collector: { $arrayElemAt: ["$collectorInfo", 0] },
         loanFallback: {
           $ifNull: [
@@ -229,33 +259,9 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
     null,
     {
       transactions: formattedTransactions,
-      totalCollectedAmount: transactions.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0), // Note: This is per page, we need grand total.
-      // Actually, it's better to calculate grand total in separate aggregation or within facet
-      // Let's do a separate sum for the whole filtered range
+      totalCollectedAmount: transactions.reduce((acc, curr) => acc + (curr.totalAmountSum || 0), 0),
       summary: {
-        totalAmount: (await Payment.aggregate([
-          { $match: match },
-          { 
-            $group: { 
-              _id: null, 
-              total: { 
-                $sum: { 
-                  $cond: [
-                    { $gt: [{ $ifNull: ["$totalAmount", 0] }, 0] },
-                    "$totalAmount",
-                    { 
-                      $cond: [
-                        { $gt: [{ $ifNull: ["$amount", 0] }, 0] },
-                        "$amount",
-                        { $ifNull: ["$overdueAmount", 0] }
-                      ]
-                    }
-                  ]
-                }
-              } 
-            } 
-          }
-        ]))[0]?.total || 0
+        totalAmount: grandTotalAmount
       },
       pagination: {
         total,
