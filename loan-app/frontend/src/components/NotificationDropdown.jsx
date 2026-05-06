@@ -19,13 +19,13 @@ const NotificationDropdown = ({ onClose }) => {
   return (
     <>
       <div className="fixed inset-0 z-10" onClick={onClose}></div>
-      <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-20 animate-scale-up origin-top-right">
+      <div className="absolute right-[-110px] sm:right-0 mt-2 w-70 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-20 animate-scale-up origin-top-right">
         <div className="px-4 py-3 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
           <p className="text-xs font-black text-slate-900 uppercase tracking-widest">
             Notifications
           </p>
-          <Link 
-            href="/admin/notifications" 
+          <Link
+            href="/admin/notifications"
             onClick={onClose}
             className="text-[10px] font-bold text-primary hover:underline uppercase"
           >
@@ -40,7 +40,7 @@ const NotificationDropdown = ({ onClose }) => {
             </div>
           ) : (
             notifications.map((n) => (
-              <div 
+              <div
                 key={n._id}
                 className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer relative ${!n.isRead ? 'bg-blue-50/30' : ''}`}
                 onClick={() => {
@@ -87,14 +87,14 @@ const NotificationDropdown = ({ onClose }) => {
           )}
         </div>
 
-        <Link 
-          href="/admin/notifications" 
+        <Link
+          href="/admin/notifications"
           onClick={onClose}
           className="block w-full py-3 text-center bg-slate-50 hover:bg-slate-100 transition-colors text-[10px] font-black text-slate-500 uppercase tracking-widest border-t border-slate-100"
         >
           View More Notifications
         </Link>
-      </div>
+      </div >
     </>
   );
 };
