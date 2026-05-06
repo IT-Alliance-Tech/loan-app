@@ -41,10 +41,6 @@ const LoanPendingViewPage = () => {
   const [selectedEmi, setSelectedEmi] = useState(null);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    if (id) fetchLoanDetails();
-  }, [id, fetchLoanDetails]);
-
   const fetchLoanDetails = useCallback(async () => {
     try {
       setLoading(true);
@@ -66,6 +62,10 @@ const LoanPendingViewPage = () => {
       setLoading(false);
     }
   }, [id]);
+
+  useEffect(() => {
+    if (id) fetchLoanDetails();
+  }, [id, fetchLoanDetails]);
 
   const handleUpdateStatus = async () => {
     try {
@@ -591,7 +591,7 @@ const LoanPendingViewPage = () => {
                                       {Math.max(
                                         0,
                                         (emi.emiAmount || 0) -
-                                          (emi.amountPaid || 0),
+                                        (emi.amountPaid || 0),
                                       ).toLocaleString()}
                                     </p>
                                   </div>
@@ -611,14 +611,14 @@ const LoanPendingViewPage = () => {
 
                                     const sourceHistory =
                                       emi.paymentRecords &&
-                                      emi.paymentRecords.length > 0
+                                        emi.paymentRecords.length > 0
                                         ? emi.paymentRecords.map((r) => ({
-                                            amount: r.amount,
-                                            mode: r.mode,
-                                            date: r.paymentDate,
-                                          }))
+                                          amount: r.amount,
+                                          mode: r.mode,
+                                          date: r.paymentDate,
+                                        }))
                                         : emi.paymentHistory &&
-                                            emi.paymentHistory.length > 0
+                                          emi.paymentHistory.length > 0
                                           ? emi.paymentHistory
                                           : [];
 
@@ -650,11 +650,11 @@ const LoanPendingViewPage = () => {
                                           id: Date.now(),
                                           date: emi.paymentDate
                                             ? new Date(emi.paymentDate)
-                                                .toISOString()
-                                                .split("T")[0]
+                                              .toISOString()
+                                              .split("T")[0]
                                             : new Date()
-                                                .toISOString()
-                                                .split("T")[0],
+                                              .toISOString()
+                                              .split("T")[0],
                                           payments: [
                                             {
                                               id: Date.now() + 1,
@@ -931,14 +931,13 @@ const LoanPendingViewPage = () => {
                             Payment Status
                           </label>
                           <div
-                            className={`w-full px-4 py-3 border rounded-xl text-sm font-black uppercase tracking-wider ${
-                              remainingBalance === 0
-                                ? "bg-green-50 border-green-200 text-green-600"
-                                : remainingBalance <
-                                    (selectedEmi?.emiAmount || 0)
-                                  ? "bg-orange-50 border-orange-200 text-orange-600"
-                                  : "bg-red-50 border-red-200 text-red-600"
-                            }`}
+                            className={`w-full px-4 py-3 border rounded-xl text-sm font-black uppercase tracking-wider ${remainingBalance === 0
+                              ? "bg-green-50 border-green-200 text-green-600"
+                              : remainingBalance <
+                                (selectedEmi?.emiAmount || 0)
+                                ? "bg-orange-50 border-orange-200 text-orange-600"
+                                : "bg-red-50 border-red-200 text-red-600"
+                              }`}
                           >
                             {remainingBalance === 0
                               ? "Paid"

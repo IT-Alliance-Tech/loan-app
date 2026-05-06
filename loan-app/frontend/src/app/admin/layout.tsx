@@ -10,7 +10,7 @@ export default function AdminLayout({
   return (
     <UIProvider>
       <NotificationProvider>
-        <div className="flex-1 animate-fade-in w-full max-w-[800px] mx-auto sm:max-w-none px-4 sm:px-0">
+        <div className="flex-1 animate-fade-in w-full max-w-[800px] mx-auto sm:max-w-none sm:px-0">
           {children}
         </div>
       </NotificationProvider>
