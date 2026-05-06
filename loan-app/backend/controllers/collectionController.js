@@ -20,6 +20,113 @@ const getCollectionReport = asyncHandler(async (req, res, next) => {
 
   const collections = await mongoose.model("Payment").aggregate([
     { $match: match },
+    { $sort: { createdAt: -1 } },
+    {
+      $lookup: {
+        from: "emis",
+        localField: "emiId",
+        foreignField: "_id",
+        as: "standardEmiInfo"
+      }
+    },
+    {
+      $lookup: {
+        from: "interestemis",
+        localField: "emiId",
+        foreignField: "_id",
+        as: "interestEmiInfo"
+      }
+    },
+    {
+      $addFields: {
+        emiDetails: { 
+          $ifNull: [
+            { $arrayElemAt: ["$standardEmiInfo", 0] },
+            { $arrayElemAt: ["$interestEmiInfo", 0] }
+          ] 
+        }
+      }
+    },
+    {
+      $match: {
+        $or: [
+          { "emiId": { $exists: false } },
+          { "emiId": null },
+          {
+            $expr: {
+              $let: {
+                vars: {
+                  isOverdue: { $eq: ["$paymentType", "Overdue"] },
+                  paymentDateStr: { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate", timezone: "+05:30" } },
+                  paymentAmount: { $toDouble: { $ifNull: ["$totalAmount", "$amount"] } }
+                },
+                in: {
+                  $or: [
+                    { $eq: ["$emiDetails", null] },
+                    {
+                      $and: [
+                        "$$isOverdue",
+                        {
+                          $anyElementTrue: {
+                            $map: {
+                              input: { $ifNull: ["$emiDetails.overdue", []] },
+                              as: "ov",
+                              in: { 
+                                $and: [
+                                  { $eq: [{ $dateToString: { format: "%Y-%m-%d", date: "$$ov.date", timezone: "+05:30" } }, "$$paymentDateStr"] },
+                                  { $eq: [{ $toDouble: "$$ov.amount" }, "$$paymentAmount"] },
+                                  { $eq: [{ $toUpper: { $ifNull: ["$$ov.mode", "CASH"] } }, { $toUpper: "$mode" }] }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      $and: [
+                        { $not: "$$isOverdue" },
+                        {
+                          $anyElementTrue: {
+                            $map: {
+                              input: { $ifNull: ["$emiDetails.paymentHistory", []] },
+                              as: "ph",
+                              in: { 
+                                $and: [
+                                  { $eq: [{ $dateToString: { format: "%Y-%m-%d", date: "$$ph.date", timezone: "+05:30" } }, "$$paymentDateStr"] },
+                                  { $eq: [{ $toDouble: "$$ph.amount" }, "$$paymentAmount"] },
+                                  { $eq: [{ $toUpper: "$$ph.mode" }, { $toUpper: "$mode" }] }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      $group: {
+        _id: {
+          loanId: "$loanId",
+          emiId: { $ifNull: ["$emiId", "$_id"] },
+          paymentDate: { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate", timezone: "+05:30" } },
+          paymentType: "$paymentType",
+          amount: { $ifNull: ["$totalAmount", "$amount"] },
+          mode: { $toUpper: "$mode" }
+        },
+        amount: { $first: { $ifNull: ["$totalAmount", "$amount"] } },
+        collectedBy: { $first: "$collectedBy" },
+        mode: { $first: "$mode" },
+        paymentDate: { $first: "$paymentDate" },
+      }
+    },
     {
       $lookup: {
         from: "users",
@@ -28,16 +135,16 @@ const getCollectionReport = asyncHandler(async (req, res, next) => {
         as: "collector",
       },
     },
-    { $unwind: "$collector" },
+    { $unwind: { path: "$collector", preserveNullAndEmptyArrays: true } },
     {
       $group: {
         _id: {
-          date: { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate" } },
-          collector: "$collector.name",
+          date: { $dateToString: { format: "%Y-%m-%d", date: "$_id.paymentDate", timezone: "+05:30" } },
+          collector: { $ifNull: ["$collector.name", "System"] },
           mode: "$mode",
-          type: "$paymentType",
+          type: "$_id.paymentType",
         },
-        totalAmount: { $sum: { $ifNull: ["$totalAmount", "$amount"] } },
+        totalAmount: { $sum: "$amount" },
         count: { $sum: 1 },
       },
     },
@@ -80,52 +187,19 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
   // 1. Group transactions to handle reversals/edits (same loan, same emi, same day)
   const aggregation = [
     { $match: match },
-    {
-      $group: {
-        _id: {
-          loanId: "$loanId",
-          emiId: "$emiId",
-          paymentDate: "$paymentDate",
-          paymentType: "$paymentType"
-        },
-        emiAmount: { $sum: "$emiAmount" },
-        overdueAmount: { $sum: "$overdueAmount" },
-        // Fallback: Use amount if totalAmount is 0 or missing
-        totalAmountSum: { 
-          $sum: { 
-            $cond: [
-              { $gt: [{ $ifNull: ["$totalAmount", 0] }, 0] },
-              "$totalAmount",
-              { 
-                $cond: [
-                  { $gt: [{ $ifNull: ["$amount", 0] }, 0] },
-                  "$amount",
-                  { $ifNull: ["$overdueAmount", 0] }
-                ]
-              }
-            ]
-          } 
-        },
-        mode: { $first: "$mode" },
-        loanModel: { $first: "$loanModel" },
-        collectedBy: { $first: "$collectedBy" },
-        createdAt: { $max: "$createdAt" }
-      }
-    },
-    // Standard EMI Lookup
+    { $sort: { createdAt: -1 } },
     {
       $lookup: {
         from: "emis",
-        localField: "_id.emiId",
+        localField: "emiId",
         foreignField: "_id",
         as: "standardEmiInfo"
       }
     },
-    // Interest EMI Lookup
     {
       $lookup: {
         from: "interestemis",
-        localField: "_id.emiId",
+        localField: "emiId",
         foreignField: "_id",
         as: "interestEmiInfo"
       }
@@ -140,19 +214,103 @@ const getCollectionTransactions = asyncHandler(async (req, res, next) => {
         }
       }
     },
-    // Filter out transactions if the linked EMI has amountPaid == 0
     {
       $match: {
         $or: [
-          { "_id.emiId": { $exists: false } },
-          { "_id.emiId": null },
+          { "emiId": { $exists: false } },
+          { "emiId": null },
           {
-            $and: [
-              { "emiDetails": { $ne: null } },
-              { "emiDetails.amountPaid": { $nin: [0, "0", null, ""] } }
-            ]
+            $expr: {
+              $let: {
+                vars: {
+                  isOverdue: { $eq: ["$paymentType", "Overdue"] },
+                  paymentDateStr: { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate", timezone: "+05:30" } },
+                  paymentAmount: { $toDouble: { $ifNull: ["$totalAmount", "$amount"] } }
+                },
+                in: {
+                  $or: [
+                    { $eq: ["$emiDetails", null] },
+                    {
+                      $and: [
+                        "$$isOverdue",
+                        {
+                          $anyElementTrue: {
+                            $map: {
+                              input: { $ifNull: ["$emiDetails.overdue", []] },
+                              as: "ov",
+                              in: { 
+                                $and: [
+                                  { $eq: [{ $dateToString: { format: "%Y-%m-%d", date: "$$ov.date", timezone: "+05:30" } }, "$$paymentDateStr"] },
+                                  { $eq: [{ $toDouble: "$$ov.amount" }, "$$paymentAmount"] },
+                                  { $eq: [{ $toUpper: { $ifNull: ["$$ov.mode", "CASH"] } }, { $toUpper: "$mode" }] }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      $and: [
+                        { $not: "$$isOverdue" },
+                        {
+                          $anyElementTrue: {
+                            $map: {
+                              input: { $ifNull: ["$emiDetails.paymentHistory", []] },
+                              as: "ph",
+                              in: { 
+                                $and: [
+                                  { $eq: [{ $dateToString: { format: "%Y-%m-%d", date: "$$ph.date", timezone: "+05:30" } }, "$$paymentDateStr"] },
+                                  { $eq: [{ $toDouble: "$$ph.amount" }, "$$paymentAmount"] },
+                                  { $eq: [{ $toUpper: "$$ph.mode" }, { $toUpper: "$mode" }] }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
           }
         ]
+      }
+    },
+    {
+      $group: {
+        _id: {
+          loanId: "$loanId",
+          emiId: { $ifNull: ["$emiId", "$_id"] },
+          paymentDate: { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate", timezone: "+05:30" } },
+          paymentType: "$paymentType",
+          amount: { $ifNull: ["$totalAmount", "$amount"] },
+          mode: { $toUpper: "$mode" }
+        },
+        emiAmount: { $first: "$emiAmount" },
+        overdueAmount: { $first: "$overdueAmount" },
+        totalAmountSum: { 
+          $first: { 
+            $cond: [
+              { $gt: [{ $ifNull: ["$totalAmount", 0] }, 0] },
+              "$totalAmount",
+              { 
+                $cond: [
+                  { $gt: [{ $ifNull: ["$amount", 0] }, 0] },
+                  "$amount",
+                  { $ifNull: ["$overdueAmount", 0] }
+                ]
+              }
+            ]
+          } 
+        },
+        mode: { $first: "$mode" },
+        paymentDate: { $first: "$paymentDate" },
+        loanModel: { $first: "$loanModel" },
+        collectedBy: { $first: "$collectedBy" },
+        createdAt: { $first: "$createdAt" },
+        emiDetails: { $first: "$emiDetails" }
       }
     },
     { $sort: { "_id.paymentDate": -1, createdAt: -1 } }
