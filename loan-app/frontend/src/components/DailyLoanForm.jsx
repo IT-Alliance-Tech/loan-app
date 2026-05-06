@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { addDays, format } from "date-fns";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -38,20 +38,19 @@ const DailyLoanForm = ({
       .required("Loan number is required")
       .test("unique-loan-number", "Loan number already exists", async (value) => {
         if (!value || isViewOnly) return true;
-        // If editing and same as initial, skip
         if (initialData?.loanNumber === value) return true;
-        
+
         if (_loanUniquenessCache.has(value)) {
           return _loanUniquenessCache.get(value);
         }
 
         try {
-          const res = await checkLoanNumberUniqueness(value);
+          await checkLoanNumberUniqueness(value);
           _loanUniquenessCache.set(value, true);
           return true;
         } catch (err) {
           _loanUniquenessCache.set(value, false);
-          return false; 
+          return false;
         }
       }),
     customerName: Yup.string().nullable(),
@@ -136,11 +135,9 @@ const DailyLoanForm = ({
 
   const { values, setFieldValue, errors, touched, handleBlur } = formik;
 
-  const lastDisbursementDate = useRef(values.startDate);
-
   // Auto-set EMI Start Date only when Disbursement Date explicitly changes
   useEffect(() => {
-    if (values.dateLoanDisbursed && values.dateLoanDisbursed !== lastDisbursementDate.current) {
+    if (values.dateLoanDisbursed) {
       const disbursementDate = new Date(values.dateLoanDisbursed);
       if (!isNaN(disbursementDate.getTime())) {
         const autoEmiStart = format(addDays(disbursementDate, 1), "yyyy-MM-dd");
@@ -148,11 +145,12 @@ const DailyLoanForm = ({
           setFieldValue("emiStartDate", autoEmiStart);
         }
         // Also sync startDate for backend compatibility
-        setFieldValue("startDate", values.dateLoanDisbursed);
-        lastDisbursementDate.current = values.dateLoanDisbursed;
+        if (values.startDate !== values.dateLoanDisbursed) {
+          setFieldValue("startDate", values.dateLoanDisbursed);
+        }
       }
     }
-  }, [values.dateLoanDisbursed, setFieldValue, values.emiStartDate]);
+  }, [values.dateLoanDisbursed, setFieldValue]);
 
   // Auto-calculate EMI End Date from Start Date & Tenure
   useEffect(() => {
@@ -169,7 +167,7 @@ const DailyLoanForm = ({
     } else if (values.emiEndDate !== "") {
       setFieldValue("emiEndDate", "");
     }
-  }, [values.emiStartDate, values.totalEmis, setFieldValue, values.emiEndDate]);
+  }, [values.emiStartDate, values.totalEmis, setFieldValue]);
 
   // Auto-calculations (Derived State)
   const amount = parseFloat(values.disbursementAmount) || 0;
