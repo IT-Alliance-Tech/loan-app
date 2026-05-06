@@ -51,7 +51,7 @@ const WeeklyLoanForm = ({
           return true;
         } catch (err) {
           _loanUniquenessCache.set(value, false);
-          return false; 
+          return false;
         }
       }),
     customerName: Yup.string().nullable(),

@@ -51,8 +51,12 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
 
   // Calculations
   const disbursementArray = req.body.disbursement || [];
-  const disbursementSum = disbursementArray.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
-  const amount = disbursementSum > 0 ? disbursementSum : (parseFloat(disbursementAmount) || 0);
+  const disbursementSum = disbursementArray.reduce(
+    (sum, d) => sum + (parseFloat(d.amount) || 0),
+    0,
+  );
+  const amount =
+    disbursementSum > 0 ? disbursementSum : parseFloat(disbursementAmount) || 0;
   const totalWeeks = parseInt(totalEmis) || 0;
   const feeRate = parseFloat(processingFeeRate) || 10;
   const currentPaidEmis = parseInt(paidEmis) || 0;
@@ -69,7 +73,9 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
   const disburseDate = startDate ? new Date(startDate) : null;
   const eStartDate = emiStartDate
     ? new Date(emiStartDate)
-    : (disburseDate ? new Date(disburseDate) : null);
+    : disburseDate
+      ? new Date(disburseDate)
+      : null;
   const nextEmiDate = eStartDate;
 
   const eEndDate = eStartDate ? new Date(eStartDate) : null;
@@ -77,10 +83,14 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
   }
 
-  const totalAmount = Math.ceil(emiAmount * currentPaidEmis + (parseFloat(req.body.odAmount) || 0));
+  const totalAmount = Math.ceil(
+    emiAmount * currentPaidEmis + (parseFloat(req.body.odAmount) || 0),
+  );
   const totalCollected = Math.ceil(totalAmount + processingFee);
   const remainingEmis = totalWeeks - currentPaidEmis;
-  const remainingPrincipalAmount = Math.ceil(amount - (emiAmount * currentPaidEmis)); // Using rounded EMI
+  const remainingPrincipalAmount = Math.ceil(
+    amount - emiAmount * currentPaidEmis,
+  ); // Using rounded EMI
 
   const weeklyLoan = await WeeklyLoan.create({
     loanNumber,
@@ -88,7 +98,9 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     mobileNumbers,
     disbursementAmount: amount,
     startDate: disburseDate,
-    dateLoanDisbursed: dateLoanDisbursed ? new Date(dateLoanDisbursed) : disburseDate,
+    dateLoanDisbursed: dateLoanDisbursed
+      ? new Date(dateLoanDisbursed)
+      : disburseDate,
     emiStartDate: eStartDate,
     emiEndDate: eEndDate,
     totalEmis: totalWeeks,
@@ -122,22 +134,22 @@ exports.createWeeklyLoan = asyncHandler(async (req, res, next) => {
     let currentEmiDateArr = new Date(eStartDate);
 
     for (let i = 1; i <= totalWeeks; i++) {
-    const isPaid = i <= currentPaidEmis;
-    emis.push({
-      loanId: weeklyLoan._id,
-      loanModel: "WeeklyLoan",
-      loanNumber: weeklyLoan.loanNumber,
-      customerName: weeklyLoan.customerName,
-      emiNumber: i,
-      dueDate: new Date(currentEmiDateArr),
-      emiAmount: emiAmount,
-      status: isPaid ? "Paid" : "Pending",
-      amountPaid: isPaid ? emiAmount : 0,
-      paymentDate: isPaid ? new Date(eStartDate) : null,
-      paymentMode: isPaid ? "CASH" : "",
-      overdue: [],
-    });
-    currentEmiDateArr.setDate(currentEmiDateArr.getDate() + 7);
+      const isPaid = i <= currentPaidEmis;
+      emis.push({
+        loanId: weeklyLoan._id,
+        loanModel: "WeeklyLoan",
+        loanNumber: weeklyLoan.loanNumber,
+        customerName: weeklyLoan.customerName,
+        emiNumber: i,
+        dueDate: new Date(currentEmiDateArr),
+        emiAmount: emiAmount,
+        status: isPaid ? "Paid" : "Pending",
+        amountPaid: isPaid ? emiAmount : 0,
+        paymentDate: isPaid ? new Date(eStartDate) : null,
+        paymentMode: isPaid ? "CASH" : "",
+        overdue: [],
+      });
+      currentEmiDateArr.setDate(currentEmiDateArr.getDate() + 7);
     }
   }
 
@@ -193,7 +205,9 @@ exports.getWeeklyLoanEMIs = asyncHandler(async (req, res, next) => {
     }
 
     const generatedEmis = [];
-    let currentEmiDateArr = new Date(weeklyLoan.startDate);
+    let currentEmiDateArr = new Date(
+      weeklyLoan.emiStartDate || weeklyLoan.startDate,
+    );
     const emiAmt = weeklyLoan.disbursementAmount / weeklyLoan.totalEmis;
 
     for (let i = 1; i <= weeklyLoan.totalEmis; i++) {
@@ -208,7 +222,9 @@ exports.getWeeklyLoanEMIs = asyncHandler(async (req, res, next) => {
         emiAmount: Math.ceil(emiAmt),
         status: isPaid ? "Paid" : "Pending",
         amountPaid: isPaid ? Math.ceil(emiAmt) : 0,
-        paymentDate: isPaid ? new Date(weeklyLoan.startDate) : null,
+        paymentDate: isPaid
+          ? new Date(weeklyLoan.emiStartDate || weeklyLoan.startDate)
+          : null,
         paymentMode: isPaid ? "CASH" : "",
       });
       currentEmiDateArr.setDate(currentEmiDateArr.getDate() + 7);
@@ -272,17 +288,17 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
           totalCollected: {
             $add: [
               { $sum: { $ifNull: ["$emis.amountPaid", [0]] } },
-              { 
+              {
                 $reduce: {
                   input: "$emis",
                   initialValue: 0,
                   in: {
                     $add: [
                       "$$value",
-                      { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
-                    ]
-                  }
-                }
+                      { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } },
+                    ],
+                  },
+                },
               },
               { $ifNull: ["$processingFee", 0] },
             ],
@@ -294,10 +310,10 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
               in: {
                 $add: [
                   "$$value",
-                  { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
-                ]
-              }
-            }
+                  { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } },
+                ],
+              },
+            },
           },
           arrearsAmount: {
             $reduce: {
@@ -370,7 +386,8 @@ exports.getAllWeeklyLoans = asyncHandler(async (req, res, next) => {
 
   let weeklyLoans;
   if (collationConfig) {
-    weeklyLoans = await WeeklyLoan.aggregate(aggregatePipeline).collation(collationConfig);
+    weeklyLoans =
+      await WeeklyLoan.aggregate(aggregatePipeline).collation(collationConfig);
   } else {
     weeklyLoans = await WeeklyLoan.aggregate(aggregatePipeline);
   }
@@ -453,13 +470,25 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     loanNumber: loanNumber || weeklyLoan.loanNumber,
     customerName: customerName || weeklyLoan.customerName,
     mobileNumbers: mobileNumbers || weeklyLoan.mobileNumbers,
-    guarantorName: guarantorName !== undefined ? guarantorName : weeklyLoan.guarantorName,
-    guarantorMobileNumbers: guarantorMobileNumbers || weeklyLoan.guarantorMobileNumbers,
-    disbursementAmount: req.body.disbursement?.length > 0
-        ? req.body.disbursement.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0)
-        : (disbursementAmount !== undefined ? parseFloat(disbursementAmount) : weeklyLoan.disbursementAmount),
+    guarantorName:
+      guarantorName !== undefined ? guarantorName : weeklyLoan.guarantorName,
+    guarantorMobileNumbers:
+      guarantorMobileNumbers || weeklyLoan.guarantorMobileNumbers,
+    disbursementAmount:
+      req.body.disbursement?.length > 0
+        ? req.body.disbursement.reduce(
+            (sum, d) => sum + (parseFloat(d.amount) || 0),
+            0,
+          )
+        : disbursementAmount !== undefined
+          ? parseFloat(disbursementAmount)
+          : weeklyLoan.disbursementAmount,
     startDate: startDate || weeklyLoan.startDate,
-    dateLoanDisbursed: dateLoanDisbursed || weeklyLoan.dateLoanDisbursed || startDate || weeklyLoan.startDate,
+    dateLoanDisbursed:
+      dateLoanDisbursed ||
+      weeklyLoan.dateLoanDisbursed ||
+      startDate ||
+      weeklyLoan.startDate,
     emiStartDate:
       emiStartDate ||
       weeklyLoan.emiStartDate ||
@@ -483,7 +512,8 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
     interestRate: 0,
     expenses: 0,
     paymentMode: paymentMode || weeklyLoan.paymentMode,
-    chequeNumber: chequeNumber !== undefined ? chequeNumber : weeklyLoan.chequeNumber,
+    chequeNumber:
+      chequeNumber !== undefined ? chequeNumber : weeklyLoan.chequeNumber,
     disbursement: req.body.disbursement || weeklyLoan.disbursement,
     updatedBy: req.user._id,
   };
@@ -508,10 +538,14 @@ exports.updateWeeklyLoan = asyncHandler(async (req, res, next) => {
   eEndDate.setDate(eEndDate.getDate() + (totalWeeks - 1) * 7);
   updateData.emiEndDate = eEndDate;
 
-  const totalAmount = Math.ceil(emiAmount * currentPaidEmis + (weeklyLoan.odAmount || 0));
+  const totalAmount = Math.ceil(
+    emiAmount * currentPaidEmis + (weeklyLoan.odAmount || 0),
+  );
   const totalCollected = Math.ceil(totalAmount + processingFee);
   const remainingEmis = totalWeeks - currentPaidEmis;
-  const remainingPrincipalAmount = Math.ceil(amount - (emiAmount * currentPaidEmis));
+  const remainingPrincipalAmount = Math.ceil(
+    amount - emiAmount * currentPaidEmis,
+  );
 
   Object.assign(updateData, {
     emiAmount,
@@ -784,10 +818,10 @@ exports.getWeeklyPendingPayments = asyncHandler(async (req, res, next) => {
             in: {
               $add: [
                 "$$value",
-                { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } }
-              ]
-            }
-          }
+                { $sum: { $ifNull: ["$$this.overdue.amount", [0]] } },
+              ],
+            },
+          },
         },
         earliestDueDate: { $min: "$pendingEmisList.dueDate" },
         earliestEmiId: {
